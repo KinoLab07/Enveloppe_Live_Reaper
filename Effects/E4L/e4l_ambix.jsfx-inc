@@ -1,0 +1,135 @@
+desc: E4L ambisonics library (do not load directly)
+// Envelop for REAPER - shared library
+// Port of Envelop for Live (E4L) by Envelop / Mark C. Slee et al. - GPLv2 or later.
+//
+// Ambisonics format: 3rd order, 16 channels, ambiX (ACN channel order, SN3D normalisation).
+// This is the same format used inside E4L (ICST "SN3D in ACN order") and by the IEM Plugin Suite.
+//
+// Angle convention (same as the E4L user interface):
+//   azimuth   0 = front, +90 = right, -90 = left, +/-180 = back (clockwise)
+//   elevation 0 = horizon, +90 = top, -90 = bottom
+// Internally the angles are converted to the ambiX convention (counter-clockwise azimuth).
+
+@init
+
+E4L_DEG = $pi / 180;
+
+// ---------------------------------------------------------------------------
+// Real spherical harmonics, 3rd order, ambiX (ACN / SN3D).
+// az_deg / el_deg in E4L convention. Writes 16 coefficients to buf[0..15].
+function e4l_sh3(az_deg, el_deg, buf)
+  local(phi, th, cp, sp, c2p, s2p, c3p, s3p, ct, st, ct2, s2t)
+(
+  phi = -az_deg * E4L_DEG;       // E4L clockwise -> ambiX counter-clockwise
+  th  = el_deg * E4L_DEG;
+  cp = cos(phi);    sp = sin(phi);
+  c2p = cos(2*phi); s2p = sin(2*phi);
+  c3p = cos(3*phi); s3p = sin(3*phi);
+  ct = cos(th); st = sin(th);
+  ct2 = ct*ct;  s2t = 2*st*ct;
+
+  buf[0]  = 1;
+  buf[1]  = sp*ct;
+  buf[2]  = st;
+  buf[3]  = cp*ct;
+  buf[4]  = 0.8660254037844386 * s2p*ct2;
+  buf[5]  = 0.8660254037844386 * sp*s2t;
+  buf[6]  = 0.5 * (3*st*st - 1);
+  buf[7]  = 0.8660254037844386 * cp*s2t;
+  buf[8]  = 0.8660254037844386 * c2p*ct2;
+  buf[9]  = 0.7905694150420949 * s3p*ct2*ct;
+  buf[10] = 1.9364916731037085 * s2p*st*ct2;
+  buf[11] = 0.6123724356957945 * sp*ct*(5*st*st - 1);
+  buf[12] = 0.5 * st*(5*st*st - 3);
+  buf[13] = 0.6123724356957945 * cp*ct*(5*st*st - 1);
+  buf[14] = 1.9364916731037085 * c2p*st*ct2;
+  buf[15] = 0.7905694150420949 * c3p*ct2*ct;
+);
+
+// Ambisonic order of an ACN channel index
+function e4l_order(acn) ( acn < 1 ? 0 : acn < 4 ? 1 : acn < 9 ? 2 : 3; );
+
+// ---------------------------------------------------------------------------
+// Angle helpers (port of e4l.panner.azim.mod / e4l.panner.elev.mod)
+
+// Wrap azimuth to [-180, 180)
+function e4l_wrap180(a) ( a = a + 180; a -= 360 * floor(a / 360); a - 180; );
+
+// Fold an elevation that went past a pole. Returns the folded elevation and
+// sets e4l_fold_flip to 1 when the azimuth must be rotated by 180 degrees.
+function e4l_fold_elev(el)
+(
+  e4l_fold_flip = 0;
+  el = el + 90; el -= 360 * floor(el / 360); el -= 90;   // -> [-90, 270)
+  el > 90 ? ( el = 180 - el; e4l_fold_flip = 1; );
+  el;
+);
+
+// ---------------------------------------------------------------------------
+// Distance gain (port of the E4L Source Panner "scale/calc" o.expr):
+//   dist = radius * range
+//   inside the center (dist < 1): W stays at 1, directional channels fade by dist^2
+//   outside: -1.5 dB per unit of distance beyond the center
+// Sets e4l_w_gain and e4l_g_gain.
+function e4l_distance_gains(radius, range) local(dist)
+(
+  dist = radius * range;
+  dist < 1 ? (
+    e4l_g_gain = abs(1 - 1 - dist*dist);
+    e4l_w_gain = 1;
+  ) : (
+    e4l_g_gain = 10 ^ ((dist - 1) * -1.5 * 0.05);
+    e4l_w_gain = e4l_g_gain;
+  );
+);
+
+// ---------------------------------------------------------------------------
+// Tempo-sync table of the E4L LFOs: labels are in bars (4/4), values in beats
+// '1/4' '1/2' '1' '2' '3' '4' '6' '8' '16' '32' '64'
+function e4l_sync_beats(idx)
+(
+  idx = floor(idx + 0.5);
+  idx == 0 ? 1 : idx == 1 ? 2 : idx == 2 ? 4 : idx == 3 ? 8 : idx == 4 ? 12 :
+  idx == 5 ? 16 : idx == 6 ? 24 : idx == 7 ? 32 : idx == 8 ? 64 : idx == 9 ? 128 : 256;
+);
+
+// ---------------------------------------------------------------------------
+// LFO phase generator (port of the E4L phasor~ + transport lock logic).
+//   sync = 0 : free running at hz cycles / second (sign = direction)
+//   sync = 1 : one cycle every `beats` beats; while REAPER is playing the phase
+//              is locked to the project position, like Max "phasor~ @lock 1".
+// beat_pos is the project position (in beats) of the current sample.
+function lfo_tick(sync, hz, beats, dir, beat_pos, nsamples) instance(phase)
+(
+  sync ? (
+    (play_state & 1) ? (
+      phase = dir * beat_pos / beats;
+    ) : (
+      phase += dir * (tempo / 60) / beats * nsamples / srate;
+    );
+  ) : (
+    phase += hz * nsamples / srate;
+  );
+  phase -= floor(phase);
+  phase;
+);
+
+function lfo_reset() instance(phase) ( phase = 0; );
+
+// ---------------------------------------------------------------------------
+// Smoothed 16-channel encoder. Coefficients are recomputed every E4L_CTRL samples
+// and linearly interpolated per sample (E4L updates its LFOs every 10 ms).
+E4L_CTRL = 32;
+
+// cur / tgt / inc: 16-value arrays
+function enc_set_target(cur, tgt, inc, n) local(i)
+(
+  i = 0;
+  loop(16, inc[i] = (tgt[i] - cur[i]) / n; i += 1; );
+);
+
+function enc_step(cur, inc) local(i)
+(
+  i = 0;
+  loop(16, cur[i] += inc[i]; i += 1; );
+);

@@ -1,0 +1,335 @@
+desc: E4L Master Bus (3rd order ambisonics decoder)
+//tags: ambisonics decoder binaural envelop e4l
+//author: Port of Envelop for Live (E4L) to REAPER
+//
+// Port of the decoders of "E4L Master Bus.amxd" from Envelop for Live
+// (https://github.com/EnvelopSound/EnvelopForLive). Copyright (C) Envelop and contributors.
+// REAPER port: GPLv2 or later, see LICENSE.
+//
+// Input: 16 channels of 3rd order ambisonics (ambiX: ACN / SN3D) from the E4L panners.
+// Output: the selected decoder (same layouts and channel order as E4L):
+//   Binaural (3rd-order)  1 L  2 R   (headphones; 25 virtual speakers with IRCAM HRIRs)
+//   Stereo                1 L(-30) 2 R(+30)
+//   Quad                  1 -45  2 +45  3 +135  4 -135
+//   Octo                  1 -22.5  2 +22.5  3 +67.5  4 +112.5  5 +157.5  6 -157.5  7 -112.5  8 -67.5
+//   5.1                   1 L  2 R  3 C  4 LFE  5 Ls(-120)  6 Rs(+120)
+//   7.1                   1 L  2 R  3 C  4 LFE  5 -120  6 +120  7 -90  8 +90
+//   5.1.2                 1 L  2 R  3 C  4 LFE  5 -120  6 +120  7 -30/55  8 +30/55
+//   7.1.4                 1 L  2 R  3 C  4 LFE  5 -90  6 +90  7 -150  8 +150
+//                         9 -30/55  10 -150/55  11 +30/55  12 +150/55
+//   AmbiX                 1-16 pass-through (to record / export the ambisonics mix)
+//
+// The binaural decoder needs the files Data/E4L/hrtf/e4l_binaural_<rate>.wav
+// (copy the "Data" folder of this project into the REAPER resource folder).
+
+slider1:dec=0<0,8,1{Binaural (3rd-order),Stereo,Quad,Octo,5.1,7.1,5.1.2,7.1.4,AmbiX}>Decoder
+slider2:weighting=0<0,2,1{In-phase (E4L),max-rE,Basic}>Order Weighting
+slider3:order=0<0,1,1{3rd order (16 ch),1st order (4 ch)}>Ambisonics Order
+slider4:in_gain_db=0<-70,6,0.1>Input Gain (dB)
+slider5:out_gain_db=0<-70,6,0.1>Output Gain (dB)
+
+in_pin:W (ACN 0)
+in_pin:Y (ACN 1)
+in_pin:Z (ACN 2)
+in_pin:X (ACN 3)
+in_pin:ACN 4
+in_pin:ACN 5
+in_pin:ACN 6
+in_pin:ACN 7
+in_pin:ACN 8
+in_pin:ACN 9
+in_pin:ACN 10
+in_pin:ACN 11
+in_pin:ACN 12
+in_pin:ACN 13
+in_pin:ACN 14
+in_pin:ACN 15
+out_pin:Out 1
+out_pin:Out 2
+out_pin:Out 3
+out_pin:Out 4
+out_pin:Out 5
+out_pin:Out 6
+out_pin:Out 7
+out_pin:Out 8
+out_pin:Out 9
+out_pin:Out 10
+out_pin:Out 11
+out_pin:Out 12
+out_pin:Out 13
+out_pin:Out 14
+out_pin:Out 15
+out_pin:Out 16
+
+import e4l_ambix.jsfx-inc
+import e4l_gfx.jsfx-inc
+
+@init
+ext_tail_size = -1;
+
+// ---------------- memory map ----------------
+sh      = 0;        // 16
+wgt     = 16;       // per-ACN weight (16)
+spk_az  = 40;       // speaker azimuths (16)
+spk_el  = 60;       // speaker elevations (16)
+spk_out = 80;       // output channel of each speaker (16)
+D       = 100;      // decoder matrix [speaker*16 + acn] (16*16)
+inbuf   = 1024;     // 16 * 1024 input blocks for the binaural convolution
+outL    = 20000;  outR = 21100;  olapL = 22200;  olapR = 23300;
+xin     = 24400;    // 16 input samples of the current frame
+irspec  = 65536;    // 16 * 4096 IR spectra (each aligned to its size)
+work    = 131072;   // 4096
+acc     = 135168;   // 4096
+ftmp    = 196608;   // file load buffer (32 * 1024)
+
+// ---------------- speaker layouts (E4L azimuth: clockwise, + = right) ----------------
+function add_spk(az, el, out) ( spk_az[nspk] = az; spk_el[nspk] = el; spk_out[nspk] = out; nspk += 1; );
+
+function set_layout(d)
+(
+  nspk = 0; lfe_out = -1; nouts = 2;
+  d == 1 ? ( add_spk(-30,0,0); add_spk(30,0,1); nouts = 2; );
+  d == 2 ? ( add_spk(-45,0,0); add_spk(45,0,1); add_spk(135,0,2); add_spk(225,0,3); nouts = 4; );
+  d == 3 ? ( add_spk(-22.5,0,0); add_spk(22.5,0,1); add_spk(67.5,0,2); add_spk(112.5,0,3);
+             add_spk(157.5,0,4); add_spk(-157.5,0,5); add_spk(-112.5,0,6); add_spk(-67.5,0,7); nouts = 8; );
+  d == 4 ? ( add_spk(-30,0,0); add_spk(30,0,1); add_spk(0,0,2); add_spk(-120,0,4); add_spk(120,0,5);
+             lfe_out = 3; nouts = 6; );
+  d == 5 ? ( add_spk(-30,0,0); add_spk(30,0,1); add_spk(0,0,2); add_spk(-120,0,4); add_spk(120,0,5);
+             add_spk(-90,0,6); add_spk(90,0,7); lfe_out = 3; nouts = 8; );
+  d == 6 ? ( add_spk(-30,0,0); add_spk(30,0,1); add_spk(0,0,2); add_spk(-120,0,4); add_spk(120,0,5);
+             add_spk(-30,55,6); add_spk(30,55,7); lfe_out = 3; nouts = 8; );
+  d == 7 ? ( add_spk(-30,0,0); add_spk(30,0,1); add_spk(0,0,2); add_spk(-90,0,4); add_spk(90,0,5);
+             add_spk(-150,0,6); add_spk(150,0,7); add_spk(-30,55,8); add_spk(-150,55,9);
+             add_spk(30,55,10); add_spk(150,55,11); lfe_out = 3; nouts = 12; );
+  d == 8 ? ( nouts = 16; );
+  d == 0 ? ( nouts = 2; );
+);
+
+// ---------------- order weights ----------------
+function set_weights() local(N, i, n, w0, w1, w2, w3, x)
+(
+  N = order == 1 ? 1 : 3;
+  weighting == 0 ? (
+    // in-phase: N!(N+1)! / ((N+n+1)!(N-n)!)
+    N == 3 ? ( w0 = 1; w1 = 0.6; w2 = 0.2; w3 = 1/35; ) : ( w0 = 1; w1 = 1/3; w2 = 0; w3 = 0; );
+  ) : weighting == 1 ? (
+    // max-rE: P_n(cos(137.9 deg / (N + 1.51)))
+    x = cos(137.9 / (N + 1.51) * $pi / 180);
+    w0 = 1; w1 = x;
+    N == 3 ? ( w2 = 0.5*(3*x*x - 1); w3 = 0.5*(5*x*x*x - 3*x); ) : ( w2 = 0; w3 = 0; );
+  ) : (
+    w0 = 1; w1 = 1; w2 = N == 3; w3 = N == 3;
+  );
+  i = 0;
+  loop(16,
+    n = e4l_order(i);
+    wgt[i] = n == 0 ? w0 : n == 1 ? w1 : n == 2 ? w2 : w3;
+    i += 1;
+  );
+);
+
+// ---------------- loudspeaker decoder (sampling decoder + energy normalisation) ----------------
+function build_decoder() local(s, a, n, k, e, sum, g, kk, cnt, is3d, z, rr, ang)
+(
+  memset(D, 0, 256);
+  s = 0;
+  loop(nspk,
+    e4l_sh3(spk_az[s], spk_el[s], sh);
+    a = 0;
+    loop(16,
+      n = e4l_order(a);
+      D[s*16 + a] = (2*n + 1) * wgt[a] * sh[a] / max(nspk, 1);
+      a += 1;
+    );
+    s += 1;
+  );
+  // mean power of all speakers for sources around the listener -> normalise to 1
+  is3d = 0; s = 0; loop(nspk, spk_el[s] != 0 ? is3d = 1; s += 1; );
+  sum = 0; cnt = 0; kk = 0;
+  loop(is3d ? 400 : 72,
+    is3d ? (
+      // Fibonacci sphere
+      z = 1 - 2 * (kk + 0.5) / 400; rr = sqrt(1 - z*z); ang = kk * 2.399963229728653;
+      e4l_sh3(-atan2(rr*sin(ang), rr*cos(ang)) * 180 / $pi, asin(z) * 180 / $pi, sh);
+    ) : (
+      e4l_sh3(kk * 5, 0, sh);
+    );
+    s = 0;
+    loop(nspk,
+      g = 0; a = 0;
+      loop(16, g += D[s*16 + a] * sh[a]; a += 1; );
+      sum += g*g;
+      s += 1;
+    );
+    cnt += 1; kk += 1;
+  );
+  dec_norm = sum > 0 ? 1 / sqrt(sum / cnt) : 1;
+  k = 0; loop(nspk * 16, D[k] *= dec_norm; k += 1; );
+);
+
+// ---------------- binaural: load SH-domain HRIR filters ----------------
+function load_binaural() local(fname, h, nch, fsr, avail, ch, k, base, rate)
+(
+  bin_ok = 0;
+  rate = srate;
+  rate != 44100 && rate != 48000 && rate != 88200 && rate != 96000 ? (
+    rate = srate < 46050 ? 44100 : srate < 68100 ? 48000 : srate < 92100 ? 88200 : 96000;
+    bin_rate_warning = 1;
+  ) : bin_rate_warning = 0;
+  fname = #bin_file;
+  sprintf(fname, "E4L/hrtf/e4l_binaural_%d.wav", rate);
+  h = file_open(fname);
+  h >= 0 ? (
+    nch = 0; fsr = 0;
+    file_riff(h, nch, fsr);
+    avail = file_avail(h);
+    nch == 32 && avail > 0 ? (
+      irlen = floor(avail / 32);
+      irlen = min(irlen, 1024);
+      file_mem(h, ftmp, irlen * 32);
+      fftsize = irlen * 2;
+      ch = 0;
+      loop(16,
+        base = irspec + ch * 4096;
+        memset(base, 0, 4096);
+        k = 0;
+        loop(irlen,
+          base[2*k]   = ftmp[k*32 + 2*ch]     / fftsize;  // left ear  -> real part
+          base[2*k+1] = ftmp[k*32 + 2*ch + 1] / fftsize;  // right ear -> imag part
+          k += 1;
+        );
+        fft(base, fftsize);
+        ch += 1;
+      );
+      bin_ok = 1;
+    );
+    file_close(h);
+  );
+  memset(inbuf, 0, 16 * 1024);
+  memset(outL, 0, 1024); memset(outR, 0, 1024);
+  memset(olapL, 0, 1024); memset(olapR, 0, 1024);
+  bpos = 0;
+);
+
+function binaural_block() local(ch, k, w, src)
+(
+  memset(acc, 0, 2 * fftsize);
+  ch = 0;
+  loop(order == 1 ? 4 : 16,
+    w = wgt[ch] * bin_norm;
+    w != 0 ? (
+      memset(work, 0, 2 * fftsize);
+      src = inbuf + ch * 1024;
+      k = 0;
+      loop(irlen, work[2*k] = src[k] * w; k += 1; );
+      fft(work, fftsize);
+      convolve_c(work, irspec + ch * 4096, fftsize);
+      k = 0;
+      loop(2 * fftsize, acc[k] += work[k]; k += 1; );
+    );
+    ch += 1;
+  );
+  ifft(acc, fftsize);
+  k = 0;
+  loop(irlen,
+    outL[k] = acc[2*k]     + olapL[k];
+    outR[k] = acc[2*k + 1] + olapR[k];
+    olapL[k] = acc[2*(irlen + k)];
+    olapR[k] = acc[2*(irlen + k) + 1];
+    k += 1;
+  );
+);
+
+function setup() local(a, n, e)
+(
+  set_layout(dec);
+  set_weights();
+  build_decoder();
+  // binaural: keep the diffuse-field loudness independent of the weighting.
+  // Diffuse energy of each order of the HRIR filters (computed by tools/make_binaural_filters.py)
+  e = 0.1019 * sqr(wgt[0]) + 0.2111 * sqr(wgt[1]) + 0.2864 * sqr(wgt[4]) + 0.4589 * sqr(wgt[9]);
+  bin_norm = e > 0 ? 1 / sqrt(e) : 1;
+  dec == 0 ? (
+    pdc_delay = irlen; pdc_bot_ch = 0; pdc_top_ch = 2;
+  ) : (
+    pdc_delay = 0;
+  );
+);
+
+irlen = 512; fftsize = 1024;
+load_binaural();
+setup();
+
+@slider
+setup();
+in_gain = 10 ^ (in_gain_db / 20);
+out_gain = 10 ^ (out_gain_db / 20);
+
+@block
+in_gain = 10 ^ (in_gain_db / 20);
+out_gain = 10 ^ (out_gain_db / 20);
+
+@sample
+xin[0]  = spl0;  xin[1]  = spl1;  xin[2]  = spl2;  xin[3]  = spl3;
+xin[4]  = spl4;  xin[5]  = spl5;  xin[6]  = spl6;  xin[7]  = spl7;
+xin[8]  = spl8;  xin[9]  = spl9;  xin[10] = spl10; xin[11] = spl11;
+xin[12] = spl12; xin[13] = spl13; xin[14] = spl14; xin[15] = spl15;
+
+order == 1 ? memset(xin + 4, 0, 12);
+
+spl0 = spl1 = spl2 = spl3 = spl4 = spl5 = spl6 = spl7 = 0;
+spl8 = spl9 = spl10 = spl11 = spl12 = spl13 = spl14 = spl15 = 0;
+
+dec == 0 ? (
+  // ---------- binaural ----------
+  bin_ok ? (
+    k = 0;
+    loop(16, inbuf[k*1024 + bpos] = xin[k] * in_gain; k += 1; );
+    spl0 = outL[bpos] * out_gain;
+    spl1 = outR[bpos] * out_gain;
+    bpos += 1;
+    bpos >= irlen ? ( binaural_block(); bpos = 0; );
+  );
+) : dec == 8 ? (
+  // ---------- AmbiX pass-through ----------
+  g = in_gain * out_gain;
+  spl0  = xin[0]*g;  spl1  = xin[1]*g;  spl2  = xin[2]*g;  spl3  = xin[3]*g;
+  spl4  = xin[4]*g;  spl5  = xin[5]*g;  spl6  = xin[6]*g;  spl7  = xin[7]*g;
+  spl8  = xin[8]*g;  spl9  = xin[9]*g;  spl10 = xin[10]*g; spl11 = xin[11]*g;
+  spl12 = xin[12]*g; spl13 = xin[13]*g; spl14 = xin[14]*g; spl15 = xin[15]*g;
+) : (
+  // ---------- loudspeakers ----------
+  g = in_gain * out_gain;
+  s = 0;
+  loop(nspk,
+    o = 0; a = 0; row = D + s*16;
+    loop(16, o += row[a] * xin[a]; a += 1; );
+    spl(spk_out[s]) = o * g;
+    s += 1;
+  );
+  lfe_out >= 0 ? spl(lfe_out) = xin[0] * 0.707 * g;
+);
+
+@gfx 320 200
+gfx_set(0.08, 0.08, 0.1, 1); gfx_rect(0, 0, gfx_w, gfx_h);
+gfx_setfont(1, "Arial", 14);
+gfx_set(0.85, 0.85, 0.9, 1); gfx_x = 8; gfx_y = 6; gfx_drawstr("E4L Master Bus");
+gfx_set(0.7, 0.7, 0.75, 1);
+gfx_x = 8; gfx_y = 30;
+dec == 0 ? (
+  bin_ok ? (
+    gfx_printf("Binaural: %d-tap HRIR filters, latency %d samples", irlen, irlen);
+    bin_rate_warning ? ( gfx_x = 8; gfx_y = 48; gfx_set(1, 0.7, 0.3, 1);
+      gfx_drawstr("Sample rate not 44.1/48/88.2/96k: nearest filters used"); );
+  ) : (
+    gfx_set(1, 0.4, 0.3, 1);
+    gfx_drawstr("HRIR filters not found!"); gfx_x = 8; gfx_y = 48;
+    gfx_drawstr("Copy Data/E4L/hrtf into REAPER's resource Data folder");
+  );
+) : dec == 8 ? (
+  gfx_drawstr("AmbiX pass-through: outputs 1-16 = ACN 0-15 (SN3D)");
+) : (
+  gfx_printf("%d speakers%s -> %d outputs", nspk, lfe_out >= 0 ? " + LFE" : "", nouts);
+  gfx_x = 8; gfx_y = 48;
+  gfx_drawstr("Set the track to at least that many channels.");
+);

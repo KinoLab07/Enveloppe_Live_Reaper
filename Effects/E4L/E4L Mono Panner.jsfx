@@ -1,0 +1,119 @@
+desc: E4L Mono Panner (3rd order ambisonics)
+//tags: ambisonics spatial panner envelop e4l
+//author: Port of Envelop for Live (E4L) to REAPER
+//
+// Port of "E4L Mono Panner.amxd" from Envelop for Live (https://github.com/EnvelopSound/EnvelopForLive)
+// Copyright (C) Envelop / Mark C. Slee and contributors. REAPER port: GPLv2 or later, see LICENSE.
+//
+// Encodes a mono signal (the average of inputs 1+2) into 16 channels of 3rd order
+// ambisonics (ambiX: ACN / SN3D), with the E4L azimuth / elevation LFOs.
+//
+// Routing: set the track to 16 channels, send it (channels 1-16 -> 1-16) to the track
+// that holds "E4L Master Bus", and disable the track's master/parent send.
+
+slider1:azim=0<-180,180,0.1>Azimuth
+slider2:elev=0<-90,90,0.1>Elevation
+slider3:radius=1<0,1,0.001>Radius
+slider4:range=10<1,40,0.01>Range
+
+slider10:a_on=0<0,1,1{Off,On}>Azimuth LFO On/Off
+slider11:a_mode=0<0,1,1{Cycle,Sin}>Azimuth LFO Mode
+slider12:a_tmode=0<0,1,1{Freq,Sync}>Azimuth LFO Time Mode
+slider13:a_freq=1<0.1,10,0.01>Azimuth LFO Frequency (Hz)
+slider14:a_rate=1<-1,1,0.001>Azimuth LFO Rate
+slider15:a_sync=2<0,10,1{1/4,1/2,1,2,3,4,6,8,16,32,64}>Azimuth LFO Sync (bars)
+slider16:a_dir=0<0,1,1{Clockwise,Counter}>Azimuth LFO Direction
+slider17:a_depth=30<0,180,0.1>Azimuth LFO Depth
+
+slider20:e_on=0<0,1,1{Off,On}>Elevation LFO On/Off
+slider21:e_pol=0<0,1,1{Unipolar,Bipolar}>Elevation LFO Polarity
+slider22:e_tmode=0<0,1,1{Freq,Sync}>Elevation LFO Time Mode
+slider23:e_freq=1<0.1,10,0.01>Elevation LFO Frequency (Hz)
+slider24:e_rate=1<-1,1,0.001>Elevation LFO Rate
+slider25:e_sync=2<0,10,1{1/4,1/2,1,2,3,4,6,8,16,32,64}>Elevation LFO Sync (bars)
+slider26:e_dir=0<0,1,1{Clockwise,Counter}>Elevation LFO Direction
+slider27:e_depth=30<0,90,0.1>Elevation LFO Depth
+
+import e4l_ambix.jsfx-inc
+import e4l_gfx.jsfx-inc
+
+in_pin:Input L
+in_pin:Input R
+out_pin:W (ACN 0)
+out_pin:Y (ACN 1)
+out_pin:Z (ACN 2)
+out_pin:X (ACN 3)
+out_pin:ACN 4
+out_pin:ACN 5
+out_pin:ACN 6
+out_pin:ACN 7
+out_pin:ACN 8
+out_pin:ACN 9
+out_pin:ACN 10
+out_pin:ACN 11
+out_pin:ACN 12
+out_pin:ACN 13
+out_pin:ACN 14
+out_pin:ACN 15
+
+@init
+ext_tail_size = -1;
+
+sh = 0; cur = 16; inc = 32; tgt = 48;
+
+first = 1;
+ctr = 0;
+alfo.lfo_reset(); elfo.lfo_reset();
+cur_az = 0; cur_el = 0;
+
+function compute_targets(bpos, n) local(az, el, p, i)
+(
+  az = azim;
+  a_on ? (
+    p = alfo.lfo_tick(a_tmode, a_freq * a_rate, e4l_sync_beats(a_sync), a_dir ? -1 : 1, bpos, n);
+    az += a_mode == 0 ? 360 * p : a_depth * sin(2*$pi*p);
+  );
+  el = elev;
+  e_on ? (
+    p = elfo.lfo_tick(e_tmode, e_freq * e_rate, e4l_sync_beats(e_sync), e_dir ? -1 : 1, bpos, n);
+    el += e_pol == 1 ? e_depth * sin(2*$pi*p) : e_depth * 0.5 * (sin(2*$pi*p - $pi/2) + 1);
+  );
+
+  el = e4l_fold_elev(el); az += 180 * e4l_fold_flip;
+  cur_az = e4l_wrap180(az); cur_el = el;
+
+  e4l_sh3(az, el, sh);
+  e4l_distance_gains(radius, range);
+  tgt[0] = e4l_w_gain;
+  i = 1;
+  loop(15, tgt[i] = sh[i] * e4l_g_gain; i += 1; );
+);
+
+@block
+blk_beat = beat_position;
+blk_spb  = tempo / 60 / srate;
+
+@sample
+ctr <= 0 ? (
+  compute_targets(blk_beat, E4L_CTRL);
+  first ? (
+    memcpy(cur, tgt, 16); memset(inc, 0, 16); first = 0;
+  ) : (
+    enc_set_target(cur, tgt, inc, E4L_CTRL);
+  );
+  ctr = E4L_CTRL;
+);
+ctr -= 1;
+blk_beat += blk_spb;
+
+enc_step(cur, inc);
+
+x = 0.5 * (spl0 + spl1);
+spl0  = x*cur[0];  spl1  = x*cur[1];  spl2  = x*cur[2];  spl3  = x*cur[3];
+spl4  = x*cur[4];  spl5  = x*cur[5];  spl6  = x*cur[6];  spl7  = x*cur[7];
+spl8  = x*cur[8];  spl9  = x*cur[9];  spl10 = x*cur[10]; spl11 = x*cur[11];
+spl12 = x*cur[12]; spl13 = x*cur[13]; spl14 = x*cur[14]; spl15 = x*cur[15];
+
+@gfx 320 320
+e4l_draw_header("E4L Mono Panner");
+e4l_draw_top_view(cur_az, cur_el, radius, 0.3, 0.85, 0.6, "Mono");

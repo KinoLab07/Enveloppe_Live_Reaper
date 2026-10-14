@@ -1,0 +1,48 @@
+desc: E4L drawing helpers (do not load directly)
+// Envelop for REAPER - shared drawing helpers. GPLv2 or later.
+
+@init
+
+// Clears the window and draws the "listener" view: a circle seen from above,
+// front at the top, right on the right. Sets e4l_cx / e4l_cy / e4l_r.
+function e4l_draw_header(title) local(i, a)
+(
+  gfx_set(0.08, 0.08, 0.1, 1); gfx_rect(0, 0, gfx_w, gfx_h);
+  gfx_setfont(1, "Arial", 14);
+  gfx_set(0.85, 0.85, 0.9, 1); gfx_x = 8; gfx_y = 6; gfx_drawstr(title);
+
+  e4l_r  = max(20, min(gfx_w, gfx_h - 50) * 0.5 - 14);
+  e4l_cx = gfx_w * 0.5;
+  e4l_cy = 30 + e4l_r + 6;
+
+  gfx_set(0.3, 0.3, 0.36, 1);
+  gfx_circle(e4l_cx, e4l_cy, e4l_r, 0, 1);
+  gfx_circle(e4l_cx, e4l_cy, e4l_r * 0.5, 0, 1);
+  gfx_line(e4l_cx - e4l_r, e4l_cy, e4l_cx + e4l_r, e4l_cy);
+  gfx_line(e4l_cx, e4l_cy - e4l_r, e4l_cx, e4l_cy + e4l_r);
+  // listener head, nose to the front
+  gfx_set(0.6, 0.6, 0.65, 1);
+  gfx_circle(e4l_cx, e4l_cy, 6, 0, 1);
+  gfx_line(e4l_cx, e4l_cy - 6, e4l_cx, e4l_cy - 11);
+  gfx_set(0.5, 0.5, 0.55, 1);
+  gfx_x = e4l_cx - 14; gfx_y = 30 - 14 + 2; gfx_drawstr("front");
+  e4l_txt_y = e4l_cy + e4l_r + 6;
+);
+
+// Draws one source. Higher sources are drawn bigger, lower sources smaller.
+function e4l_draw_top_view(az, el, radius, r, g, b, label) local(a, e, d, x, y, sz)
+(
+  a = az * $pi / 180; e = el * $pi / 180;
+  d = cos(e) * e4l_r * max(0.05, min(radius, 1));
+  x = e4l_cx + sin(a) * d;
+  y = e4l_cy - cos(a) * d;
+  sz = 5 + 4 * sin(e) + 4;
+  gfx_set(r, g, b, 0.9);
+  gfx_circle(x, y, sz, 1, 1);
+  gfx_set(1, 1, 1, 1);
+  gfx_x = x + sz + 2; gfx_y = y - 6; gfx_drawstr(label);
+  gfx_set(r, g, b, 1);
+  gfx_x = 8; gfx_y = e4l_txt_y;
+  gfx_printf("%s  az %6.1f  el %5.1f", label, e4l_wrap180(az), el);
+  e4l_txt_y += 16;
+);
