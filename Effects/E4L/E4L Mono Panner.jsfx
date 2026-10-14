@@ -66,27 +66,13 @@ ctr = 0;
 alfo.lfo_reset(); elfo.lfo_reset();
 cur_az = 0; cur_el = 0;
 
-function compute_targets(bpos, n) local(az, el, p, i)
+function compute_targets(bpos, n) local(az, el)
 (
-  az = azim;
-  a_on ? (
-    p = alfo.lfo_tick(a_tmode, a_freq * a_rate, e4l_sync_beats(a_sync), a_dir ? -1 : 1, bpos, n);
-    az += a_mode == 0 ? 360 * p : a_depth * sin(2*$pi*p);
-  );
-  el = elev;
-  e_on ? (
-    p = elfo.lfo_tick(e_tmode, e_freq * e_rate, e4l_sync_beats(e_sync), e_dir ? -1 : 1, bpos, n);
-    el += e_pol == 1 ? e_depth * sin(2*$pi*p) : e_depth * 0.5 * (sin(2*$pi*p - $pi/2) + 1);
-  );
-
+  az = alfo.e4l_azim_lfo(azim, a_on, a_mode, a_tmode, a_freq, a_rate, a_sync, a_dir, a_depth, bpos, n);
+  el = elfo.e4l_pol_lfo(elev, e_on, e_pol, e_tmode, e_freq, e_rate, e_sync, e_dir, e_depth, bpos, n);
+  e4l_encode_target(az, el, radius, range, sh, tgt);
   el = e4l_fold_elev(el); az += 180 * e4l_fold_flip;
   cur_az = e4l_wrap180(az); cur_el = el;
-
-  e4l_sh3(az, el, sh);
-  e4l_distance_gains(radius, range);
-  tgt[0] = e4l_w_gain;
-  i = 1;
-  loop(15, tgt[i] = sh[i] * e4l_g_gain; i += 1; );
 );
 
 @block

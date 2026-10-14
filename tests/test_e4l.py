@@ -58,6 +58,39 @@ check("source panner XYZ: left channel direction", angle_close(az, 90) and abs(e
 check("source panner XYZ: distance gain -1.5 dB/unit",
       abs(o[0] - 10 ** ((np.sqrt(0.34) * 10 - 1) * -1.5 / 20)) < 1e-3)
 
+o = run("E4L Stereo Panner.jsfx", np.c_[np.ones(4800), np.zeros(4800)], "s3=0.1", "s6=20")[-1]
+az, el = direction(o)
+check("stereo panner: left = az - spread, el + spread (as E4L)", angle_close(az, -30) and abs(el - 20) < 0.1)
+
+
+def quad_dirs(*sliders):
+    dirs = []
+    for ch in range(4):
+        x = np.zeros((4800, 4)); x[:, ch] = 1
+        a, e = direction(run("E4L Quad Panner.jsfx", x, "s3=0.1", *sliders)[-1])
+        dirs.append((round(float(a), 1), round(float(e), 1)))
+    return dirs
+
+
+d = quad_dirs()
+check("quad LR: FL -45, FR 45, RL -135, RR 135",
+      all(angle_close(a, b) for (a, _), b in zip(d, (-45, 45, -135, 135))))
+d = quad_dirs("s7=1")
+check("quad X: rear pair crossed", angle_close(d[2][0], 135) and angle_close(d[3][0], -135))
+d = quad_dirs("s7=2", "s5=40")
+check("quad W: spread 40 -> front +-20 (W1), rear +-60 (W2)",
+      all(angle_close(a, b) for (a, _), b in zip(d, (-20, 20, -60, 60))))
+d = quad_dirs("s7=2", "s5=150")
+check("quad W: spread 150 -> front +-135, rear +-165",
+      all(angle_close(a, b) for (a, _), b in zip(d, (-135, 135, -165, 165))))
+
+x = np.zeros((4800, 16)); x[:, 2] = 1
+o = run("E4L Multi-Panner.jsfx", x, "s1=10", "s3=0.1", "s5=0.5", "s59=60", "s60=30", "s6=2")[-1]
+az, el = direction(o)
+check("multi-panner: input 3 at 10 + 60*0.5 = 40, elevation 30*2 = 60", angle_close(az, 40) and abs(el - 60) < 0.1)
+o = run("E4L Multi-Panner.jsfx", x, "s58=0")[-1]
+check("multi-panner: inactive input is silent", np.abs(o).max() < 1e-6)
+
 # --- LFOs ------------------------------------------------------------------
 o = run("E4L Mono Panner.jsfx", dc, "s3=0.1", "s10=1", "s11=0", "s13=1")
 az, _ = direction(o)

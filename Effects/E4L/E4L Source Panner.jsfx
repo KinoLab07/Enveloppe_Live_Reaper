@@ -70,25 +70,17 @@ function xyz_to_aed(x, y, z)
   xyz_el = xyz_r == 0 ? 0 : atan2(z, sqrt(x*x + y*y)) * 180 / $pi;
 );
 
-// Encodes one point into tgt (16 values), including the E4L distance gains
-function encode_point(az, el, r, sh, tgt) local(i)
-(
-  el = e4l_fold_elev(el); az += 180 * e4l_fold_flip;
-  e4l_sh3(az, el, sh);
-  e4l_distance_gains(r, range);
-  tgt[0] = e4l_w_gain;
-  i = 1;
-  loop(15, tgt[i] = sh[i] * e4l_g_gain; i += 1; );
-);
+function encode_point(az, el, r, sh, tgt) ( e4l_encode_target(az, el, r, range, sh, tgt); );
 
 function compute_targets()
 (
   coord == 1 ? (
     mode_st ? (
-      encode_point(azim - azsp, elev - elsp, radius, shL, tgtL);
-      encode_point(azim + azsp, elev + elsp, radius, shR, tgtR);
-      dLaz = azim - azsp; dLel = elev - elsp; dLr = radius;
-      dRaz = azim + azsp; dRel = elev + elsp; dRr = radius;
+      // As in E4L: left = azimuth - spread / elevation + spread, right = the opposite
+      encode_point(azim - azsp, elev + elsp, radius, shL, tgtL);
+      encode_point(azim + azsp, elev - elsp, radius, shR, tgtR);
+      dLaz = azim - azsp; dLel = elev + elsp; dLr = radius;
+      dRaz = azim + azsp; dRel = elev - elsp; dRr = radius;
     ) : (
       encode_point(azim, elev, radius, shL, tgtL);
       dLaz = azim; dLel = elev; dLr = radius;

@@ -1,0 +1,255 @@
+desc: E4L Multi-Panner (3rd order ambisonics)
+//tags: ambisonics spatial panner envelop e4l multichannel
+//author: Port of Envelop for Live (E4L) to REAPER
+//
+// Port of "E4L Multi-Panner.amxd" from Envelop for Live (https://github.com/EnvelopSound/EnvelopForLive)
+// Copyright (C) Envelop / Mark C. Slee and contributors. REAPER port: GPLv2 or later, see LICENSE.
+//
+// Encodes up to 16 inputs (track channels 1-16) into 16 channels of 3rd order ambisonics
+// (ambiX: ACN / SN3D). Each input has its own azimuth / elevation / radius offset, and the
+// whole group is moved, scaled and animated with the global controls and the E4L LFOs:
+//
+//   azimuth(n)   = Azimuth   + Input n Azimuth   * Azimuth Scale
+//   elevation(n) = Elevation + Input n Elevation * Elevation Scale
+//   radius(n)    = max(0, Radius + Input n Radius * Radius Scale)
+//
+// Routing: set the track to 16 channels, send it (channels 1-16 -> 1-16) to the
+// "E4L Master Bus" track, and disable the track's master send.
+
+slider1:azim=0<-180,180,0.1>Azimuth
+slider2:elev=0<-90,90,0.1>Elevation
+slider3:radius=1<0,2,0.001>Radius
+slider4:range=10<1,40,0.01>Range
+slider5:azscale=1<0,2,0.001>Azimuth Scale
+slider6:elscale=1<0,2,0.001>Elevation Scale
+slider7:rscale=1<0,2,0.001>Radius Scale
+
+slider10:a_on=0<0,1,1{Off,On}>Azimuth LFO On/Off
+slider11:a_mode=0<0,1,1{Cycle,Sin}>Azimuth LFO Mode
+slider12:a_tmode=0<0,1,1{Freq,Sync}>Azimuth LFO Time Mode
+slider13:a_freq=1<0.1,10,0.01>Azimuth LFO Frequency (Hz)
+slider14:a_rate=1<-1,1,0.001>Azimuth LFO Rate
+slider15:a_sync=2<0,10,1{1/4,1/2,1,2,3,4,6,8,16,32,64}>Azimuth LFO Sync (bars)
+slider16:a_dir=0<0,1,1{Clockwise,Counter}>Azimuth LFO Direction
+slider17:a_depth=30<0,180,0.1>Azimuth LFO Depth
+
+slider20:e_on=0<0,1,1{Off,On}>Elevation LFO On/Off
+slider21:e_pol=0<0,1,1{Unipolar,Bipolar}>Elevation LFO Polarity
+slider22:e_tmode=0<0,1,1{Freq,Sync}>Elevation LFO Time Mode
+slider23:e_freq=1<0.1,10,0.01>Elevation LFO Frequency (Hz)
+slider24:e_rate=1<-1,1,0.001>Elevation LFO Rate
+slider25:e_sync=2<0,10,1{1/4,1/2,1,2,3,4,6,8,16,32,64}>Elevation LFO Sync (bars)
+slider26:e_dir=0<0,1,1{Clockwise,Counter}>Elevation LFO Direction
+slider27:e_depth=30<0,90,0.1>Elevation LFO Depth
+
+slider30:as_on=0<0,1,1{Off,On}>Azimuth Scale LFO On/Off
+slider31:as_pol=0<0,1,1{Unipolar,Bipolar}>Azimuth Scale LFO Polarity
+slider32:as_tmode=0<0,1,1{Freq,Sync}>Azimuth Scale LFO Time Mode
+slider33:as_freq=1<0.1,10,0.01>Azimuth Scale LFO Frequency (Hz)
+slider34:as_rate=1<-1,1,0.001>Azimuth Scale LFO Rate
+slider35:as_sync=2<0,10,1{1/4,1/2,1,2,3,4,6,8,16,32,64}>Azimuth Scale LFO Sync (bars)
+slider36:as_dir=0<0,1,1{Clockwise,Counter}>Azimuth Scale LFO Direction
+slider37:as_depth=0.5<-1,1,0.001>Azimuth Scale LFO Depth
+
+slider40:es_on=0<0,1,1{Off,On}>Elevation Scale LFO On/Off
+slider41:es_pol=0<0,1,1{Unipolar,Bipolar}>Elevation Scale LFO Polarity
+slider42:es_tmode=0<0,1,1{Freq,Sync}>Elevation Scale LFO Time Mode
+slider43:es_freq=1<0.1,10,0.01>Elevation Scale LFO Frequency (Hz)
+slider44:es_rate=1<-1,1,0.001>Elevation Scale LFO Rate
+slider45:es_sync=2<0,10,1{1/4,1/2,1,2,3,4,6,8,16,32,64}>Elevation Scale LFO Sync (bars)
+slider46:es_dir=0<0,1,1{Clockwise,Counter}>Elevation Scale LFO Direction
+slider47:es_depth=0.5<-1,1,0.001>Elevation Scale LFO Depth
+
+slider50:in1_on=1<0,1,1{Off,On}>Input 1 Active
+slider51:in1_az=0<-180,180,0.1>Input 1 Azimuth
+slider52:in1_el=0<-90,90,0.1>Input 1 Elevation
+slider53:in1_r=0<-1,1,0.001>Input 1 Radius
+slider54:in2_on=1<0,1,1{Off,On}>Input 2 Active
+slider55:in2_az=0<-180,180,0.1>Input 2 Azimuth
+slider56:in2_el=0<-90,90,0.1>Input 2 Elevation
+slider57:in2_r=0<-1,1,0.001>Input 2 Radius
+slider58:in3_on=1<0,1,1{Off,On}>Input 3 Active
+slider59:in3_az=0<-180,180,0.1>Input 3 Azimuth
+slider60:in3_el=0<-90,90,0.1>Input 3 Elevation
+slider61:in3_r=0<-1,1,0.001>Input 3 Radius
+slider62:in4_on=1<0,1,1{Off,On}>Input 4 Active
+slider63:in4_az=0<-180,180,0.1>Input 4 Azimuth
+slider64:in4_el=0<-90,90,0.1>Input 4 Elevation
+slider65:in4_r=0<-1,1,0.001>Input 4 Radius
+slider66:in5_on=1<0,1,1{Off,On}>Input 5 Active
+slider67:in5_az=0<-180,180,0.1>Input 5 Azimuth
+slider68:in5_el=0<-90,90,0.1>Input 5 Elevation
+slider69:in5_r=0<-1,1,0.001>Input 5 Radius
+slider70:in6_on=1<0,1,1{Off,On}>Input 6 Active
+slider71:in6_az=0<-180,180,0.1>Input 6 Azimuth
+slider72:in6_el=0<-90,90,0.1>Input 6 Elevation
+slider73:in6_r=0<-1,1,0.001>Input 6 Radius
+slider74:in7_on=1<0,1,1{Off,On}>Input 7 Active
+slider75:in7_az=0<-180,180,0.1>Input 7 Azimuth
+slider76:in7_el=0<-90,90,0.1>Input 7 Elevation
+slider77:in7_r=0<-1,1,0.001>Input 7 Radius
+slider78:in8_on=1<0,1,1{Off,On}>Input 8 Active
+slider79:in8_az=0<-180,180,0.1>Input 8 Azimuth
+slider80:in8_el=0<-90,90,0.1>Input 8 Elevation
+slider81:in8_r=0<-1,1,0.001>Input 8 Radius
+slider82:in9_on=1<0,1,1{Off,On}>Input 9 Active
+slider83:in9_az=0<-180,180,0.1>Input 9 Azimuth
+slider84:in9_el=0<-90,90,0.1>Input 9 Elevation
+slider85:in9_r=0<-1,1,0.001>Input 9 Radius
+slider86:in10_on=1<0,1,1{Off,On}>Input 10 Active
+slider87:in10_az=0<-180,180,0.1>Input 10 Azimuth
+slider88:in10_el=0<-90,90,0.1>Input 10 Elevation
+slider89:in10_r=0<-1,1,0.001>Input 10 Radius
+slider90:in11_on=1<0,1,1{Off,On}>Input 11 Active
+slider91:in11_az=0<-180,180,0.1>Input 11 Azimuth
+slider92:in11_el=0<-90,90,0.1>Input 11 Elevation
+slider93:in11_r=0<-1,1,0.001>Input 11 Radius
+slider94:in12_on=1<0,1,1{Off,On}>Input 12 Active
+slider95:in12_az=0<-180,180,0.1>Input 12 Azimuth
+slider96:in12_el=0<-90,90,0.1>Input 12 Elevation
+slider97:in12_r=0<-1,1,0.001>Input 12 Radius
+slider98:in13_on=1<0,1,1{Off,On}>Input 13 Active
+slider99:in13_az=0<-180,180,0.1>Input 13 Azimuth
+slider100:in13_el=0<-90,90,0.1>Input 13 Elevation
+slider101:in13_r=0<-1,1,0.001>Input 13 Radius
+slider102:in14_on=1<0,1,1{Off,On}>Input 14 Active
+slider103:in14_az=0<-180,180,0.1>Input 14 Azimuth
+slider104:in14_el=0<-90,90,0.1>Input 14 Elevation
+slider105:in14_r=0<-1,1,0.001>Input 14 Radius
+slider106:in15_on=1<0,1,1{Off,On}>Input 15 Active
+slider107:in15_az=0<-180,180,0.1>Input 15 Azimuth
+slider108:in15_el=0<-90,90,0.1>Input 15 Elevation
+slider109:in15_r=0<-1,1,0.001>Input 15 Radius
+slider110:in16_on=1<0,1,1{Off,On}>Input 16 Active
+slider111:in16_az=0<-180,180,0.1>Input 16 Azimuth
+slider112:in16_el=0<-90,90,0.1>Input 16 Elevation
+slider113:in16_r=0<-1,1,0.001>Input 16 Radius
+
+import e4l_ambix.jsfx-inc
+import e4l_gfx.jsfx-inc
+
+in_pin:Input 1
+in_pin:Input 2
+in_pin:Input 3
+in_pin:Input 4
+in_pin:Input 5
+in_pin:Input 6
+in_pin:Input 7
+in_pin:Input 8
+in_pin:Input 9
+in_pin:Input 10
+in_pin:Input 11
+in_pin:Input 12
+in_pin:Input 13
+in_pin:Input 14
+in_pin:Input 15
+in_pin:Input 16
+out_pin:W (ACN 0)
+out_pin:Y (ACN 1)
+out_pin:Z (ACN 2)
+out_pin:X (ACN 3)
+out_pin:ACN 4
+out_pin:ACN 5
+out_pin:ACN 6
+out_pin:ACN 7
+out_pin:ACN 8
+out_pin:ACN 9
+out_pin:ACN 10
+out_pin:ACN 11
+out_pin:ACN 12
+out_pin:ACN 13
+out_pin:ACN 14
+out_pin:ACN 15
+
+@init
+ext_tail_size = -1;
+
+// memory map: 16 sources x (cur, inc, tgt) of 16 values, plus scratch
+sh  = 0;
+cur = 1000;   // cur + 16*k
+inc = 1300;
+tgt = 1600;
+pos_az = 2000; pos_el = 2020; pos_r = 2040; active = 2060;
+xin = 2100;
+
+first = 1;
+ctr = 0;
+alfo.lfo_reset(); elfo.lfo_reset(); aslfo.lfo_reset(); eslfo.lfo_reset();
+
+// slider(50 + 4*k ...) are the per-input controls
+function compute_targets(bpos, n) local(az, el, azs, els, k, b, r)
+(
+  az  = alfo.e4l_azim_lfo(azim, a_on, a_mode, a_tmode, a_freq, a_rate, a_sync, a_dir, a_depth, bpos, n);
+  el  = elfo.e4l_pol_lfo(elev, e_on, e_pol, e_tmode, e_freq, e_rate, e_sync, e_dir, e_depth, bpos, n);
+  azs = aslfo.e4l_pol_lfo(azscale, as_on, as_pol, as_tmode, as_freq, as_rate, as_sync, as_dir, as_depth, bpos, n);
+  els = eslfo.e4l_pol_lfo(elscale, es_on, es_pol, es_tmode, es_freq, es_rate, es_sync, es_dir, es_depth, bpos, n);
+
+  k = 0;
+  loop(16,
+    b = 50 + 4*k;
+    active[k] = slider(b) >= 0.5;
+    pos_az[k] = az + slider(b+1) * azs;
+    pos_el[k] = el + slider(b+2) * els;
+    pos_r[k]  = r = max(0, radius + slider(b+3) * rscale);
+    active[k] ? e4l_encode_target(pos_az[k], pos_el[k], r, range, sh, tgt + 16*k)
+              : memset(tgt + 16*k, 0, 16);
+    k += 1;
+  );
+);
+
+@block
+blk_beat = beat_position;
+blk_spb  = tempo / 60 / srate;
+
+@sample
+ctr <= 0 ? (
+  compute_targets(blk_beat, E4L_CTRL);
+  first ? (
+    memcpy(cur, tgt, 256); memset(inc, 0, 256); first = 0;
+  ) : (
+    k = 0;
+    loop(16, enc_set_target(cur + 16*k, tgt + 16*k, inc + 16*k, E4L_CTRL); k += 1; );
+  );
+  ctr = E4L_CTRL;
+);
+ctr -= 1;
+blk_beat += blk_spb;
+
+xin[0]  = spl0;  xin[1]  = spl1;  xin[2]  = spl2;  xin[3]  = spl3;
+xin[4]  = spl4;  xin[5]  = spl5;  xin[6]  = spl6;  xin[7]  = spl7;
+xin[8]  = spl8;  xin[9]  = spl9;  xin[10] = spl10; xin[11] = spl11;
+xin[12] = spl12; xin[13] = spl13; xin[14] = spl14; xin[15] = spl15;
+spl0 = spl1 = spl2 = spl3 = spl4 = spl5 = spl6 = spl7 = 0;
+spl8 = spl9 = spl10 = spl11 = spl12 = spl13 = spl14 = spl15 = 0;
+
+k = 0;
+loop(16,
+  c = cur + 16*k; d = inc + 16*k;
+  // skip inputs that are off and fully faded out
+  (active[k] || c[0] != 0) ? (
+    enc_step(c, d);
+    abs(c[0]) < 0.000000001 && !active[k] ? memset(c, 0, 16);
+    x = xin[k];
+    spl0  += x*c[0];  spl1  += x*c[1];  spl2  += x*c[2];  spl3  += x*c[3];
+    spl4  += x*c[4];  spl5  += x*c[5];  spl6  += x*c[6];  spl7  += x*c[7];
+    spl8  += x*c[8];  spl9  += x*c[9];  spl10 += x*c[10]; spl11 += x*c[11];
+    spl12 += x*c[12]; spl13 += x*c[13]; spl14 += x*c[14]; spl15 += x*c[15];
+  );
+  k += 1;
+);
+
+@gfx 320 340
+e4l_draw_header("E4L Multi-Panner");
+gfx_setfont(1, "Arial", 12);
+k = 0;
+loop(16,
+  active[k] ? (
+    a = pos_az[k] * $pi / 180; e = pos_el[k] * $pi / 180;
+    dd = cos(e) * e4l_r * max(0.05, min(pos_r[k] / 2, 1));
+    xx = e4l_cx + sin(a) * dd; yy = e4l_cy - cos(a) * dd;
+    gfx_set(0.3 + 0.04*k, 0.85 - 0.03*k, 0.6, 0.9);
+    gfx_circle(xx, yy, 6 + 3 * sin(e), 1, 1);
+    gfx_set(1, 1, 1, 1); gfx_x = xx + 8; gfx_y = yy - 6; gfx_printf("%d", k + 1);
+  );
+  k += 1;
+);

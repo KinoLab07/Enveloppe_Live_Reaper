@@ -17,8 +17,10 @@ y compatible con el IEM Plugin Suite, SPARTA y otros.
 | E4L Source Panner | `E4L Source Panner.jsfx` | ✅ Mono/Estéreo, Polar/XYZ, apertura, distancia |
 | E4L Mono Panner | `E4L Mono Panner.jsfx` | ✅ con LFO de azimut y elevación |
 | E4L Stereo Panner | `E4L Stereo Panner.jsfx` | ✅ con LFO de azimut, elevación y apertura |
+| E4L Quad Panner | `E4L Quad Panner.jsfx` | ✅ 4 entradas, modos de apertura LR / X / W, 4 LFO |
+| E4L Multi-Panner | `E4L Multi-Panner.jsfx` | ✅ 16 entradas con posición propia, LFO de azimut, elevación y escala |
 | E4L Master Bus (decodificadores) | `E4L Master Bus.jsfx` | ✅ Binaural 3.er orden, Estéreo, Quad, Octo, 5.1, 7.1, 5.1.2, 7.1.4, AmbiX |
-| Quad Panner, Multi-Panner, Spinner, HOA Transform, Multi-Delay, Spatial Slicer… | | ⏳ pendientes |
+| Spinner, HOA Transform, Multi-Delay, Spatial Slicer, Brownian Delay… | | ⏳ pendientes |
 
 Lo que no se porta porque REAPER ya lo hace: el ruteo automático entre pistas (se usan envíos de
 16 canales; el script de abajo los crea), la grabación y exportación (render de REAPER) y los
@@ -52,7 +54,7 @@ medidores (los de REAPER muestran los 16 canales).
 
 ## Automatismos (LFO de E4L)
 
-Los paneadores Mono y Stereo incluyen los LFO de E4L con los mismos parámetros:
+Los paneadores Mono, Stereo, Quad y Multi incluyen los LFO de E4L con los mismos parámetros:
 
 | Parámetro | Qué hace |
 |---|---|
@@ -61,7 +63,31 @@ Los paneadores Mono y Stereo incluyen los LFO de E4L con los mismos parámetros:
 | **Time Mode** | *Freq*: Hz × *Rate* (Rate negativo = sentido contrario) · *Sync*: sincronizado al tempo |
 | **Sync (bars)** | 1/4, 1/2, 1, 2, 3, 4, 6, 8, 16, 32, 64 compases por ciclo |
 | **Direction** | Clockwise / Counter (en modo Sync) |
-| **Azimuth/Elevation Spread LFO** | (Stereo Panner) abre y cierra la imagen estéreo |
+| **Azimuth/Elevation Spread LFO** | (Stereo y Quad) abre y cierra la imagen |
+| **Azimuth/Elevation Scale LFO** | (Multi-Panner) expande y contrae todo el grupo de entradas; *Depth* de −1 a 1 |
+
+### Quad Panner
+
+Entradas: 1 delantera izq., 2 delantera der., 3 trasera izq., 4 trasera der. (canales 1-4 de la pista).
+*Azimuth Spread Mode*, igual que en E4L:
+
+- **LR:** cuadrado, con el par delantero a azimut ∓ apertura/2 y el trasero a azimut+180 ± apertura/2.
+- **X:** como LR, pero con el par trasero cruzado (diagonales).
+- **W:** abanico centrado en el azimut. Con apertura 90 queda un cuadrado; con 180, todo atrás; con 0, todo al frente.
+
+### Multi-Panner
+
+Paneo de hasta 16 canales de la pista (por ejemplo, un multipista o un sinte multisalida). Cada
+entrada tiene *Active*, *Azimuth*, *Elevation* y *Radius* propios, relativos al grupo:
+
+```
+azimut(n)    = Azimuth   + Input n Azimuth   × Azimuth Scale
+elevación(n) = Elevation + Input n Elevation × Elevation Scale
+radio(n)     = máx(0, Radius + Input n Radius × Radius Scale)
+```
+
+Por defecto todas las entradas están en el centro (0°), como en E4L. Distribúyelas con el
+*Azimuth* de cada entrada y usa *Azimuth Scale* (y su LFO) para abrir o cerrar el conjunto.
 
 En modo *Sync*, mientras REAPER reproduce, la fase del LFO se engancha a la posición del proyecto
 (como `phasor~ @lock 1` en E4L). Así, el movimiento es idéntico en cada reproducción y en el render.
@@ -76,6 +102,8 @@ Modulation** de REAPER (LFO, seguidor de envolvente, enlace entre parámetros).
   fuera, se atenúa 1,5 dB por unidad. Con los valores por defecto de E4L (Radius 1, Range 10)
   la fuente suena 13,5 dB más baja; para el nivel completo usa Radius = 1/Range.
 - **XYZ** (Source Panner): X = derecha, Y = frente, Z = arriba.
+- **Apertura estéreo** (como en E4L): izquierda = azimut − apertura y elevación + apertura de elevación;
+  derecha, al revés.
 
 ## Diferencias conocidas con E4L
 

@@ -63,10 +63,12 @@ local PANNERS = {
   { "E4L Stereo Panner.jsfx", "E4L Stereo Panner (3rd order ambisonics)" },
   { "E4L Mono Panner.jsfx",   "E4L Mono Panner (3rd order ambisonics)" },
   { "E4L Source Panner.jsfx", "E4L Source Panner (3rd order ambisonics)" },
+  { "E4L Quad Panner.jsfx",   "E4L Quad Panner (3rd order ambisonics)" },
+  { "E4L Multi-Panner.jsfx",  "E4L Multi-Panner (3rd order ambisonics)" },
 }
 
 local ok, answer = reaper.GetUserInputs("E4L setup", 1,
-  "Panner (1=Stereo 2=Mono 3=Source)", "1")
+  "Panner: 1 Stereo 2 Mono 3 Source 4 Quad 5 Multi", "1")
 if not ok then return end
 local choice = PANNERS[tonumber(answer) or 1] or PANNERS[1]
 

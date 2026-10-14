@@ -85,51 +85,18 @@ alfo.lfo_reset(); elfo.lfo_reset(); aslfo.lfo_reset(); eslfo.lfo_reset();
 // Current (modulated) positions, also shown in the UI
 cur_az = 0; cur_el = 0; cur_azsp = 0; cur_elsp = 0;
 
-function compute_targets(bpos, n) local(az, el, p, sp_az, sp_el, azL, azR, elL, elR, i)
+function compute_targets(bpos, n) local(az, el, sp_az, sp_el)
 (
-  // ---- Azimuth LFO (Cycle: full rotations / Sin: +-depth) ----
-  az = azim;
-  a_on ? (
-    p = alfo.lfo_tick(a_tmode, a_freq * a_rate, e4l_sync_beats(a_sync), a_dir ? -1 : 1, bpos, n);
-    az += a_mode == 0 ? 360 * p : a_depth * sin(2*$pi*p);
-  );
-
-  // ---- Elevation LFO (Unipolar: 0..depth / Bipolar: +-depth) ----
-  el = elev;
-  e_on ? (
-    p = elfo.lfo_tick(e_tmode, e_freq * e_rate, e4l_sync_beats(e_sync), e_dir ? -1 : 1, bpos, n);
-    el += e_pol == 1 ? e_depth * sin(2*$pi*p) : e_depth * 0.5 * (sin(2*$pi*p - $pi/2) + 1);
-  );
-
-  // ---- Spread LFOs ----
-  sp_az = azsp;
-  as_on ? (
-    p = aslfo.lfo_tick(as_tmode, as_freq, e4l_sync_beats(as_sync), 1, bpos, n);
-    sp_az += as_depth * sin(2*$pi*p);
-  );
-  sp_el = elsp;
-  es_on ? (
-    p = eslfo.lfo_tick(es_tmode, es_freq, e4l_sync_beats(es_sync), 1, bpos, n);
-    sp_el += es_depth * sin(2*$pi*p);
-  );
+  az    = alfo.e4l_azim_lfo(azim, a_on, a_mode, a_tmode, a_freq, a_rate, a_sync, a_dir, a_depth, bpos, n);
+  el    = elfo.e4l_pol_lfo(elev, e_on, e_pol, e_tmode, e_freq, e_rate, e_sync, e_dir, e_depth, bpos, n);
+  sp_az = aslfo.e4l_spread_lfo(azsp, as_on, as_tmode, as_freq, as_sync, as_depth, bpos, n);
+  sp_el = eslfo.e4l_spread_lfo(elsp, es_on, es_tmode, es_freq, es_sync, es_depth, bpos, n);
 
   cur_az = e4l_wrap180(az); cur_el = el; cur_azsp = sp_az; cur_elsp = sp_el;
 
-  // ---- Left / right positions, with pole folding ----
-  elL = e4l_fold_elev(el - sp_el); azL = az - sp_az + 180 * e4l_fold_flip;
-  elR = e4l_fold_elev(el + sp_el); azR = az + sp_az + 180 * e4l_fold_flip;
-
-  e4l_sh3(azL, elL, shL);
-  e4l_sh3(azR, elR, shR);
-
-  e4l_distance_gains(radius, range);
-  tgtL[0] = e4l_w_gain; tgtR[0] = e4l_w_gain;
-  i = 1;
-  loop(15,
-    tgtL[i] = shL[i] * e4l_g_gain;
-    tgtR[i] = shR[i] * e4l_g_gain;
-    i += 1;
-  );
+  // As in E4L: left = azimuth - spread / elevation + spread, right = the opposite
+  e4l_encode_target(az - sp_az, el + sp_el, radius, range, shL, tgtL);
+  e4l_encode_target(az + sp_az, el - sp_el, radius, range, shR, tgtR);
 );
 
 @block
@@ -175,5 +142,5 @@ spl15 = inL*curL[15] + inR*curR[15];
 
 @gfx 320 340
 e4l_draw_header("E4L Stereo Panner");
-e4l_draw_top_view(cur_az - cur_azsp, cur_el - cur_elsp, radius, 0.2, 0.6, 1.0, "L");
-e4l_draw_top_view(cur_az + cur_azsp, cur_el + cur_elsp, radius, 1.0, 0.45, 0.3, "R");
+e4l_draw_top_view(cur_az - cur_azsp, cur_el + cur_elsp, radius, 0.2, 0.6, 1.0, "L");
+e4l_draw_top_view(cur_az + cur_azsp, cur_el - cur_elsp, radius, 1.0, 0.45, 0.3, "R");

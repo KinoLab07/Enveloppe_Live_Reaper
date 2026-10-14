@@ -116,6 +116,46 @@ function lfo_tick(sync, hz, beats, dir, beat_pos, nsamples) instance(phase)
 
 function lfo_reset() instance(phase) ( phase = 0; );
 
+// The E4L LFO shapes, built on lfo_tick. Call them on a namespace, e.g. alfo.e4l_azim_lfo(...)
+// Azimuth LFO: mode 0 = Cycle (full turns), 1 = Sin (+-depth)
+function e4l_azim_lfo(base, on, mode, tmode, hz, rate, sync, dir, depth, bpos, n) local(p)
+(
+  on ? (
+    p = this.lfo_tick(tmode, hz * rate, e4l_sync_beats(sync), dir ? -1 : 1, bpos, n);
+    base + (mode == 0 ? 360 * p : depth * sin(2*$pi*p));
+  ) : base;
+);
+
+// Elevation / scale LFO: polarity 0 = Unipolar (0..depth), 1 = Bipolar (+-depth)
+function e4l_pol_lfo(base, on, bipolar, tmode, hz, rate, sync, dir, depth, bpos, n) local(p)
+(
+  on ? (
+    p = this.lfo_tick(tmode, hz * rate, e4l_sync_beats(sync), dir ? -1 : 1, bpos, n);
+    base + (bipolar ? depth * sin(2*$pi*p) : depth * 0.5 * (sin(2*$pi*p - $pi/2) + 1));
+  ) : base;
+);
+
+// Spread LFO: always +-depth, no direction
+function e4l_spread_lfo(base, on, tmode, hz, sync, depth, bpos, n) local(p)
+(
+  on ? (
+    p = this.lfo_tick(tmode, hz, e4l_sync_beats(sync), 1, bpos, n);
+    base + depth * sin(2*$pi*p);
+  ) : base;
+);
+
+// Encodes one point source into tgt[0..15] (pole folding + SH + E4L distance gains).
+// sh: 16-value scratch array.
+function e4l_encode_target(az, el, radius, range, sh, tgt) local(i)
+(
+  el = e4l_fold_elev(el); az += 180 * e4l_fold_flip;
+  e4l_sh3(az, el, sh);
+  e4l_distance_gains(radius, range);
+  tgt[0] = e4l_w_gain;
+  i = 1;
+  loop(15, tgt[i] = sh[i] * e4l_g_gain; i += 1; );
+);
+
 // ---------------------------------------------------------------------------
 // Smoothed 16-channel encoder. Coefficients are recomputed every E4L_CTRL samples
 // and linearly interpolated per sample (E4L updates its LFOs every 10 ms).
