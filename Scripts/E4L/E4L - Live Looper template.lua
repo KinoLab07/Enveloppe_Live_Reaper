@@ -5,7 +5,8 @@
 --   SYNTH IN          audio input of the synth. Always to the headphones, never to the speakers.
 --   LOOP 1..N         E4L Looper + E4L panner. Records N bars from the synth on the next bar
 --                     and plays the loop in sync, spatialised, to "E4L Master".
---   E4L Master        E4L Master Bus = Quad (+ sub) -> REAPER master -> outputs 1-4 (+ sub output).
+--   E4L Master        E4L Master Bus = Quad -> REAPER master -> outputs 1-4.
+--   MASTER            "E4L Sub Out": the sum of everything on the master -> sub output.
 --   CUE (auriculares) binaural copy of the loops, to the headphone outputs.
 --
 -- Headphones: choose an output pair that is not a speaker, e.g. 7-8 on an Mbox Pro, and in the
@@ -116,16 +117,13 @@ end
 reaper.Undo_BeginBlock()
 reaper.PreventUIRefresh(1)
 
--- REAPER master: quadraphony on outputs 1-2 and 3-4, plus the sub on its own output
+-- REAPER master: quadraphony on outputs 1-2 and 3-4
 local master = reaper.GetMasterTrack(0)
-local mch = math.max(4, sub_ch)
-mch = mch + (mch % 2)                          -- REAPER channel counts are even
-if reaper.GetMediaTrackInfo_Value(master, "I_NCHAN") < mch then
-  reaper.SetMediaTrackInfo_Value(master, "I_NCHAN", mch)
+if reaper.GetMediaTrackInfo_Value(master, "I_NCHAN") < 4 then
+  reaper.SetMediaTrackInfo_Value(master, "I_NCHAN", 4)
 end
 add_hw_out(master, 0, 0)
 add_hw_out(master, 2, 2)
-if sub_ch > 0 then add_hw_out(master, sub_ch - 1, sub_ch - 1, true) end
 
 -- E4L Master (quad decoder)
 local e4l = find_track("E4L Master") or new_track("E4L Master")
@@ -134,7 +132,7 @@ reaper.SetMediaTrackInfo_Value(e4l, "B_MAINSEND", 1)
 local fx = find_fx(e4l, "E4L Master Bus")
 if fx < 0 then fx = add_fx(e4l, "E4L Master Bus.jsfx", "E4L Master Bus (3rd order ambisonics decoder)") end
 set_param(e4l, fx, "Decoder", 2)              -- Quad
-set_param(e4l, fx, "Sub Output (channel, 0 = off)", sub_ch)
+set_param(e4l, fx, "Sub Output (channel, 0 = off)", 0)   -- the sub is fed from the master
 
 -- CUE: binaural copy of the loops for the headphones
 local cue = find_track("CUE (auriculares)")
@@ -187,6 +185,18 @@ end
 reaper.PreventUIRefresh(-1)
 reaper.TrackList_AdjustWindows(false)
 reaper.Undo_EndBlock("E4L: live looper template", -1)
+
+-- sub: everything that reaches the master also goes to the sub output
+if sub_ch > 0 then
+  local dir = debug.getinfo(1, "S").source:match("@?(.*[/\\])") or ""
+  local GetUserInputs = reaper.GetUserInputs
+  reaper.GetUserInputs = function() return true, tostring(sub_ch) end
+  E4L_SUB_QUIET = true
+  local okf, err = pcall(dofile, dir .. "E4L - Add sub to master.lua")
+  E4L_SUB_QUIET = nil
+  reaper.GetUserInputs = GetUserInputs
+  if not okf then msg("Sub: " .. tostring(err)) end
+end
 
 msg(string.format(
   "Listo: %d pistas LOOP.\n\n" ..

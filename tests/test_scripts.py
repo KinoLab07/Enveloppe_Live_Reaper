@@ -19,7 +19,8 @@ def check(name, cond):
 
 lua = lupa.LuaRuntime()
 lua.execute(open(os.path.join(HERE, "mock_reaper.lua")).read())
-template = open(os.path.join(SCRIPTS, "E4L - Live Looper template.lua")).read()
+template_path = os.path.join(SCRIPTS, "E4L - Live Looper template.lua").replace("\\", "/")
+template = "dofile([[%s]])" % template_path
 lua.execute(template)
 
 T = lua.eval("MOCK.T")
@@ -36,17 +37,36 @@ l1 = tracks["LOOP 1"]
 check("LOOP: 16 ch, no master send, looper + panner, 16-ch send to E4L Master",
       l1.vals.I_NCHAN == 16 and l1.vals.B_MAINSEND == 0 and l1.fx[1].file == "E4L Looper.jsfx"
       and l1.sends[0][1].dst.name == "E4L Master" and l1.sends[0][1].vals.I_SRCCHAN == 8 << 10)
-check("E4L Master decodes to Quad with the sub on output 5, CUE to binaural",
+check("E4L Master decodes to Quad (its own sub off), CUE to binaural",
       tracks["E4L Master"].fx[1].p["Decoder"] == 2
-      and tracks["E4L Master"].fx[1].p["Sub Output (channel, 0 = off)"] == 5
+      and tracks["E4L Master"].fx[1].p["Sub Output (channel, 0 = off)"] == 0
       and tracks["CUE (auriculares)"].fx[1].p["Decoder"] == 0)
 m = lua.eval("MOCK.master")
 hw = sorted((int(m.sends[1][i].vals.I_SRCCHAN), int(m.sends[1][i].vals.I_DSTCHAN)) for i in range(1, len(m.sends[1]) + 1))
 check("REAPER master: 6 channels, outputs 1-2, 3-4 and mono 5 (sub)",
       m.vals.I_NCHAN == 6 and hw == [(0, 0), (2, 2), (4 | 1024, 4 | 1024)])
+check("REAPER master: E4L Sub Out on output 5 (every track feeds the sub)",
+      len(m.fx) == 1 and m.fx[1].file == "E4L Sub Out.jsfx" and m.fx[1].p["Sub Output (channel)"] == 5)
 lua.execute(template)
 T = lua.eval("MOCK.T")
-check("running it again only adds loops (4 more)", len(T) == 15 and T[13].name == "LOOP 12")
+m = lua.eval("MOCK.master")
+check("running it again only adds loops (4 more), no second sub plugin or output",
+      len(T) == 15 and T[13].name == "LOOP 12" and len(m.fx) == 1 and len(m.sends[1]) == 3)
+
+# "Add sub to master" on an older project whose decoder still feeds the sub itself
+lua2 = lupa.LuaRuntime()
+lua2.execute(open(os.path.join(HERE, "mock_reaper.lua")).read())
+lua2.execute("""
+reaper.InsertTrackAtIndex(0)
+local tr = reaper.GetTrack(0, 0)
+local fx = reaper.TrackFX_AddByName(tr, "JS:E4L/E4L Master Bus.jsfx")
+reaper.TrackFX_SetParam(tr, fx, 5, 5)
+""")
+lua2.execute("dofile([[%s]])" % os.path.join(SCRIPTS, "E4L - Add sub to master.lua").replace("\\", "/"))
+m2 = lua2.eval("MOCK.master"); t2 = lua2.eval("MOCK.T")
+check("Add sub to master: works on an existing project and turns the decoder's sub off",
+      m2.fx[1].file == "E4L Sub Out.jsfx" and m2.vals.I_NCHAN == 6
+      and t2[1].fx[1].p["Sub Output (channel, 0 = off)"] == 0)
 
 print("\n%d failure(s)" % failures)
 sys.exit(1 if failures else 0)

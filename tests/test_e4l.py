@@ -162,6 +162,14 @@ check("sub low-pass 100 Hz removes the highs", spec[f > 1000].mean() < 0.01 * sp
 out = run("E4L Master Bus.jsfx", enc, "s1=0", "s6=5")[4800:]
 check("binaural ignores the sub output", np.abs(out[:, 4]).max() == 0)
 
+quad = np.zeros((SR, 6)); quad[:, :4] = noise[:SR, :1] * np.array([1.0, 0.5, 0.25, 0.1])
+out = run("E4L Sub Out.jsfx", quad)
+check("master sub: output 5 = 0.5 x (sum of channels 1-4), channels 1-4 untouched",
+      np.allclose(out[:, 4], 0.5 * quad[:, :4].sum(1), atol=1e-6) and np.allclose(out[:, :4], quad[:, :4]))
+out = run("E4L Sub Out.jsfx", quad, "s4=100")[4800:]
+spec = np.abs(np.fft.rfft(out[:, 4])); f = np.fft.rfftfreq(len(out), 1 / SR)
+check("master sub: low-pass 100 Hz", spec[f > 1000].mean() < 0.01 * spec[(f > 20) & (f < 60)].mean())
+
 imp = np.zeros((4096, 16)); imp[0, 0] = 1
 out = run("E4L Master Bus.jsfx", imp, "s1=0")
 check("binaural latency = 512 samples (reported as PDC)", np.argmax(np.abs(out[:, 0]) > 1e-6) >= 512)

@@ -611,8 +611,17 @@ def build(path):
     ])
     st += s_
     st.append(P("Si en tu interfaz las salidas 7-8 no existen, indica en el script otro par libre "
-                "(campo <i>Headphones output</i>). El <b>sub</b> recibe en la <b>salida 5</b> la "
-                "suma de todo (campo <i>Sub output</i>; pon 0 si no tienes sub)."))
+                "(campo <i>Headphones output</i>)."))
+    st.append(box([
+        "El script pone el plugin <b>E4L Sub Out</b> en el <b>master de REAPER</b>: la suma de "
+        "<b>todo lo que llega al master</b> sale también por la <b>salida 5</b>. Por eso "
+        "<b>cualquier pista que agregues</b> (loops, pistas espacializadas o pistas normales) "
+        "alimenta el sub sin hacer nada más.",
+        "En el plugin ajustas <b>Sub Level</b> (volumen) y <b>Sub Low-pass</b> (0 = sin filtro, "
+        "si tu sub tiene su propio filtro de corte; si no, 80-120 Hz).",
+        "Para agregarlo a un proyecto que ya tengas, ejecuta el script "
+        "<b>E4L - Add sub to master</b> y escribe la salida del sub (5).",
+    ], kind="info", title="El sub (salida 5)"))
     st.append(P("Crear la plantilla", "h2"))
     st += steps([
         "Copia de nuevo las carpetas <b>Effects</b> y <b>Scripts</b> en la carpeta de recursos "
@@ -732,8 +741,9 @@ def build(path):
         ["No oigo el sinte en los auriculares", "La pista SYNTH IN debe estar armada (botón rojo) "
          "con el monitoreo activado. En el panel de la Mbox, los auriculares deben tomar las "
          "salidas 7-8 del ordenador (sección 8)."],
-        ["El sub no suena", "En el E4L Master Bus, <i>Sub Output</i> debe valer 5, y el master de "
-         "REAPER debe tener 6 canales y una salida de hardware mono hacia la salida 5."],
+        ["El sub no suena", "El master de REAPER debe tener el plugin <b>E4L Sub Out</b>, "
+         "6 canales y una salida de hardware mono hacia la salida 5. El script <b>E4L - Add sub "
+         "to master</b> lo configura todo."],
         ["El loop está un poco desfasado", "Ajusta <b>Recording Latency Compensation</b> en el "
          "looper (sección 8)."],
         ["El script da un error", "Copia el texto del error o haz una captura y envíamela."],
@@ -750,10 +760,8 @@ def build(path):
         ["Order Weighting", "In-phase (E4L), max-rE, Basic", "<b>In-phase (E4L)</b>"],
         ["Ambisonics Order", "3rd order (16 ch), 1st order (4 ch)", "<b>3rd order</b>"],
         ["Input Gain / Output Gain", "−70 a +6 dB", "0 dB; ajusta según necesites"],
-        ["Sub Output", "Canal de salida del sub (0 = apagado)", "<b>5</b>"],
-        ["Sub Level (dB)", "−40 a +12", "0 dB; ajústalo a oído"],
-        ["Sub Low-pass (Hz)", "0 = sin filtro, o 40-250 Hz", "0 si tu sub tiene su propio filtro; "
-         "si no, 80-120"],
+        ["Sub Output", "Sub propio del decodificador (0 = apagado)", "<b>0</b>: el sub va en el "
+         "master (E4L Sub Out)"],
     ], [40, 80, 50])]))
     st.append(P("E4L Mono / Stereo / Quad Panner", "h2"))
     st.append(table([
@@ -766,6 +774,15 @@ def build(path):
          "Sync, Direction, Depth. No se necesita en cuadrafonía."],
         ["LFO de apertura (Stereo/Quad)", "On/Off, Mode (Freq/Sync), Frequency, Sync, Depth"],
     ], [45, 125]))
+    st.append(P("E4L Sub Out (en el master de REAPER)", "h2"))
+    st.append(table([
+        ["Parámetro", "Valores", "Recomendado"],
+        ["Sub Output (channel)", "1 a 16", "<b>5</b>"],
+        ["Sum of", "Canales 1-4 (quad), 1-2 o 1-6", "<b>1-4</b>"],
+        ["Sub Level (dB)", "−40 a +12", "0 dB; ajústalo a oído"],
+        ["Sub Low-pass (Hz)", "0 = sin filtro, o 40-250", "0 si el sub tiene filtro propio; si no, 80-120"],
+        ["Sub", "On / Muted", "On"],
+    ], [45, 70, 55]))
     st.append(P("E4L Looper", "h2"))
     st.append(table([
         ["Parámetro", "Valores"],

@@ -1,0 +1,67 @@
+desc: E4L Sub Out (sum of the master to a subwoofer output)
+//tags: subwoofer sub lfe bass management envelop e4l
+//author: Envelop for REAPER
+//
+// Put it on REAPER's MASTER track. It adds the sum of the master channels (the quad speakers,
+// and anything else that reaches the master) to one extra output for a subwoofer, so every
+// track of the project feeds the sub, whatever its routing. GPLv2 or later, see LICENSE.
+//
+// The master must have enough channels (e.g. 6 for a sub on output 5) and a hardware
+// output from that channel to the interface ("E4L - Add sub to master" does all of it).
+
+slider1:sub_out=5<1,16,1>Sub Output (channel)
+slider2:src=0<0,2,1{Channels 1-4 (quad),Channels 1-2 (stereo),Channels 1-6}>Sum of
+slider3:sub_db=0<-40,12,0.1>Sub Level (dB)
+slider4:sub_lp=0<0,250,1>Sub Low-pass (Hz, 0 = off)
+slider5:mute=0<0,1,1{On,Muted}>Sub
+
+in_pin:1
+in_pin:2
+in_pin:3
+in_pin:4
+in_pin:5
+in_pin:6
+out_pin:1
+out_pin:2
+out_pin:3
+out_pin:4
+out_pin:5
+out_pin:6
+
+@init
+ext_tail_size = -1;
+x1 = x2 = y1 = y2 = u1 = u2 = v1 = v2 = 0;
+
+@slider
+// 0.5 per channel: the sum of the 4 quad speakers lands close to the E4L LFE level (W x 0.707)
+nsum = src == 0 ? 4 : src == 1 ? 2 : 6;
+gain = (src == 1 ? 0.707 : 0.5) * 10 ^ (sub_db / 20);
+sub_lp > 0 ? (
+  w0 = 2 * $pi * min(sub_lp, srate * 0.45) / srate;
+  cw = cos(w0); al = sin(w0) / (2 * 0.7071067811865476); a0 = 1 + al;
+  b0 = (1 - cw) / 2 / a0; b1 = (1 - cw) / a0; b2 = b0;
+  a1 = -2 * cw / a0;      a2 = (1 - al) / a0;
+);
+
+@sample
+s = spl0 + spl1;
+nsum >= 4 ? s += spl2 + spl3;
+nsum >= 6 ? s += spl4 + spl5;
+s *= gain;
+sub_lp > 0 ? (
+  // 2 cascaded Butterworth low-pass biquads = Linkwitz-Riley 24 dB/oct
+  y = b0*s + b1*x1 + b2*x2 - a1*y1 - a2*y2;  x2 = x1; x1 = s; y2 = y1; y1 = y;
+  s = b0*y + b1*u1 + b2*u2 - a1*v1 - a2*v2;  u2 = u1; u1 = y; v2 = v1; v1 = s;
+);
+!mute ? spl(sub_out - 1) += s;
+
+@gfx 300 90
+gfx_set(0.08, 0.08, 0.1, 1); gfx_rect(0, 0, gfx_w, gfx_h);
+gfx_setfont(1, "Arial", 14);
+gfx_set(0.85, 0.85, 0.9, 1); gfx_x = 8; gfx_y = 6; gfx_drawstr("E4L Sub Out");
+gfx_set(0.7, 0.7, 0.75, 1); gfx_x = 8; gfx_y = 30;
+mute ? gfx_drawstr("Sub muted") :
+  sub_lp > 0 ? gfx_printf("Sum of %d channels -> output %d, low-pass %d Hz", nsum, sub_out, sub_lp)
+             : gfx_printf("Sum of %d channels -> output %d (full range)", nsum, sub_out);
+gfx_x = 8; gfx_y = 50;
+gfx_drawstr("Master needs at least that many channels.");

@@ -21,6 +21,7 @@ y compatible con el IEM Plugin Suite, SPARTA y otros.
 | E4L Multi-Panner | `E4L Multi-Panner.jsfx` | ✅ 16 entradas con posición propia, LFO de azimut, elevación y escala |
 | E4L Master Bus (decodificadores) | `E4L Master Bus.jsfx` | ✅ Binaural 3.er orden, Estéreo, Quad, Octo, 5.1, 7.1, 5.1.2, 7.1.4, AmbiX |
 | — (nuevo) | `E4L Looper.jsfx` | ✅ Looper en vivo sincronizado al compás, estilo Ableton |
+| — (nuevo) | `E4L Sub Out.jsfx` | ✅ Va en el master de REAPER: manda la suma de todo a la salida del sub |
 | Spinner, HOA Transform, Multi-Delay, Spatial Slicer, Brownian Delay… | | ⏳ pendientes |
 
 Lo que no se porta porque REAPER ya lo hace: el ruteo automático entre pistas (se usan envíos de
@@ -67,7 +68,10 @@ en la cuadrafonía.
 2. Pulsa PLAY en REAPER. En el `E4L Looper` de una pista, elige *Length* y pulsa **REC**: graba en
    el siguiente compás y al terminar pasa solo a **PLAY**. También tiene **OVERDUB** y **CLEAR**,
    y todo se puede asignar a MIDI (*Param › Learn*).
-3. Scripts de control: `E4L - Loop REC (selected tracks)`, `E4L - Loop PLAY-STOP (selected tracks)`
+3. Sub: el script pone `E4L Sub Out` en el master de REAPER, así que todo lo que llega al master
+   también sale por la salida del sub (por defecto, la 5). Para un proyecto existente, usa
+   `Scripts/E4L/E4L - Add sub to master.lua`.
+4. Scripts de control: `E4L - Loop REC (selected tracks)`, `E4L - Loop PLAY-STOP (selected tracks)`
    y `E4L - Loops STOP all`.
 
 Los loops viven en la memoria del plugin y no se guardan con el proyecto. Para conservar una
