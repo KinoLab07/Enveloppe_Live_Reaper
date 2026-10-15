@@ -2,7 +2,7 @@
 local T = {}               -- tracks (array)
 local master = {name="MASTER", vals={I_NCHAN=2}, fx={}, sends={[0]={},[1]={{dst=nil,vals={I_SRCCHAN=0,I_DSTCHAN=0}}}}}
 local FXP = {
-  ["E4L Master Bus.jsfx"]={"Decoder","Order Weighting","Ambisonics Order","Input Gain (dB)","Output Gain (dB)"},
+  ["E4L Master Bus.jsfx"]={"Decoder","Order Weighting","Ambisonics Order","Input Gain (dB)","Output Gain (dB)","Sub Output (channel, 0 = off)","Sub Level (dB)","Sub Low-pass (Hz, 0 = off)"},
   ["E4L Looper.jsfx"]={"Length (bars)","Record","Play","Overdub","Clear","Loop Volume (dB)","Input Thru (live input also to the output)","Recording Latency Compensation (ms)"},
   ["E4L Mono Panner.jsfx"]={"Azimuth","Elevation","Radius","Range"},
   ["E4L Stereo Panner.jsfx"]={"Azimuth","Elevation","Radius","Range"},

@@ -5,8 +5,11 @@
 --   SYNTH IN          audio input of the synth. Always to the headphones, never to the speakers.
 --   LOOP 1..N         E4L Looper + E4L panner. Records N bars from the synth on the next bar
 --                     and plays the loop in sync, spatialised, to "E4L Master".
---   E4L Master        E4L Master Bus = Quad -> REAPER master (4 channels) -> outputs 1-4.
+--   E4L Master        E4L Master Bus = Quad (+ sub) -> REAPER master -> outputs 1-4 (+ sub output).
 --   CUE (auriculares) binaural copy of the loops, to the headphone outputs.
+--
+-- Headphones: choose an output pair that is not a speaker, e.g. 7-8 on an Mbox Pro, and in the
+-- interface's control panel set the headphone output source to that pair.
 --
 -- Running it again on a project that already has the template adds more LOOP tracks.
 -- GPLv2 or later (same as Envelop for Live).
@@ -73,30 +76,33 @@ local function add_send(src, dst, nch, mode)
   reaper.SetTrackSendInfo_Value(src, 0, s, "I_SENDMODE", mode)
 end
 
--- stereo hardware output: track channels src_ch.. -> interface outputs dst_ch.. (0-based)
-local function add_hw_out(tr, src_ch, dst_ch)
+-- hardware output: track channels src_ch.. -> interface outputs dst_ch.. (0-based)
+-- stereo pair by default, single channel when mono is true
+local function add_hw_out(tr, src_ch, dst_ch, mono)
   for i = 0, reaper.GetTrackNumSends(tr, 1) - 1 do
-    if reaper.GetTrackSendInfo_Value(tr, 1, i, "I_DSTCHAN") & 1023 == dst_ch then return end
+    if math.floor(reaper.GetTrackSendInfo_Value(tr, 1, i, "I_DSTCHAN")) & 1023 == dst_ch then return end
   end
+  local flag = mono and 1024 or 0
   local s = reaper.CreateTrackSend(tr, nil)
-  reaper.SetTrackSendInfo_Value(tr, 1, s, "I_SRCCHAN", src_ch)
-  reaper.SetTrackSendInfo_Value(tr, 1, s, "I_DSTCHAN", dst_ch)
+  reaper.SetTrackSendInfo_Value(tr, 1, s, "I_SRCCHAN", src_ch | flag)
+  reaper.SetTrackSendInfo_Value(tr, 1, s, "I_DSTCHAN", dst_ch | flag)
 end
 
 ---------------------------------------------------------------------------------------
 local existing = find_track("SYNTH IN")
-local defaults = existing and "4,1,1,5,1" or "8,1,1,5,1"
-local ok, csv = reaper.GetUserInputs("E4L Live Looper", 5,
+local defaults = existing and "4,1,1,7,1,5" or "8,1,1,7,1,5"
+local ok, csv = reaper.GetUserInputs("E4L Live Looper", 6,
   "Loop tracks to add,Synth input (first channel),Synth input: 1 mono 2 stereo," ..
-  "Headphones output (first channel),Loop panner: 1 Mono 2 Stereo", defaults)
+  "Headphones output (first channel),Loop panner: 1 Mono 2 Stereo,Sub output (0 = none)", defaults)
 if not ok then return end
 local f = {}
 for v in csv:gmatch("[^,]+") do f[#f + 1] = tonumber(v) end
 local n_loops   = math.max(1, math.min(32, f[1] or 8))
 local in_ch     = math.max(1, f[2] or 1)
 local in_stereo = (f[3] or 1) == 2
-local cue_ch    = math.max(1, f[4] or 5)
+local cue_ch    = math.max(1, f[4] or 7)
 local stereo_pan = (f[5] or 1) == 2
+local sub_ch    = math.max(0, f[6] or 0)
 
 -- recording latency compensation = audio input + output latency of the interface
 local lat_ms = 0
@@ -110,11 +116,16 @@ end
 reaper.Undo_BeginBlock()
 reaper.PreventUIRefresh(1)
 
--- REAPER master: 4 channels -> outputs 1-2 and 3-4 (quadraphony)
+-- REAPER master: quadraphony on outputs 1-2 and 3-4, plus the sub on its own output
 local master = reaper.GetMasterTrack(0)
-reaper.SetMediaTrackInfo_Value(master, "I_NCHAN", 4)
+local mch = math.max(4, sub_ch)
+mch = mch + (mch % 2)                          -- REAPER channel counts are even
+if reaper.GetMediaTrackInfo_Value(master, "I_NCHAN") < mch then
+  reaper.SetMediaTrackInfo_Value(master, "I_NCHAN", mch)
+end
 add_hw_out(master, 0, 0)
 add_hw_out(master, 2, 2)
+if sub_ch > 0 then add_hw_out(master, sub_ch - 1, sub_ch - 1, true) end
 
 -- E4L Master (quad decoder)
 local e4l = find_track("E4L Master") or new_track("E4L Master")
@@ -123,6 +134,7 @@ reaper.SetMediaTrackInfo_Value(e4l, "B_MAINSEND", 1)
 local fx = find_fx(e4l, "E4L Master Bus")
 if fx < 0 then fx = add_fx(e4l, "E4L Master Bus.jsfx", "E4L Master Bus (3rd order ambisonics decoder)") end
 set_param(e4l, fx, "Decoder", 2)              -- Quad
+set_param(e4l, fx, "Sub Output (channel, 0 = off)", sub_ch)
 
 -- CUE: binaural copy of the loops for the headphones
 local cue = find_track("CUE (auriculares)")
@@ -179,7 +191,8 @@ reaper.Undo_EndBlock("E4L: live looper template", -1)
 msg(string.format(
   "Listo: %d pistas LOOP.\n\n" ..
   "Auriculares: salidas %d-%d (SYNTH IN + CUE binaural).\n" ..
-  "Cuadrafonia: salidas 1-4.\n" ..
+  "Asigna esas salidas a los auriculares en el panel de control de la interfaz.\n" ..
+  "Cuadrafonia: salidas 1-4.%s\n" ..
   "Compensacion de latencia de grabacion: %.1f ms.\n\n" ..
   "Pulsa PLAY en REAPER y usa REC en el E4L Looper de cada pista.",
-  n_loops, cue_ch, cue_ch + 1, lat_ms))
+  n_loops, cue_ch, cue_ch + 1, sub_ch > 0 and ("  Sub: salida " .. sub_ch .. ".") or "", lat_ms))

@@ -207,9 +207,9 @@ def live_diagram():
     for k in range(3):
         node(250, 196 - k * 48, 104, 40, ["LOOP 1", "LOOP 2", "LOOP …"][k],
              ["E4L Looper", "+ E4L Panner"], ACCENT_LIGHT)
-    node(386, 118, 95, 64, "E4L Master", ["Master Bus = Quad", "salidas 1-4", "(altavoces)"],
+    node(386, 118, 95, 64, "E4L Master", ["Master Bus = Quad", "salidas 1-4 + sub 5", "(altavoces)"],
          ACCENT_LIGHT)
-    node(122, 4, 92, 44, "Auriculares", ["salidas 5-6"], colors.HexColor("#f3ecf9"), HP)
+    node(122, 4, 92, 44, "Auriculares", ["salidas 7-8 →", "toma de auriculares"], colors.HexColor("#f3ecf9"), HP)
     node(250, 4, 104, 44, "CUE (auriculares)", ["Master Bus = Binaural"], colors.HexColor("#f3ecf9"), HP)
     arrow([(92, 150), (122, 150)])
     for k in range(3):
@@ -393,7 +393,7 @@ def build(path):
     st += steps([
         "En la pista <b>MASTER</b> pulsa el botón <b>Route</b> (o clic derecho sobre el master › "
         "<b>Routing</b>).",
-        "Arriba, en <b>Track channels</b>, elige <b>4</b>.",
+        "Arriba, en <b>Track channels</b>, elige <b>4</b> (o <b>6</b> si usas sub en la salida 5).",
         "En <b>Audio Hardware Outputs</b> deja la salida que ya existe: canales <b>1/2 → "
         "salidas 1/2</b>.",
         "Pulsa <b>Add new hardware output</b> y elige las <b>salidas 3/4</b>. En esa nueva salida, "
@@ -590,13 +590,29 @@ def build(path):
                 "movimientos."))
     st.append(live_diagram())
     st.append(Spacer(1, 6))
-    st.append(P("Antes de empezar: los auriculares", "h2"))
-    st.append(P("Para escuchar el sinte sin que salga por los altavoces, los auriculares deben "
-                "recibir una salida <b>distinta de la 1-4</b> de la interfaz (por defecto, "
-                "<b>salidas 5-6</b>). Revisa en el manual de tu interfaz qué salidas llegan a la "
-                "toma de auriculares. Si esa toma solo copia las salidas 1-2, usa el mezclador "
-                "o el software de la interfaz para asignarle otras salidas, o indica en el "
-                "script el par de salidas que tengas libre."))
+    st.append(P("Antes de empezar: auriculares y sub (Mbox Pro)", "h2"))
+    st.append(P("Los auriculares tienen que recibir una mezcla <b>distinta</b> de la de los altavoces. "
+                "La plantilla manda la mezcla de auriculares a las <b>salidas 7-8</b> de la "
+                "interfaz, que no van a ningún altavoz. En la <b>Mbox Pro</b>, cada salida de "
+                "auriculares (A y B) tiene su propia mezcla, configurable en el panel de control "
+                "del driver:"))
+    s_ = steps([
+        "En REAPER, abre <b>Options › Preferences › Audio › Device</b> y pulsa el botón del panel "
+        "de control de la interfaz (<b>ASIO Configuration…</b> en Windows), o abre el "
+        "<b>Mbox Pro Control Panel</b>.",
+        "En la configuración de salidas, busca <b>Headphones A</b> (y B si la usas) y elige como "
+        "origen la señal que llega del ordenador por las <b>salidas 7-8</b>. Los nombres "
+        "exactos dependen de la versión del driver.",
+        "Comprueba que las salidas <b>1-4</b> (altavoces) y <b>5</b> (sub) reciben lo que llega "
+        "del ordenador por esas mismas salidas.",
+        "El <b>volumen maestro</b> de la Mbox afecta a todas las salidas. Si quieres que solo "
+        "controle los auriculares, desmarca <i>Master Vol.</i> para las demás salidas en "
+        "<b>Output Setup</b>.",
+    ])
+    st += s_
+    st.append(P("Si en tu interfaz las salidas 7-8 no existen, indica en el script otro par libre "
+                "(campo <i>Headphones output</i>). El <b>sub</b> recibe en la <b>salida 5</b> la "
+                "suma de todo (campo <i>Sub output</i>; pon 0 si no tienes sub)."))
     st.append(P("Crear la plantilla", "h2"))
     st += steps([
         "Copia de nuevo las carpetas <b>Effects</b> y <b>Scripts</b> en la carpeta de recursos "
@@ -610,17 +626,19 @@ def build(path):
         ["Loop tracks to add", "Cuántas pistas de loop crear.", "8"],
         ["Synth input (first channel)", "Entrada de la interfaz donde está conectado el sinte.", "1"],
         ["Synth input: 1 mono 2 stereo", "1 si el sinte tiene una salida; 2 si tiene dos.", "1"],
-        ["Headphones output (first channel)", "Primera salida que va a los auriculares.", "5 (salidas 5-6)"],
+        ["Headphones output (first channel)", "Primera salida para los auriculares.", "7 (salidas 7-8)"],
         ["Loop panner: 1 Mono 2 Stereo", "Paneador de cada loop: Mono para un sinte mono.", "1"],
+        ["Sub output (0 = none)", "Salida del subwoofer; recibe la suma de todo.", "5"],
     ], [52, 88, 30]))
     st.append(P("El script crea <b>SYNTH IN</b>, las pistas <b>LOOP 1…8</b>, <b>E4L Master</b> "
-                "(Quad) y <b>CUE (auriculares)</b>. También pone el master de REAPER en 4 canales "
+                "(Quad, con el sub) y <b>CUE (auriculares)</b>. También prepara el master de REAPER "
+                "(salidas 1-2, 3-4 y el sub en la 5) "
                 "y calcula la <b>compensación de latencia</b> de grabación de tu interfaz. Cada "
                 "loop empieza en una posición distinta de la sala (−45°, 45°, 135°, −135°…). Si "
                 "lo vuelves a ejecutar en el mismo proyecto, solo agrega más pistas LOOP."))
     st.append(P("Tocar en vivo, paso a paso", "h2"))
     st += steps([
-        "Ajusta el <b>tempo</b> y el <b>compás</b> en la barra de transporte de REAPER.",
+        "Ajusta el <b>tempo</b> y el <b>compás</b> (ver el recuadro de abajo).",
         "Pulsa <b>PLAY</b> en REAPER (barra espaciadora). El proyecto en marcha es el «loop "
         "general»: todos los loops se sincronizan con sus compases.",
         "Toca el sinte: lo oyes en los auriculares. Por los altavoces todavía no sale nada.",
@@ -633,6 +651,21 @@ def build(path):
         "Para el siguiente sonido, usa <b>LOOP 2</b>, y así sucesivamente: cada capa en su pista, "
         "con su posición.",
     ])
+    st.append(box([
+        "<b>En la barra de transporte</b> (abajo de las pistas): a la derecha se ven el tempo "
+        "(<b>BPM</b>, por ejemplo 120) y el compás (por ejemplo <b>4/4</b>). <b>Doble clic</b> en "
+        "el número de BPM o del compás para escribir el valor nuevo. También puedes arrastrar el "
+        "BPM hacia arriba o hacia abajo con el ratón.",
+        "<b>En la configuración del proyecto:</b> <b>File › Project settings…</b> (Alt + Enter), "
+        "pestaña <b>Project settings</b>: <i>Project BPM</i> y <i>Time signature</i>.",
+        "<b>Por pulsaciones:</b> la acción <i>Transport: Tap tempo</i> (en la lista de acciones) "
+        "calcula el tempo según tus golpes.",
+        "<b>Metrónomo:</b> el botón con forma de metrónomo en la barra de transporte. Para que "
+        "suene solo en los auriculares, en <b>Options › Metronome settings</b> envíalo a las "
+        "salidas 7-8.",
+        "Ajusta el tempo <b>antes</b> de grabar loops. Si lo cambias después, los loops ya "
+        "grabados se aceleran o se frenan (y cambia su afinación).",
+    ], kind="info", title="Cómo ajustar tempo y compás"))
     st.append(table([
         ["Botón del looper", "Qué hace"],
         ["<b>REC</b>", "Graba en el siguiente compás. Si la pista ya tiene un loop, lo reemplaza; "
@@ -660,7 +693,7 @@ def build(path):
         "y asígnales una tecla (Actions › Add). REC y PLAY-STOP actúan sobre las pistas "
         "seleccionadas.",
         "<b>Metrónomo solo en auriculares:</b> en <b>Options › Metronome settings</b> envía "
-        "el metrónomo a las salidas de los auriculares (por ejemplo 5-6), no a la 1-4.",
+        "el metrónomo a las salidas de los auriculares (por ejemplo 7-8), no a la 1-4.",
     ])
     st.append(box([
         "• REAPER tiene que estar <b>reproduciendo</b>: el looper sigue la posición del proyecto. "
@@ -675,6 +708,7 @@ def build(path):
     ], kind="warn", title="A tener en cuenta"))
 
     # 9
+    st.append(PageBreak())
     st.append(P("9. Solución de problemas", "h1"))
     st.append(table([
         ["Problema", "Solución"],
@@ -696,8 +730,10 @@ def build(path):
         ["El sinte sale por los altavoces", "Revisa que la pista SYNTH IN no tenga el Master send "
          "activado y que el looper tenga <b>Input Thru</b> apagado."],
         ["No oigo el sinte en los auriculares", "La pista SYNTH IN debe estar armada (botón rojo) "
-         "con el monitoreo activado, y su salida de hardware debe ir a las salidas de los "
-         "auriculares."],
+         "con el monitoreo activado. En el panel de la Mbox, los auriculares deben tomar las "
+         "salidas 7-8 del ordenador (sección 8)."],
+        ["El sub no suena", "En el E4L Master Bus, <i>Sub Output</i> debe valer 5, y el master de "
+         "REAPER debe tener 6 canales y una salida de hardware mono hacia la salida 5."],
         ["El loop está un poco desfasado", "Ajusta <b>Recording Latency Compensation</b> en el "
          "looper (sección 8)."],
         ["El script da un error", "Copia el texto del error o haz una captura y envíamela."],
@@ -714,6 +750,10 @@ def build(path):
         ["Order Weighting", "In-phase (E4L), max-rE, Basic", "<b>In-phase (E4L)</b>"],
         ["Ambisonics Order", "3rd order (16 ch), 1st order (4 ch)", "<b>3rd order</b>"],
         ["Input Gain / Output Gain", "−70 a +6 dB", "0 dB; ajusta según necesites"],
+        ["Sub Output", "Canal de salida del sub (0 = apagado)", "<b>5</b>"],
+        ["Sub Level (dB)", "−40 a +12", "0 dB; ajústalo a oído"],
+        ["Sub Low-pass (Hz)", "0 = sin filtro, o 40-250 Hz", "0 si tu sub tiene su propio filtro; "
+         "si no, 80-120"],
     ], [40, 80, 50])]))
     st.append(P("E4L Mono / Stereo / Quad Panner", "h2"))
     st.append(table([

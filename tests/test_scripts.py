@@ -30,17 +30,20 @@ check("template creates SYNTH IN, 8 loops, E4L Master and CUE",
 s = tracks["SYNTH IN"]
 check("SYNTH IN: armed, monitored, never recorded, no master send",
       s.vals.I_RECARM == 1 and s.vals.I_RECMON == 1 and s.vals.I_RECMODE == 2 and s.vals.B_MAINSEND == 0)
-check("SYNTH IN: to headphones (outputs 5-6) and to every loop",
-      s.sends[1][1].vals.I_DSTCHAN == 4 and len(s.sends[0]) == 8)
+check("SYNTH IN: to headphones (outputs 7-8) and to every loop",
+      s.sends[1][1].vals.I_DSTCHAN == 6 and len(s.sends[0]) == 8)
 l1 = tracks["LOOP 1"]
 check("LOOP: 16 ch, no master send, looper + panner, 16-ch send to E4L Master",
       l1.vals.I_NCHAN == 16 and l1.vals.B_MAINSEND == 0 and l1.fx[1].file == "E4L Looper.jsfx"
       and l1.sends[0][1].dst.name == "E4L Master" and l1.sends[0][1].vals.I_SRCCHAN == 8 << 10)
-check("E4L Master decodes to Quad, CUE to binaural",
-      tracks["E4L Master"].fx[1].p["Decoder"] == 2 and tracks["CUE (auriculares)"].fx[1].p["Decoder"] == 0)
+check("E4L Master decodes to Quad with the sub on output 5, CUE to binaural",
+      tracks["E4L Master"].fx[1].p["Decoder"] == 2
+      and tracks["E4L Master"].fx[1].p["Sub Output (channel, 0 = off)"] == 5
+      and tracks["CUE (auriculares)"].fx[1].p["Decoder"] == 0)
 m = lua.eval("MOCK.master")
-check("REAPER master: 4 channels to outputs 1-2 and 3-4",
-      m.vals.I_NCHAN == 4 and sorted(m.sends[1][i].vals.I_DSTCHAN for i in (1, 2)) == [0, 2])
+hw = sorted((int(m.sends[1][i].vals.I_SRCCHAN), int(m.sends[1][i].vals.I_DSTCHAN)) for i in range(1, len(m.sends[1]) + 1))
+check("REAPER master: 6 channels, outputs 1-2, 3-4 and mono 5 (sub)",
+      m.vals.I_NCHAN == 6 and hw == [(0, 0), (2, 2), (4 | 1024, 4 | 1024)])
 lua.execute(template)
 T = lua.eval("MOCK.T")
 check("running it again only adds loops (4 more)", len(T) == 15 and T[13].name == "LOOP 12")

@@ -151,6 +151,17 @@ rms = np.sqrt((out ** 2).mean(0))
 check("7.1.4: front source loudest on C, LFE = W * 0.707",
       rms[2] == rms[:12].max() and abs(rms[3] - 0.1 * 0.707) < 0.005)
 
+enc = run("E4L Mono Panner.jsfx", noise, "s1=135", "s3=0.1")
+out = run("E4L Master Bus.jsfx", enc, "s1=2", "s6=5")[4800:]
+rms = np.sqrt((out ** 2).mean(0))
+check("quad + sub: rear-right source on output 3, sub on output 5 = W * 0.707",
+      rms[2] == rms[:4].max() and abs(rms[4] - 0.1 * 0.707) < 0.003)
+out = run("E4L Master Bus.jsfx", enc, "s1=2", "s6=5", "s8=100")[4800:]
+spec = np.abs(np.fft.rfft(out[:, 4])); f = np.fft.rfftfreq(len(out), 1 / SR)
+check("sub low-pass 100 Hz removes the highs", spec[f > 1000].mean() < 0.01 * spec[(f > 20) & (f < 60)].mean())
+out = run("E4L Master Bus.jsfx", enc, "s1=0", "s6=5")[4800:]
+check("binaural ignores the sub output", np.abs(out[:, 4]).max() == 0)
+
 imp = np.zeros((4096, 16)); imp[0, 0] = 1
 out = run("E4L Master Bus.jsfx", imp, "s1=0")
 check("binaural latency = 512 samples (reported as PDC)", np.argmax(np.abs(out[:, 0]) > 1e-6) >= 512)

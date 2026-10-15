@@ -19,6 +19,10 @@ desc: E4L Master Bus (3rd order ambisonics decoder)
 //                         9 -30/55  10 -150/55  11 +30/55  12 +150/55
 //   AmbiX                 1-16 pass-through (to record / export the ambisonics mix)
 //
+// Sub Output: sends the omni sum of the whole mix (W x 0.707, the E4L LFE level) to one extra
+// output channel, e.g. 5 for a subwoofer next to a quad set-up. Optional 24 dB/oct
+// Linkwitz-Riley low-pass. Not used by the binaural and AmbiX decoders.
+//
 // The binaural decoder needs the files Data/E4L/hrtf/e4l_binaural_<rate>.wav
 // (copy the "Data" folder of this project into the REAPER resource folder).
 
@@ -27,6 +31,9 @@ slider2:weighting=0<0,2,1{In-phase (E4L),max-rE,Basic}>Order Weighting
 slider3:order=0<0,1,1{3rd order (16 ch),1st order (4 ch)}>Ambisonics Order
 slider4:in_gain_db=0<-70,6,0.1>Input Gain (dB)
 slider5:out_gain_db=0<-70,6,0.1>Output Gain (dB)
+slider6:sub_out=0<0,16,1>Sub Output (channel, 0 = off)
+slider7:sub_db=0<-40,12,0.1>Sub Level (dB)
+slider8:sub_lp=0<0,250,1>Sub Low-pass (Hz, 0 = off)
 
 in_pin:W (ACN 0)
 in_pin:Y (ACN 1)
@@ -256,12 +263,28 @@ function setup() local(a, n, e)
   );
 );
 
+// ---------------- sub: 2 cascaded Butterworth low-pass biquads (= Linkwitz-Riley 4th order) ----
+function setup_sub() local(w0, al, cw, a0)
+(
+  sub_gain = 0.707 * 10 ^ (sub_db / 20);
+  sub_lp > 0 ? (
+    w0 = 2 * $pi * min(sub_lp, srate * 0.45) / srate;
+    cw = cos(w0); al = sin(w0) / (2 * 0.7071067811865476);
+    a0 = 1 + al;
+    lp_b0 = (1 - cw) / 2 / a0; lp_b1 = (1 - cw) / a0; lp_b2 = lp_b0;
+    lp_a1 = -2 * cw / a0;      lp_a2 = (1 - al) / a0;
+  );
+);
+
 irlen = 512; fftsize = 1024;
 load_binaural();
 setup();
+setup_sub();
+s1x1 = s1x2 = s1y1 = s1y2 = s2x1 = s2x2 = s2y1 = s2y2 = 0;
 
 @slider
 setup();
+setup_sub();
 in_gain = 10 ^ (in_gain_db / 20);
 out_gain = 10 ^ (out_gain_db / 20);
 
@@ -308,6 +331,18 @@ dec == 0 ? (
     s += 1;
   );
   lfe_out >= 0 ? spl(lfe_out) = xin[0] * 0.707 * g;
+
+  // ---------- sub output (omni sum of the mix) ----------
+  sub_out > 0 ? (
+    sx = xin[0] * g * sub_gain;
+    sub_lp > 0 ? (
+      sy = lp_b0*sx + lp_b1*s1x1 + lp_b2*s1x2 - lp_a1*s1y1 - lp_a2*s1y2;
+      s1x2 = s1x1; s1x1 = sx; s1y2 = s1y1; s1y1 = sy;
+      sx = lp_b0*sy + lp_b1*s2x1 + lp_b2*s2x2 - lp_a1*s2y1 - lp_a2*s2y2;
+      s2x2 = s2x1; s2x1 = sy; s2y2 = s2y1; s2y1 = sx;
+    );
+    spl(sub_out - 1) += sx;
+  );
 );
 
 @gfx 320 200
@@ -330,6 +365,9 @@ dec == 0 ? (
   gfx_drawstr("AmbiX pass-through: outputs 1-16 = ACN 0-15 (SN3D)");
 ) : (
   gfx_printf("%d speakers%s -> %d outputs", nspk, lfe_out >= 0 ? " + LFE" : "", nouts);
+  sub_out > 0 ? ( gfx_x = 8; gfx_y = 66;
+    sub_lp > 0 ? gfx_printf("Sub -> output %d (low-pass %d Hz)", sub_out, sub_lp)
+               : gfx_printf("Sub -> output %d (full range)", sub_out); );
   gfx_x = 8; gfx_y = 48;
   gfx_drawstr("Set the track to at least that many channels.");
 );
