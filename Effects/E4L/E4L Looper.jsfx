@@ -26,6 +26,12 @@ slider5:clear_btn=0<0,1,1{-,Clear}>Clear
 slider6:vol_db=0<-60,12,0.1>Loop Volume (dB)
 slider7:thru=0<0,1,1{Off,On}>Input Thru (live input also to the output)
 slider8:lat_ms=0<0,500,0.1>Recording Latency Compensation (ms)
+// read-only status, published for the "E4L - Live Panel" script (hidden in the plugin UI)
+slider9:st_out=0<0,4,1>-Status (0 empty 1 armed 2 rec 3 play 4 stop)
+slider10:pend_out=0<0,2,1>-Pending (1 play 2 stop)
+slider11:bars_out=0<0,64,1>-Loop Bars
+slider12:start_out=0<-1000000,100000000,0.0001>-Loop Start (QN)
+slider13:qn_out=0<0,1000,0.0001>-Loop Length (QN)
 
 in_pin:Input L
 in_pin:Input R
@@ -99,6 +105,18 @@ play_btn && !p_play && state == ST_PLAY ? pend_stop = 0;
 !play_btn && p_play && state == ST_PLAY ? ( pend_stop = 1; pend_play = 0; );
 !play_btn && p_play && state == ST_STOP ? pend_play = 0;
 p_rec = rec_btn; p_play = play_btn; p_clear = clear_btn;
+
+// ---------- publish the status for the Live Panel (only when it changes) ----------
+v = armed ? 1 : state;
+v != st_out ? ( st_out = v; sliderchange(2 ^ 8); );
+v = pend_play ? 1 : pend_stop ? 2 : 0;
+v != pend_out ? ( pend_out = v; sliderchange(2 ^ 9); );
+v = state == ST_REC ? bars_from_sel(len_sel) : has_loop && bar_qn > 0 ? floor(loop_qn / bar_qn + 0.5) : 0;
+v != bars_out ? ( bars_out = v; sliderchange(2 ^ 10); );
+v = state == ST_REC ? rec_start_qn : start_qn;
+v != start_out ? ( start_out = v; sliderchange(2 ^ 11); );
+v = state == ST_REC ? bars_from_sel(len_sel) * bar_qn : loop_qn;
+v != qn_out ? ( qn_out = v; sliderchange(2 ^ 12); );
 
 gain = 10 ^ (vol_db / 20);
 qn_per_spl = tempo / 60 / srate;

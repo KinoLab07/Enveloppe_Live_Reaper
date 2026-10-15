@@ -34,6 +34,10 @@ slider25:e_sync=2<0,10,1{1/4,1/2,1,2,3,4,6,8,16,32,64}>Elevation LFO Sync (bars)
 slider26:e_dir=0<0,1,1{Clockwise,Counter}>Elevation LFO Direction
 slider27:e_depth=30<0,90,0.1>Elevation LFO Depth
 
+// read-only, published for the "E4L - Live Panel" script (hidden in the plugin UI)
+slider60:0<-180,180,0.1>-Current Azimuth
+slider61:0<-90,90,0.1>-Current Elevation
+
 import e4l_ambix.jsfx-inc
 import e4l_gfx.jsfx-inc
 
@@ -76,6 +80,13 @@ function compute_targets(bpos, n) local(az, el)
 );
 
 @block
+// publish the modulated position for the Live Panel, about 30 times per second
+pub_ctr += samplesblock;
+pub_ctr >= srate / 30 ? (
+  pub_ctr = 0;
+  abs(cur_az - slider60) > 0.2 ? ( slider60 = cur_az; sliderchange(slider60); );
+  abs(cur_el - slider61) > 0.2 ? ( slider61 = cur_el; sliderchange(slider61); );
+);
 blk_beat = beat_position;
 blk_spb  = tempo / 60 / srate;
 

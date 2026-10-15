@@ -71,7 +71,13 @@ en la cuadrafonía.
 3. Sub: el script pone `E4L Sub Out` en el master de REAPER, así que todo lo que llega al master
    también sale por la salida del sub (por defecto, la 5). Para un proyecto existente, usa
    `Scripts/E4L/E4L - Add sub to master.lua`.
-4. Scripts de control: `E4L - Loop REC (selected tracks)`, `E4L - Loop PLAY-STOP (selected tracks)`
+4. **Panel en vivo:** `Scripts/E4L/E4L - Live Panel.lua` abre una sola ventana, acoplable a
+   REAPER, con el compás y el tiempo en grande y todos los loops (REC / PLAY / OVERDUB / CLEAR,
+   largo y posición). También muestra la sala con un punto por loop, que se arrastra para moverlo.
+   Teclas: Espacio = play/stop, 1-9 = REC, 0 = parar todos.
+
+   ![E4L Live Panel](docs/live_panel_preview.png)
+5. Scripts de control: `E4L - Loop REC (selected tracks)`, `E4L - Loop PLAY-STOP (selected tracks)`
    y `E4L - Loops STOP all`.
 
 Los loops viven en la memoria del plugin y no se guardan con el proyecto. Para conservar una

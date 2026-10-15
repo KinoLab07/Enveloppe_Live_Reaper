@@ -45,6 +45,8 @@ int main(int argc,char**argv){
     for(int i=0;i<n;i++) for(int ch=0;ch<nout;ch++) outbuf.push_back(ob[ch][i]);
   }
   fwrite(outbuf.data(),4,outbuf.size(),fo); fclose(fo);
+  // SLIDERS_AT_END: final slider values, for tests of published status
+  for(int i=0;i<256;i++) if(ysfx_slider_exists(fx,i)) fprintf(stderr,"slider%d=%g\n",i+1,ysfx_slider_get_value(fx,i));
   printf("%d\n",nout);
   return 0;
 }

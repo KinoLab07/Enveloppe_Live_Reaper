@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+"""Renders docs/live_panel_preview.png: runs "E4L - Live Panel.lua" against the mocked REAPER
+API (tests/mock_reaper.lua) with a few loops in different states and draws its gfx calls.
+Requires: pip install lupa pillow"""
+import os
+
+import lupa
+from PIL import Image, ImageDraw, ImageFont
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+lua = lupa.LuaRuntime()
+lua.execute(open(os.path.join(ROOT, "tests", "mock_reaper.lua")).read())
+lua.execute('MOCK_INPUT = "6,1,1,7,1,5"')
+lua.execute("dofile([[%s]])" % os.path.join(ROOT, "Scripts", "E4L", "E4L - Live Looper template.lua"))
+lua.execute('''
+local T = MOCK.T
+local ST, BARS, LQN = "-Status (0 empty 1 armed 2 rec 3 play 4 stop)", "-Loop Bars", "-Loop Length (QN)"
+local function L(i) return T[i+1].fx[1].p end
+local function P(i) return T[i+1].fx[2].p end
+L(1)[ST]=3; L(1)[BARS]=4; L(1)[LQN]=16; L(1)["Play"]=1; L(1)["Length (bars)"]=2
+L(2)[ST]=3; L(2)[BARS]=2; L(2)[LQN]=8;  L(2)["Play"]=1; L(2)["Length (bars)"]=1; L(2)["Overdub"]=1
+L(3)[ST]=2; L(3)[BARS]=8; L(3)[LQN]=32; L(3)["-Loop Start (QN)"]=16; L(3)["Length (bars)"]=3
+L(4)[ST]=1; L(4)["Length (bars)"]=2
+L(5)[ST]=4; L(5)[BARS]=4; L(5)[LQN]=16; L(5)["Length (bars)"]=2
+P(1)["-Current Azimuth"]=-60; P(2)["-Current Azimuth"]=40; P(3)["-Current Azimuth"]=135
+P(4)["-Current Azimuth"]=-135; P(5)["-Current Azimuth"]=0; P(6)["-Current Azimuth"]=90
+MOCK_POS = 21.3
+DRAW = {}; local col = {1,1,1,1}; local font = 1
+function gfx.set(r,g,b,a) col = {r,g,b,a or 1} end
+function gfx.rect(x,y,w,h,f) DRAW[#DRAW+1] = {"rect",x,y,w,h,col[1],col[2],col[3],col[4], f == nil and 1 or f} end
+function gfx.line(x1,y1,x2,y2) DRAW[#DRAW+1] = {"line",x1,y1,x2,y2,col[1],col[2],col[3],col[4]} end
+function gfx.circle(x,y,r,f) DRAW[#DRAW+1] = {"circle",x,y,r,col[1],col[2],col[3],col[4],f or 0} end
+function gfx.setfont(i) if i and i > 0 then font = i end end
+function gfx.measurestr(s) if font == 2 then return #s*24, 44 end return #s*7.6, 15 end
+function gfx.drawstr(s) DRAW[#DRAW+1] = {"text",gfx.x,gfx.y,s,col[1],col[2],col[3],col[4],font} end
+''')
+lua.execute("dofile([[%s]])" % os.path.join(ROOT, "Scripts", "E4L", "E4L - Live Panel.lua"))
+lua.execute("DRAW = {}; local f = MOCK_DEFER; MOCK_DEFER = nil; f()")
+D = lua.eval("DRAW")
+
+W, H = 1100, 520
+img = Image.new("RGB", (W, H), "black")
+d = ImageDraw.Draw(img, "RGBA")
+F1 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13)
+F2 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40)
+
+
+def c(r, g, b, a):
+    return (int(r * 255), int(g * 255), int(b * 255), int(a * 255))
+
+
+for i in range(1, len(D) + 1):
+    e = list(D[i].values())
+    if e[0] == "rect":
+        _, x, y, w, h, r, g, b, a, f = e
+        d.rectangle([x, y, x + w, y + h], fill=c(r, g, b, a) if f else None, outline=None if f else c(r, g, b, a))
+    elif e[0] == "line":
+        _, x1, y1, x2, y2, r, g, b, a = e
+        d.line([x1, y1, x2, y2], fill=c(r, g, b, a))
+    elif e[0] == "circle":
+        _, x, y, rr, r, g, b, a, f = e
+        d.ellipse([x - rr, y - rr, x + rr, y + rr], fill=c(r, g, b, a) if f else None, outline=c(r, g, b, a))
+    elif e[0] == "text":
+        _, x, y, s, r, g, b, a, fo = e
+        d.text((x, y), s, fill=c(r, g, b, a), font=F2 if fo == 2 else F1)
+out = os.path.join(ROOT, "docs", "live_panel_preview.png")
+img.save(out)
+print("wrote", out)

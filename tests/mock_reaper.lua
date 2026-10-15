@@ -3,10 +3,10 @@ local T = {}               -- tracks (array)
 local master = {name="MASTER", vals={I_NCHAN=2}, fx={}, sends={[0]={},[1]={{dst=nil,vals={I_SRCCHAN=0,I_DSTCHAN=0}}}}}
 local FXP = {
   ["E4L Master Bus.jsfx"]={"Decoder","Order Weighting","Ambisonics Order","Input Gain (dB)","Output Gain (dB)","Sub Output (channel, 0 = off)","Sub Level (dB)","Sub Low-pass (Hz, 0 = off)"},
-  ["E4L Looper.jsfx"]={"Length (bars)","Record","Play","Overdub","Clear","Loop Volume (dB)","Input Thru (live input also to the output)","Recording Latency Compensation (ms)"},
+  ["E4L Looper.jsfx"]={"Length (bars)","Record","Play","Overdub","Clear","Loop Volume (dB)","Input Thru (live input also to the output)","Recording Latency Compensation (ms)","-Status (0 empty 1 armed 2 rec 3 play 4 stop)","-Pending (1 play 2 stop)","-Loop Bars","-Loop Start (QN)","-Loop Length (QN)"},
   ["E4L Sub Out.jsfx"]={"Sub Output (channel)","Sum of","Sub Level (dB)","Sub Low-pass (Hz, 0 = off)","Sub"},
-  ["E4L Mono Panner.jsfx"]={"Azimuth","Elevation","Radius","Range"},
-  ["E4L Stereo Panner.jsfx"]={"Azimuth","Elevation","Radius","Range"},
+  ["E4L Mono Panner.jsfx"]={"Azimuth","Elevation","Radius","Range","-Current Azimuth","-Current Elevation"},
+  ["E4L Stereo Panner.jsfx"]={"Azimuth","Elevation","Radius","Range","-Current Azimuth","-Current Elevation"},
 }
 local function newtr() return {name="", vals={I_NCHAN=2,B_MAINSEND=1}, fx={}, sends={[0]={},[1]={}}} end
 reaper = {}
@@ -41,4 +41,37 @@ function reaper.Undo_EndBlock() end
 function reaper.PreventUIRefresh() end
 function reaper.TrackList_AdjustWindows() end
 function reaper.CountSelectedTracks() return 0 end
+-- transport / UI helpers for the Live Panel
+MOCK_PLAY = 1; MOCK_POS = 10.0; MOCK_SEL = nil; MOCK_CMDS = {}; MOCK_DEFER = nil; MOCK_EXT = {}
+function reaper.GetPlayState() return MOCK_PLAY end
+function reaper.GetPlayPosition() return MOCK_POS end
+function reaper.GetCursorPosition() return 0 end
+function reaper.TimeMap2_timeToBeats(_, t) local q = t * 2; return q % 4, math.floor(q / 4), 4, q, 4 end
+function reaper.TimeMap_GetTimeSigAtTime() return 4, 4, 120 end
+function reaper.TimeMap2_timeToQN(_, t) return t * 2 end
+function reaper.Master_GetTempo() return 120 end
+function reaper.IsTrackSelected(tr) return MOCK_SEL == tr end
+function reaper.SetOnlyTrackSelected(tr) MOCK_SEL = tr end
+function reaper.TrackFX_Show() end
+function reaper.Main_OnCommand(c) MOCK_CMDS[#MOCK_CMDS + 1] = c end
+function reaper.time_precise() return os.clock() end
+function reaper.defer(f) MOCK_DEFER = f end
+function reaper.SetExtState(a, b, v) MOCK_EXT[a .. b] = v end
+function reaper.GetExtState(a, b) return MOCK_EXT[a .. b] or "" end
+MOCK_KEY = 0
+gfx = { w = 1100, h = 520, x = 0, y = 0, mouse_x = 0, mouse_y = 0, mouse_cap = 0 }
+function gfx.init() end
+function gfx.set() end
+function gfx.rect() end
+function gfx.line() end
+function gfx.circle() end
+function gfx.setfont() end
+function gfx.measurestr(s) return #s * 7, 14 end
+function gfx.drawstr() end
+function gfx.update() end
+function gfx.quit() end
+function gfx.dock() return 0 end
+function gfx.showmenu() return 0 end
+function gfx.getchar() local k = MOCK_KEY; MOCK_KEY = 0; return k end
+
 MOCK = {T=T, master=master}

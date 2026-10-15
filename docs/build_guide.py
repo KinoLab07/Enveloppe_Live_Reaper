@@ -11,7 +11,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import (KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer,
+from reportlab.platypus import (Image, KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer,
                                 Table, TableStyle)
 
 FONT_DIR = "/usr/share/fonts/truetype/dejavu"
@@ -692,6 +692,30 @@ def build(path):
     st.append(P("El movimiento en el espacio se hace con el paneador que va después del looper, en "
                 "la misma pista. Funciona igual que en la sección 6: LFO, envolventes, "
                 "o ambos."))
+    st.append(P("El panel en vivo: todo en una sola ventana", "h2"))
+    st.append(P("Para no tener que abrir el looper de cada pista, usa el script <b>E4L - Live "
+                "Panel</b> (cárgalo como los demás, sección 3). Abre una ventana que controla "
+                "<b>todos los loops a la vez</b>:"))
+    _img = os.path.join(os.path.dirname(os.path.abspath(__file__)), "live_panel_preview.png")
+    if os.path.exists(_img):
+        st.append(Image(_img, width=170 * mm, height=170 * mm * 520 / 1100))
+        st.append(Spacer(1, 4))
+    st += bullets([
+        "<b>Arriba:</b> el <b>compás y el tiempo</b> en grande, los tiempos del compás (el primero "
+        "en naranja), una <b>frase de 4 compases</b>, el tempo, PLAY/STOP de REAPER y "
+        "<b>STOP ALL LOOPS</b>.",
+        "<b>Una fila por loop:</b> estado (EMPTY, ARMED, REC, PLAY, STOPPED; parpadea mientras "
+        "espera el compás), largo (clic para cambiarlo), <b>REC</b>, <b>PLAY</b>, <b>OVD</b> "
+        "(overdub), <b>CLR</b> (borrar), <b>FX</b> (abre el plugin) y la posición dentro del "
+        "loop, con sus compases marcados.",
+        "<b>La sala, vista desde arriba:</b> los 4 altavoces numerados y un punto por loop "
+        "(verde sonando, rojo grabando). Se mueven en vivo con los LFO. <b>Arrastra un punto</b> "
+        "para cambiar la posición de ese loop.",
+        "<b>Teclas:</b> <b>Espacio</b> = play/stop · <b>1-9</b> = REC en el loop 1-9 · "
+        "<b>0</b> = parar todos los loops.",
+        "<b>Clic derecho</b> en la parte de arriba: <b>Dock</b>, para acoplar el panel dentro de "
+        "REAPER y tenerlo siempre a la vista.",
+    ])
     st.append(P("Controlarlo con teclado o con un controlador MIDI", "h2"))
     st += bullets([
         "<b>Botón por loop (recomendado con un controlador):</b> en el looper de cada pista pulsa "

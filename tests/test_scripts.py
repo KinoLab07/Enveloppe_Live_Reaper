@@ -68,5 +68,36 @@ check("Add sub to master: works on an existing project and turns the decoder's s
       m2.fx[1].file == "E4L Sub Out.jsfx" and m2.vals.I_NCHAN == 6
       and t2[1].fx[1].p["Sub Output (channel, 0 = off)"] == 0)
 
+# --- Live Panel: runs on the template project, buttons and room view drive the plugins
+lua.execute("dofile([[%s]])" % os.path.join(SCRIPTS, "E4L - Live Panel.lua").replace("\\", "/"))
+frame = lua.eval("function() local f = MOCK_DEFER; MOCK_DEFER = nil; f() end")
+param = lua.eval("""function(ti, fi, name)
+  local f = MOCK.T[ti].fx[fi]
+  return f.p[name] or 0 end""")
+setp = lua.eval("""function(ti, fi, name, v) MOCK.T[ti].fx[fi].p[name] = v end""")
+mouse = lua.eval("function(x, y, cap) gfx.mouse_x = x; gfx.mouse_y = y; gfx.mouse_cap = cap end")
+frame()
+# row 1 is at y = 84 .. 120; REC button at x = 8 + 306, y + 6
+mouse(8 + 306 + 10, 84 + 15, 1); frame(); mouse(0, 0, 0); frame()
+check("panel: REC button arms the looper of LOOP 1", param(2, 1, "Record") == 1)
+mouse(8 + 306 + 52 + 10, 84 + 40 + 15, 1); frame(); mouse(0, 0, 0); frame()
+check("panel: PLAY button of row 2 toggles LOOP 2", param(3, 1, "Play") == 1)
+mouse(8 + 234 + 10, 84 + 15, 1); frame(); mouse(0, 0, 0); frame()
+check("panel: length button cycles to the next length", param(2, 1, "Length (bars)") == 1)
+lua.execute("MOCK_KEY = 32"); frame()
+check("panel: space bar toggles REAPER play/stop", list(lua.eval("MOCK_CMDS").values()) == [40044])
+lua.execute("MOCK_KEY = 50"); frame()
+check("panel: key 2 = REC on loop 2", param(3, 1, "Record") == 1)
+# room view: 1100 wide -> room = 396 px at x = 696, y = 84; loop 1 shows its Current Azimuth (-45)
+setp(2, 2, "-Current Azimuth", -45)
+room, rx, ry = 396, 1100 - 396 - 8, 84
+cx, cy, R = rx + room / 2, ry + room / 2, room / 2 - 22
+import math
+dx, dy = cx + math.sin(math.radians(-45)) * R * 0.78, cy - math.cos(math.radians(-45)) * R * 0.78
+mouse(dx, dy, 1); frame()
+mouse(cx + 100, cy, 1); frame()        # drag to the right of the listener
+mouse(cx + 100, cy, 0); frame()
+check("panel: dragging loop 1 in the room sets its azimuth (+90 = right)", param(2, 2, "Azimuth") == 90)
+
 print("\n%d failure(s)" % failures)
 sys.exit(1 if failures else 0)
