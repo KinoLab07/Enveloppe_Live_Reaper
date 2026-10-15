@@ -112,6 +112,29 @@ o = run("E4L Mono Panner.jsfx", dc, "s3=0.1", "s2=80", "s20=1", "s21=1", "s23=1"
 az, el = direction(o)
 check("elevation folds over the pole", angle_close(az[SR // 4], 180) and abs(el[SR // 4] - 70) < 0.5)
 
+# --- looper (120 BPM, 4/4: one bar = 2 s = 96000 samples) -------------------
+ramp = np.stack([np.arange(10 * SR) * 1e-6, -np.arange(10 * SR) * 1e-6], 1)
+j = np.arange(1000, 95000)
+LP = "E4L Looper.jsfx"
+o = run(LP, ramp, "s1=0", "s2=1")
+check("looper: records bar 1, plays it in sync from bar 2 and loops",
+      np.abs(o[:96000]).max() == 0 and np.allclose(o[96000 + j], ramp[j]) and np.allclose(o[192000 + j], ramp[j]))
+o = run(LP, ramp, "s1=0", "s2@30000=1")
+check("looper: REC pressed mid-bar waits for the next bar",
+      np.abs(o[:192000]).max() == 0 and np.allclose(o[192000 + j], ramp[96000 + j]))
+o = run(LP, ramp, "s1=0", "s2=1", "s8=10")
+check("looper: latency compensation 10 ms = 480 samples", np.allclose(o[96000 + j, 0], ramp[j + 480, 0]))
+o = run(LP, ramp, "s1=0", "s2=1", "s3@250000=0", "s3@300000=1")
+check("looper: STOP and PLAY are quantised to the bar and stay in phase",
+      np.abs(o[288100:384000]).max() == 0 and np.allclose(o[385000:470000, 0], ramp[1000:86000, 0]))
+o = run(LP, ramp, "s1=0", "s2=1", "s4@192000=1", "s4@288000=0")
+check("looper: overdub adds a layer", np.allclose(o[288000 + j, 0], ramp[j, 0] + ramp[192000 + j, 0], atol=1e-5))
+o = run(LP, ramp, "s1=0", "s2=1", "s2@200000=1")
+check("looper: re-record keeps the old loop until the new one starts",
+      np.allclose(o[200500:287000, 0], ramp[8500:95000, 0]) and np.allclose(o[385000:470000, 0], ramp[289000:374000, 0]))
+o = run(LP, ramp, "s1=0", "s2=1", "s5@250000=1")
+check("looper: clear", np.abs(o[250300:]).max() == 0)
+
 # --- decoders --------------------------------------------------------------
 noise = np.random.default_rng(0).normal(size=(2 * SR, 1)).repeat(2, 1) * 0.1
 for az_in, louder in ((-90, 0), (90, 1)):

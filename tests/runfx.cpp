@@ -18,7 +18,11 @@ int main(int argc,char**argv){
   ysfx_set_sample_rate(fx,sr); ysfx_set_block_size(fx,256);
   double tempo=120; int play=1;
   std::vector<std::pair<std::string,double>> sl;
+  struct Ev { long at; std::string k; double v; };
+  std::vector<Ev> evs;   // "name@sample=value": set a slider during processing
   for(int i=8;i<argc;i++){ std::string a=argv[i]; auto e=a.find('='); std::string k=a.substr(0,e); double v=atof(a.c_str()+e+1);
+    auto at=k.find('@');
+    if(at!=std::string::npos){ evs.push_back({atol(k.c_str()+at+1),k.substr(0,at),v}); continue; }
     if(k=="tempo")tempo=v; else if(k=="play")play=(int)v; else sl.push_back({k,v}); }
   ysfx_init(fx);
   for(auto&p:sl){ bool f=false; for(int i=0;i<256;i++) if(ysfx_slider_exists(fx,i)){ const char*n=ysfx_slider_get_name(fx,i); if(p.first==n||p.first==("s"+std::to_string(i+1))){ysfx_slider_set_value(fx,i,p.second);f=true;} }
@@ -32,7 +36,9 @@ int main(int argc,char**argv){
   std::vector<const float*> ip(nch); std::vector<float*> op(nch);
   for(int i=0;i<nch;i++){ip[i]=ib[i].data();op[i]=ob[i].data();}
   std::vector<float> outbuf; double beat=0;
+  auto setsl=[&](const std::string&k,double v){ for(int i=0;i<256;i++) if(ysfx_slider_exists(fx,i)){ const char*nm=ysfx_slider_get_name(fx,i); if(k==nm||k==("s"+std::to_string(i+1))) ysfx_slider_set_value(fx,i,v);} };
   for(long s=0;s<N;s+=B){ int n=(int)std::min<long>(B,N-s);
+    for(auto&e:evs) if(e.at>=s && e.at<s+B) setsl(e.k,e.v);
     ysfx_time_info_t ti{}; ti.tempo=tempo; ti.playback_state=play?1:2; ti.time_position=s/sr; ti.beat_position=play? s/sr*tempo/60.:0; ti.time_signature[0]=4; ti.time_signature[1]=4; ysfx_set_time_info(fx,&ti);
     for(int ch=0;ch<nch;ch++) for(int i=0;i<n;i++) ib[ch][i]= ch<nin? in[(size_t)(s+i)*nin+ch]:0.f;
     ysfx_process_float(fx,ip.data(),op.data(),nfin,nout,n);

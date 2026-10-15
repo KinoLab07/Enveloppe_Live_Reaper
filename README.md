@@ -20,6 +20,7 @@ y compatible con el IEM Plugin Suite, SPARTA y otros.
 | E4L Quad Panner | `E4L Quad Panner.jsfx` | ✅ 4 entradas, modos de apertura LR / X / W, 4 LFO |
 | E4L Multi-Panner | `E4L Multi-Panner.jsfx` | ✅ 16 entradas con posición propia, LFO de azimut, elevación y escala |
 | E4L Master Bus (decodificadores) | `E4L Master Bus.jsfx` | ✅ Binaural 3.er orden, Estéreo, Quad, Octo, 5.1, 7.1, 5.1.2, 7.1.4, AmbiX |
+| — (nuevo) | `E4L Looper.jsfx` | ✅ Looper en vivo sincronizado al compás, estilo Ableton |
 | Spinner, HOA Transform, Multi-Delay, Spatial Slicer, Brownian Delay… | | ⏳ pendientes |
 
 Lo que no se porta porque REAPER ya lo hace: el ruteo automático entre pistas (se usan envíos de
@@ -51,6 +52,26 @@ medidores (los de REAPER muestran los 16 canales).
    Para auriculares, deja *Decoder = Binaural (3rd-order)*.
 2. **Cada fuente:** *Track channels: 16*, añade `E4L Stereo Panner` (o Mono/Source), **desactiva
    "Master send"** y añade un envío a "E4L Master" con *Audio: 1-16 → 1-16*.
+
+## Looper en vivo (estilo Ableton)
+
+Para componer en vivo con un sinte (por ejemplo, uno analógico): lo escuchas solo en los auriculares,
+grabas loops de N compases que entran justo en el siguiente compás y cada loop suena espacializado
+en la cuadrafonía.
+
+1. Ejecuta `Scripts/E4L/E4L - Live Looper template.lua`. Crea:
+   - **SYNTH IN:** la entrada del sinte, monitoreada y enviada solo a los auriculares (por defecto, salidas 5-6);
+   - **LOOP 1…N:** `E4L Looper` + paneador E4L en cada pista;
+   - **E4L Master:** decodifica en Quad hacia las salidas 1-4;
+   - **CUE (auriculares):** copia binaural de los loops para los auriculares.
+2. Pulsa PLAY en REAPER. En el `E4L Looper` de una pista, elige *Length* y pulsa **REC**: graba en
+   el siguiente compás y al terminar pasa solo a **PLAY**. También tiene **OVERDUB** y **CLEAR**,
+   y todo se puede asignar a MIDI (*Param › Learn*).
+3. Scripts de control: `E4L - Loop REC (selected tracks)`, `E4L - Loop PLAY-STOP (selected tracks)`
+   y `E4L - Loops STOP all`.
+
+Los loops viven en la memoria del plugin y no se guardan con el proyecto. Para conservar una
+sesión, expórtala con *Render*. La guía completa está en `docs/Guia_E4L_REAPER_Cuadrafonia.pdf`.
 
 ## Automatismos (LFO de E4L)
 

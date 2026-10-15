@@ -7,3 +7,4 @@ cd "$(dirname "$0")"
 [ -f build/ysfx/build/libysfx.a ] || (cmake -S build/ysfx -B build/ysfx/build -DCMAKE_BUILD_TYPE=Release -DYSFX_PLUGIN=OFF && cmake --build build/ysfx/build -j4)
 g++ -O2 -std=c++17 runfx.cpp -Ibuild/ysfx/include build/ysfx/build/libysfx.a -lfreetype -lfontconfig -lpthread -ldl -o build/runfx
 python3 test_e4l.py build/runfx
+python3 -c "import lupa" 2>/dev/null && python3 test_scripts.py || echo "(skipping Lua script tests: pip install lupa)"

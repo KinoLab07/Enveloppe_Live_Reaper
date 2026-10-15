@@ -179,6 +179,49 @@ def speaker_diagram():
     return d
 
 
+def live_diagram():
+    W, H = 170 * mm, 86 * mm
+    d = Drawing(W, H)
+
+    def node(x, y, w, h, title, sub, fill, edge=ACCENT):
+        d.add(Rect(x, y, w, h, rx=6, ry=6, fillColor=fill, strokeColor=edge, strokeWidth=1))
+        d.add(String(x + w / 2, y + h - 14, title, fontName="DVB", fontSize=8.5, textAnchor="middle"))
+        for i, line in enumerate(sub):
+            d.add(String(x + w / 2, y + h - 26 - 10 * i, line, fontName="DV", fontSize=7,
+                         textAnchor="middle", fillColor=GREY))
+
+    def arrow(pts, color=ACCENT, label=None, lx=None, ly=None):
+        for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+            d.add(Line(x1, y1, x2, y2, strokeColor=color, strokeWidth=1.3))
+        (x1, y1), (x2, y2) = pts[-2], pts[-1]
+        a = math.atan2(y2 - y1, x2 - x1)
+        d.add(Polygon([x2, y2, x2 - 7 * math.cos(a - 0.4), y2 - 7 * math.sin(a - 0.4),
+                       x2 - 7 * math.cos(a + 0.4), y2 - 7 * math.sin(a + 0.4)],
+                      fillColor=color, strokeColor=color))
+        if label:
+            d.add(String(lx, ly, label, fontName="DV", fontSize=6.8, fillColor=color))
+
+    HP = colors.HexColor("#8a4fbf")
+    node(0, 118, 92, 64, "Sinte analógico", ["entrada de la", "interfaz"], colors.HexColor("#f4f8fa"))
+    node(122, 118, 92, 64, "SYNTH IN", ["monitoreo", "(no graba)"], colors.HexColor("#f4f8fa"))
+    for k in range(3):
+        node(250, 196 - k * 48, 104, 40, ["LOOP 1", "LOOP 2", "LOOP …"][k],
+             ["E4L Looper", "+ E4L Panner"], ACCENT_LIGHT)
+    node(386, 118, 95, 64, "E4L Master", ["Master Bus = Quad", "salidas 1-4", "(altavoces)"],
+         ACCENT_LIGHT)
+    node(122, 4, 92, 44, "Auriculares", ["salidas 5-6"], colors.HexColor("#f3ecf9"), HP)
+    node(250, 4, 104, 44, "CUE (auriculares)", ["Master Bus = Binaural"], colors.HexColor("#f3ecf9"), HP)
+    arrow([(92, 150), (122, 150)])
+    for k in range(3):
+        y = 216 - k * 48
+        arrow([(214, 150), (232, 150), (232, y), (250, y)])
+        arrow([(354, y), (370, y), (370, 150), (386, 150)])
+    arrow([(168, 118), (168, 48)], HP, "sinte en vivo", 172, 80)
+    arrow([(250, 26), (214, 26)], HP)
+    arrow([(433, 118), (433, 72), (302, 72), (302, 48)], HP, "copia de los loops", 330, 76)
+    return d
+
+
 def lfo_diagram():
     W, H = 170 * mm, 38 * mm
     d = Drawing(W, H)
@@ -231,7 +274,8 @@ def build(path):
               "3. Instalación en REAPER", "4. Preparar el proyecto para cuadrafonía",
               "5. Agregar pistas de audio y posicionarlas",
               "6. Automatizaciones de movimiento", "7. Escuchar con auriculares y exportar",
-              "8. Solución de problemas", "9. Referencia rápida de parámetros"]:
+              "8. Looper en vivo estilo Ableton (sinte analógico)",
+              "9. Solución de problemas", "10. Referencia rápida de parámetros"]:
         st.append(P(t, "toc"))
     st.append(PageBreak())
 
@@ -536,7 +580,102 @@ def build(path):
                 "Avísale a quien lo reproduzca, o pídeme una opción para exportar en otro orden."))
 
     # 8
-    st.append(P("8. Solución de problemas", "h1"))
+    st.append(PageBreak())
+    st.append(P("8. Looper en vivo estilo Ableton (sinte analógico)", "h1"))
+    st.append(P("Esta plantilla sirve para componer en vivo: tocas el sinte analógico y lo "
+                "escuchas <b>solo en los auriculares</b>. Cuando un sonido te gusta, lo grabas en "
+                "un <b>loop de N compases</b> que entra <b>justo en el siguiente compás</b>, "
+                "sincronizado con el «loop general» (el tempo y los compases del proyecto). "
+                "Desde ese momento suena en la cuadrafonía, en su propia posición y con sus "
+                "movimientos."))
+    st.append(live_diagram())
+    st.append(Spacer(1, 6))
+    st.append(P("Antes de empezar: los auriculares", "h2"))
+    st.append(P("Para escuchar el sinte sin que salga por los altavoces, los auriculares deben "
+                "recibir una salida <b>distinta de la 1-4</b> de la interfaz (por defecto, "
+                "<b>salidas 5-6</b>). Revisa en el manual de tu interfaz qué salidas llegan a la "
+                "toma de auriculares. Si esa toma solo copia las salidas 1-2, usa el mezclador "
+                "o el software de la interfaz para asignarle otras salidas, o indica en el "
+                "script el par de salidas que tengas libre."))
+    st.append(P("Crear la plantilla", "h2"))
+    st += steps([
+        "Copia de nuevo las carpetas <b>Effects</b> y <b>Scripts</b> en la carpeta de recursos "
+        "de REAPER (sección 3), para tener el <b>E4L Looper</b> y los scripts nuevos.",
+        "En un proyecto nuevo, carga y ejecuta el script <b>E4L - Live Looper template</b> "
+        "(<b>Actions › New action › Load ReaScript…</b>, como en la sección 3).",
+        "Completa la ventana que aparece y pulsa <b>OK</b>:",
+    ])
+    st.append(table([
+        ["Campo", "Qué poner", "Por defecto"],
+        ["Loop tracks to add", "Cuántas pistas de loop crear.", "8"],
+        ["Synth input (first channel)", "Entrada de la interfaz donde está conectado el sinte.", "1"],
+        ["Synth input: 1 mono 2 stereo", "1 si el sinte tiene una salida; 2 si tiene dos.", "1"],
+        ["Headphones output (first channel)", "Primera salida que va a los auriculares.", "5 (salidas 5-6)"],
+        ["Loop panner: 1 Mono 2 Stereo", "Paneador de cada loop: Mono para un sinte mono.", "1"],
+    ], [52, 88, 30]))
+    st.append(P("El script crea <b>SYNTH IN</b>, las pistas <b>LOOP 1…8</b>, <b>E4L Master</b> "
+                "(Quad) y <b>CUE (auriculares)</b>. También pone el master de REAPER en 4 canales "
+                "y calcula la <b>compensación de latencia</b> de grabación de tu interfaz. Cada "
+                "loop empieza en una posición distinta de la sala (−45°, 45°, 135°, −135°…). Si "
+                "lo vuelves a ejecutar en el mismo proyecto, solo agrega más pistas LOOP."))
+    st.append(P("Tocar en vivo, paso a paso", "h2"))
+    st += steps([
+        "Ajusta el <b>tempo</b> y el <b>compás</b> en la barra de transporte de REAPER.",
+        "Pulsa <b>PLAY</b> en REAPER (barra espaciadora). El proyecto en marcha es el «loop "
+        "general»: todos los loops se sincronizan con sus compases.",
+        "Toca el sinte: lo oyes en los auriculares. Por los altavoces todavía no sale nada.",
+        "Abre el <b>E4L Looper</b> de <b>LOOP 1</b> (botón FX), elige <b>Length</b> (1, 2, 4, 8, "
+        "16 o 32 compases) y pulsa <b>REC</b>.",
+        "El looper muestra <b>ARMED - next bar</b>. Al empezar el siguiente compás pasa a "
+        "<b>REC</b> (rojo) y graba exactamente los compases elegidos.",
+        "Al terminar pasa solo a <b>PLAY</b> (verde): el loop suena en la cuadrafonía y en los "
+        "auriculares (por la pista CUE).",
+        "Para el siguiente sonido, usa <b>LOOP 2</b>, y así sucesivamente: cada capa en su pista, "
+        "con su posición.",
+    ])
+    st.append(table([
+        ["Botón del looper", "Qué hace"],
+        ["<b>REC</b>", "Graba en el siguiente compás. Si la pista ya tiene un loop, lo reemplaza; "
+         "el anterior sigue sonando hasta que empieza la nueva grabación."],
+        ["<b>PLAY</b>", "Para o arranca el loop en el siguiente compás, siempre en fase con el "
+         "proyecto."],
+        ["<b>OVERDUB</b>", "Mientras está encendido, lo que tocas se suma encima del loop."],
+        ["<b>CLEAR</b>", "Borra el loop."],
+        ["Loop Volume", "Volumen del loop."],
+        ["Input Thru", "Si lo enciendes, el sinte en vivo también sale por los altavoces desde "
+         "esa pista. Normalmente apagado."],
+        ["Recording Latency Compensation", "La pone el script. Si el loop suena adelantado o "
+         "atrasado respecto al tempo, ajústala: más ms si suena tarde."],
+    ], [48, 122]))
+    st.append(P("El movimiento en el espacio se hace con el paneador que va después del looper, en "
+                "la misma pista. Funciona igual que en la sección 6: LFO, envolventes, "
+                "o ambos."))
+    st.append(P("Controlarlo con teclado o con un controlador MIDI", "h2"))
+    st += bullets([
+        "<b>Botón por loop (recomendado con un controlador):</b> en el looper de cada pista pulsa "
+        "<b>Param › Learn</b>, elige <b>Record</b> (o <b>Play</b>) y pulsa el botón del "
+        "controlador. Repite en cada loop.",
+        "<b>Con atajos de teclado:</b> carga también los scripts <b>E4L - Loop REC (selected "
+        "tracks)</b>, <b>E4L - Loop PLAY-STOP (selected tracks)</b> y <b>E4L - Loops STOP all</b>, "
+        "y asígnales una tecla (Actions › Add). REC y PLAY-STOP actúan sobre las pistas "
+        "seleccionadas.",
+        "<b>Metrónomo solo en auriculares:</b> en <b>Options › Metronome settings</b> envía "
+        "el metrónomo a las salidas de los auriculares (por ejemplo 5-6), no a la 1-4.",
+    ])
+    st.append(box([
+        "• REAPER tiene que estar <b>reproduciendo</b>: el looper sigue la posición del proyecto. "
+        "No uses la repetición (repeat) de REAPER, salvo que su duración sea múltiplo de la de "
+        "los loops.",
+        "• Los loops <b>viven en la memoria del plugin</b> mientras REAPER está abierto: "
+        "<b>no se guardan al cerrar el proyecto</b>. Para conservar una sesión, expórtala "
+        "(sección 7) o graba la salida.",
+        "• Duración máxima de cada loop: unos 5 minutos a 48 kHz (de sobra para 32 compases).",
+        "• Si prefieres oír el sinte sin la latencia del ordenador, usa el <b>monitoreo directo</b> "
+        "de tu interfaz y baja el volumen de la pista SYNTH IN.",
+    ], kind="warn", title="A tener en cuenta"))
+
+    # 9
+    st.append(P("9. Solución de problemas", "h1"))
     st.append(table([
         ["Problema", "Solución"],
         ["Los plugins E4L no aparecen", "Comprueba que copiaste <b>Effects/E4L</b> dentro de la "
@@ -552,6 +691,15 @@ def build(path):
          "<b>izquierdo</b>. Intercambia esos dos cables."],
         ["Se oye el sonido también sin espacializar", "El <b>Master send</b> de la pista de audio "
          "está activado: desactívalo (Route › Master send)."],
+        ["El looper dice «Press play in REAPER»", "Pulsa PLAY: el looper solo graba y "
+         "reproduce con el proyecto en marcha."],
+        ["El sinte sale por los altavoces", "Revisa que la pista SYNTH IN no tenga el Master send "
+         "activado y que el looper tenga <b>Input Thru</b> apagado."],
+        ["No oigo el sinte en los auriculares", "La pista SYNTH IN debe estar armada (botón rojo) "
+         "con el monitoreo activado, y su salida de hardware debe ir a las salidas de los "
+         "auriculares."],
+        ["El loop está un poco desfasado", "Ajusta <b>Recording Latency Compensation</b> en el "
+         "looper (sección 8)."],
         ["El script da un error", "Copia el texto del error o haz una captura y envíamela."],
         ["El Master Bus dice «HRIR filters not found»", "Solo afecta al modo binaural. Falta la "
          "carpeta <b>Data/E4L/hrtf</b> en la carpeta de recursos."],
@@ -559,7 +707,7 @@ def build(path):
 
     # 9
     st.append(PageBreak())
-    st.append(KeepTogether([P("9. Referencia rápida de parámetros", "h1"),
+    st.append(KeepTogether([P("10. Referencia rápida de parámetros", "h1"),
                             P("E4L Master Bus", "h2"), table([
         ["Parámetro", "Valores", "Recomendado para tu proyecto"],
         ["Decoder", "Binaural, Stereo, Quad, Octo, 5.1, 7.1, 5.1.2, 7.1.4, AmbiX", "<b>Quad</b>"],
@@ -578,6 +726,15 @@ def build(path):
          "Sync, Direction, Depth. No se necesita en cuadrafonía."],
         ["LFO de apertura (Stereo/Quad)", "On/Off, Mode (Freq/Sync), Frequency, Sync, Depth"],
     ], [45, 125]))
+    st.append(P("E4L Looper", "h2"))
+    st.append(table([
+        ["Parámetro", "Valores"],
+        ["Length (bars)", "1, 2, 4, 8, 16, 32 compases"],
+        ["Record / Play / Overdub / Clear", "Botones (On/Off), cuantizados al compás"],
+        ["Loop Volume (dB)", "−60 a +12"],
+        ["Input Thru", "Off / On"],
+        ["Recording Latency Compensation (ms)", "0 a 500"],
+    ], [60, 110]))
     st.append(Spacer(1, 8))
     st.append(P("Envelop for Live © Envelop (envelop.us), Mark C. Slee y colaboradores. "
                 "Port para REAPER bajo licencia GNU GPL v2 o posterior. HRTF: IRCAM Listen. "
