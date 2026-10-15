@@ -693,29 +693,52 @@ def build(path):
                 "la misma pista. Funciona igual que en la sección 6: LFO, envolventes, "
                 "o ambos."))
     st.append(P("El panel en vivo: todo en una sola ventana", "h2"))
-    st.append(P("Para no tener que abrir el looper de cada pista, usa el script <b>E4L - Live "
-                "Panel</b> (cárgalo como los demás, sección 3). Abre una ventana que controla "
-                "<b>todos los loops a la vez</b>:"))
+    st.append(P("Para no tener que abrir el looper ni el paneador de cada pista, usa el script "
+                "<b>E4L - Live Panel</b> (cárgalo como los demás, sección 3). Abre una ventana que "
+                "controla <b>todos los loops y sus movimientos</b>:"))
     _img = os.path.join(os.path.dirname(os.path.abspath(__file__)), "live_panel_preview.png")
     if os.path.exists(_img):
-        st.append(Image(_img, width=170 * mm, height=170 * mm * 520 / 1100))
+        st.append(Image(_img, width=170 * mm, height=170 * mm * 560 / 1240))
         st.append(Spacer(1, 4))
     st += bullets([
         "<b>Arriba:</b> el <b>compás y el tiempo</b> en grande, los tiempos del compás (el primero "
-        "en naranja), una <b>frase de 4 compases</b>, el tempo, PLAY/STOP de REAPER y "
-        "<b>STOP ALL LOOPS</b>.",
-        "<b>Una fila por loop:</b> estado (EMPTY, ARMED, REC, PLAY, STOPPED; parpadea mientras "
-        "espera el compás), largo (clic para cambiarlo), <b>REC</b>, <b>PLAY</b>, <b>OVD</b> "
-        "(overdub), <b>CLR</b> (borrar), <b>FX</b> (abre el plugin) y la posición dentro del "
-        "loop, con sus compases marcados.",
+        "en naranja), una <b>frase de 4 compases</b>, el tempo, INICIAR/DETENER y "
+        "<b>PARAR TODOS LOS LOOPS</b>.",
+        "<b>Una fila por loop:</b> estado (VACÍO, ESPERANDO, GRABANDO, SONANDO, PARADO; parpadea "
+        "mientras espera el compás), largo (clic para cambiarlo), <b>GRABAR</b>, <b>SONAR</b>, "
+        "<b>CAPA</b> (sumar encima), <b>BORRAR</b>, <b>MOVIMIENTO</b> y la posición dentro del loop.",
         "<b>La sala, vista desde arriba:</b> los 4 altavoces numerados y un punto por loop "
-        "(verde sonando, rojo grabando). Se mueven en vivo con los LFO. <b>Arrastra un punto</b> "
-        "para cambiar la posición de ese loop.",
-        "<b>Teclas:</b> <b>Espacio</b> = play/stop · <b>1-9</b> = REC en el loop 1-9 · "
-        "<b>0</b> = parar todos los loops.",
-        "<b>Clic derecho</b> en la parte de arriba: <b>Dock</b>, para acoplar el panel dentro de "
-        "REAPER y tenerlo siempre a la vista.",
+        "(verde sonando, rojo grabando). Se mueven en vivo con las animaciones. <b>Arrastra un "
+        "punto</b> para cambiar la dirección de ese loop.",
+        "<b>Teclas:</b> <b>Espacio</b> = iniciar/detener · <b>1-9</b> = grabar en el loop 1-9 · "
+        "<b>0</b> = parar todos · <b>Esc</b> = cerrar el editor de movimiento.",
+        "<b>Clic derecho</b> en la parte de arriba: <b>acoplar</b> el panel dentro de REAPER (dock), "
+        "para tenerlo siempre a la vista.",
     ])
+    st.append(P("El editor de movimiento", "h2"))
+    st.append(P("El botón <b>MOVIMIENTO</b> de cada loop abre, en el mismo panel, todos los "
+                "controles de su efecto E4L, con nombres claros:"))
+    _img2 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "live_panel_editor.png")
+    if os.path.exists(_img2):
+        st.append(Image(_img2, width=170 * mm, height=170 * mm * 560 / 1240))
+        st.append(Spacer(1, 4))
+    st.append(table([
+        ["Parte del editor", "Qué hace"],
+        ["<b>Efecto E4L</b> (menú)", "Elige el efecto de la pista: <b>Un punto</b> (Mono Panner), "
+         "<b>Dos puntos, izq. y der.</b> (Stereo Panner) o <b>Posición fija</b> (Source Panner, "
+         "sin animación). Al cambiar se conservan la posición y las animaciones."],
+        ["<b>Posición</b>", "<b>Dirección</b> (por ejemplo «45° derecha»), <b>Altura</b> y "
+         "<b>Distancia</b>, que muestra cuántos dB baja el volumen."],
+        ["<b>Giro automático</b>", "ACTIVADO/APAGADO · <b>Vuelta completa</b> o <b>Vaivén</b> · "
+         "<b>Velocidad libre</b> («1 vuelta cada 10 s») o <b>Al tempo</b> («1 vuelta cada 4 "
+         "compases») · <b>Horario/Antihorario</b> · <b>Amplitud</b> del vaivén."],
+        ["<b>Sube y baja</b>", "Animación de la altura: <b>Solo sube</b> o <b>Sube y baja</b>, "
+         "velocidad y amplitud. En cuadrafonía casi no se nota, porque no hay altavoces arriba."],
+        ["<b>Apertura estéreo</b>", "(Solo con «Dos puntos») <b>Separación</b> entre izquierda y "
+         "derecha y <b>Respira</b>: la imagen se abre y se cierra sola."],
+        ["<b>Movimientos rápidos</b>", "Un clic: <b>Quieto</b>, <b>Giro lento</b>, <b>Giro 4 compases</b>, "
+         "<b>Remolino</b>, <b>Vaivén adelante</b>, <b>Vaivén derecha</b>."],
+    ], [45, 125]))
     st.append(P("Controlarlo con teclado o con un controlador MIDI", "h2"))
     st += bullets([
         "<b>Botón por loop (recomendado con un controlador):</b> en el looper de cada pista pulsa "

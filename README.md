@@ -72,11 +72,14 @@ en la cuadrafonía.
    también sale por la salida del sub (por defecto, la 5). Para un proyecto existente, usa
    `Scripts/E4L/E4L - Add sub to master.lua`.
 4. **Panel en vivo:** `Scripts/E4L/E4L - Live Panel.lua` abre una sola ventana, acoplable a
-   REAPER, con el compás y el tiempo en grande y todos los loops (REC / PLAY / OVERDUB / CLEAR,
+   REAPER, con el compás y el tiempo en grande y todos los loops (GRABAR / SONAR / CAPA / BORRAR,
    largo y posición). También muestra la sala con un punto por loop, que se arrastra para moverlo.
-   Teclas: Espacio = play/stop, 1-9 = REC, 0 = parar todos.
+   El botón **MOVIMIENTO** de cada loop abre su editor: el menú del efecto E4L, la posición, el giro
+   automático (libre o al tempo), sube y baja, la apertura estéreo y movimientos rápidos.
+   Teclas: Espacio = iniciar/detener, 1-9 = grabar, 0 = parar todos, Esc = cerrar el editor.
 
    ![E4L Live Panel](docs/live_panel_preview.png)
+   ![Editor de movimiento](docs/live_panel_editor.png)
 5. Scripts de control: `E4L - Loop REC (selected tracks)`, `E4L - Loop PLAY-STOP (selected tracks)`
    y `E4L - Loops STOP all`.
 

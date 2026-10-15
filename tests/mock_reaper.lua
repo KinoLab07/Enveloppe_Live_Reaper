@@ -1,7 +1,7 @@
 -- minimal REAPER API mock for testing the E4L scripts
 local T = {}               -- tracks (array)
 local master = {name="MASTER", vals={I_NCHAN=2}, fx={}, sends={[0]={},[1]={{dst=nil,vals={I_SRCCHAN=0,I_DSTCHAN=0}}}}}
-local FXP = {
+local FXP = MOCK_FXP or {
   ["E4L Master Bus.jsfx"]={"Decoder","Order Weighting","Ambisonics Order","Input Gain (dB)","Output Gain (dB)","Sub Output (channel, 0 = off)","Sub Level (dB)","Sub Low-pass (Hz, 0 = off)"},
   ["E4L Looper.jsfx"]={"Length (bars)","Record","Play","Overdub","Clear","Loop Volume (dB)","Input Thru (live input also to the output)","Recording Latency Compensation (ms)","-Status (0 empty 1 armed 2 rec 3 play 4 stop)","-Pending (1 play 2 stop)","-Loop Bars","-Loop Start (QN)","-Loop Length (QN)"},
   ["E4L Sub Out.jsfx"]={"Sub Output (channel)","Sum of","Sub Level (dB)","Sub Low-pass (Hz, 0 = off)","Sub"},
@@ -23,6 +23,7 @@ function reaper.TrackFX_AddByName(tr, name)
   local file = name:match("E4L/(.+)$"); if not file or not FXP[file] then return -1 end
   table.insert(tr.fx, {file=file, name="JS: "..file:gsub("%.jsfx$",""), p={}}); return #tr.fx-1 end
 function reaper.TrackFX_GetCount(tr) return #tr.fx end
+function reaper.TrackFX_Delete(tr, i) table.remove(tr.fx, i + 1) return true end
 function reaper.TrackFX_GetFXName(tr, i) return true, tr.fx[i+1].name end
 function reaper.TrackFX_GetNumParams(tr, i) return #FXP[tr.fx[i+1].file] end
 function reaper.TrackFX_GetParamName(tr, i, p) return true, FXP[tr.fx[i+1].file][p+1] end
@@ -59,7 +60,7 @@ function reaper.defer(f) MOCK_DEFER = f end
 function reaper.SetExtState(a, b, v) MOCK_EXT[a .. b] = v end
 function reaper.GetExtState(a, b) return MOCK_EXT[a .. b] or "" end
 MOCK_KEY = 0
-gfx = { w = 1100, h = 520, x = 0, y = 0, mouse_x = 0, mouse_y = 0, mouse_cap = 0 }
+gfx = { w = 1240, h = 560, x = 0, y = 0, mouse_x = 0, mouse_y = 0, mouse_cap = 0 }
 function gfx.init() end
 function gfx.set() end
 function gfx.rect() end
