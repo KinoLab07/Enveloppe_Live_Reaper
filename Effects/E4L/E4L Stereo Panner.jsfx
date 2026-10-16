@@ -77,6 +77,7 @@ out_pin:ACN 15
 
 @init
 ext_tail_size = -1;
+ext_noinit = 1;      // keep the movement (LFO phases) when REAPER starts / resumes
 
 // memory map
 shL = 0;    shR = 16;     // raw SH of each side

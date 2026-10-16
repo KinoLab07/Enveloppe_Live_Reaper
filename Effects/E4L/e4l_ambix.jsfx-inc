@@ -99,22 +99,24 @@ function e4l_sync_beats(idx)
 //   sync = 1 : one cycle every `beats` beats; while REAPER is playing the phase
 //              is locked to the project position, like Max "phasor~ @lock 1".
 // beat_pos is the project position (in beats) of the current sample.
-function lfo_tick(sync, hz, beats, dir, beat_pos, nsamples) instance(phase)
+// The movement follows REAPER's transport: it runs while playing, freezes while paused or
+// stopped (PLAY after a pause continues from there) and starts again from 0 after a STOP.
+function lfo_tick(sync, hz, beats, dir, beat_pos, nsamples) instance(phase, pps)
 (
-  sync ? (
-    (play_state & 1) ? (
-      phase = dir * beat_pos / beats;
+  (play_state & 1) ? (
+    pps == 0 && !sync ? phase = 0;            // started after STOP: from the beginning
+    sync ? (
+      phase = dir * beat_pos / beats;         // locked to the bars
     ) : (
-      phase += dir * (tempo / 60) / beats * nsamples / srate;
+      phase += hz * nsamples / srate;
     );
-  ) : (
-    phase += hz * nsamples / srate;
   );
+  pps = play_state;
   phase -= floor(phase);
   phase;
 );
 
-function lfo_reset() instance(phase) ( phase = 0; );
+function lfo_reset() instance(phase, pps) ( phase = 0; pps = 0; );
 
 // The E4L LFO shapes, built on lfo_tick. Call them on a namespace, e.g. alfo.e4l_azim_lfo(...)
 // Azimuth LFO: mode 0 = Cycle (full turns), 1 = Sin (+-depth)

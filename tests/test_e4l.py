@@ -110,6 +110,15 @@ o = run("E4L Mono Panner.jsfx", dc, "s3=0.1", "s10=1", "s11=0", "s13=1")
 az, _ = direction(o)
 check("azimuth LFO cycle 1 Hz", angle_close(az[SR // 4], 90) and angle_close(az[3 * SR // 4], -90))
 
+# PAUSE freezes the movement and PLAY continues from there; STOP + PLAY starts from 0
+o = run("E4L Mono Panner.jsfx", dc, "s3=0.1", "s10=1", "s11=0", "s13=1", "ps@12032=2", "ps@36096=1")
+az, _ = direction(o)
+check("movement: PAUSE keeps the position, PLAY continues from it",
+      angle_close(az[30000], az[12100], 2) and angle_close(az[36096 + 12000], az[12032] + 90, 3))
+o = run("E4L Mono Panner.jsfx", dc, "s3=0.1", "s10=1", "s11=0", "s13=1", "ps@12032=0", "ps@36096=1")
+az, _ = direction(o)
+check("movement: after STOP, PLAY starts the rotation from the beginning",
+      angle_close(az[36096 + 400], 0, 4) and angle_close(az[36096 + 12000], 90, 3))
 o = run("E4L Mono Panner.jsfx", dc, "s3=0.1", "s10=1", "s11=1", "s13=1", "s17=45")
 az, _ = direction(o)
 check("azimuth LFO sin depth 45", angle_close(az[SR // 4], 45) and angle_close(az[3 * SR // 4], -45))
@@ -156,14 +165,27 @@ check("looper: no click on STOP (fade-out)", d[287900:290000].max() < step)
 # a steady, unmodulated bass tone (55.3 Hz, period 18 ms): the seam must not bend the wave
 bass = np.stack([0.5 * np.sin(2 * np.pi * 55.3 * t)] * 2, 1)
 # (REC pressed during bar 1 while the tone already sounds: records bar 2, seam at 288000)
-o = run(LP, bass, "s1=0", "s2@30000=1", "s8=10")
-d2 = np.abs(np.diff(o[:, 0], 2))
-check("looper: steady bass tone, the seam is as smooth as the wave itself (50 ms crossfade)",
-      d2[284000:288200].max() < 1.3 * d2[240000:270000].max())
-o = run(LP, bass, "s1=0", "s2@30000=1", "s8=10", "s14=10")
-d2 = np.abs(np.diff(o[:, 0], 2))
+def click_db(y, at):        # energy above 2 kHz around `at`, relative to the total (dB)
+    seg = y[at - 4096:at + 1024]
+    S = np.abs(np.fft.rfft(seg * np.hanning(len(seg)))) ** 2
+    return 10 * np.log10(S[np.fft.rfftfreq(len(seg), 1 / SR) > 2000].sum() / S.sum() + 1e-20)
+o = run(LP, bass, "s1=0", "s2@30000=1", "s8=10")[:, 0]
+check("looper: steady bass tone, no click at the seam (50 ms crossfade)",
+      click_db(o, 288000) < click_db(o, 250000) + 15)
+o = run(LP, bass, "s1=0", "s2@30000=1", "s8=10", "s14=10")[:, 0]
 check("looper: ... while a 10 ms crossfade (the old one) bends it (the click you heard)",
-      d2[284000:288200].max() > 1.6 * d2[240000:270000].max())
+      click_db(o, 288000) > click_db(o, 250000) + 15)
+
+# higher steady tone: a plain crossfade would dip ~10 dB at the seam (the "tris")
+def seam_dip(o, f, at):
+    w = int(SR / f)
+    lv = [np.abs(o[i:i + w, 0]).max() for i in range(at - 3000, at + 500, w // 4)]
+    return 20 * np.log10(min(lv) / np.abs(o[at - 20000:at - 10000, 0]).max())
+mid = np.stack([0.5 * np.sin(2 * np.pi * 440.7 * t)] * 2, 1)
+o = run(LP, mid, "s1=0", "s2@30000=1", "s8=10")
+check("looper: steady 440 Hz tone, the level stays even through the seam (dip %.1f dB)" % seam_dip(o, 440.7, 288000),
+      seam_dip(o, 440.7, 288000) > -3)
+
 # transport: STOP then PLAY starts the loops from their beginning; PAUSE continues
 o = run(LP, ramp, *EXACT, "s1=1", "s2=1", "ps@300000=0", "beat@310016=4", "ps@310016=1")
 check("looper: after STOP, PLAY (here from bar 2) starts the loop from its beginning",

@@ -100,16 +100,33 @@ function snap_preroll() local(j, r)
 
 // seamless seam: the end of the loop crossfades into the audio that preceded its start,
 // so when playback wraps from the last frame to the first the waveform is continuous
-function seam_xfade() local(n, i, g, k, s)
+// The two pieces are compared first: with a steady tone they are the same wave, out of phase,
+// and a plain crossfade partly cancels them (a short dip in level). The gains are raised by
+// what that correlation would remove, so the level stays even through the seam.
+function seam_xfade() local(n, i, g, k, s, pa, pb, c, ga, gb, p0, t0, gk)
 (
   n = min(min(floor(srate * xf_ms / 1000), XF_MAX), floor(loop_len / 4));
+  pa = pb = c = 0;
+  i = 0;
+  loop(n,
+    k = loop_len - n + i; s = XF_MAX - n + i;
+    pa += sqr(BUF[2*k]) + sqr(BUF[2*k+1]);
+    pb += sqr(SNAP[2*s]) + sqr(SNAP[2*s+1]);
+    c  += BUF[2*k] * SNAP[2*s] + BUF[2*k+1] * SNAP[2*s+1];
+    i += 1;
+  );
   i = 0;
   loop(n,
     g = 0.5 - 0.5 * cos($pi * (i + 1) / n);
-    k = loop_len - n + i;
-    s = XF_MAX - n + i;
-    BUF[2*k]   = BUF[2*k]   * (1 - g) + SNAP[2*s]   * g;
-    BUF[2*k+1] = BUF[2*k+1] * (1 - g) + SNAP[2*s+1] * g;
+    ga = 1 - g; gb = g;
+    p0 = ga * ga * pa + gb * gb * pb + 2 * ga * gb * c;
+    t0 = ga * pa + gb * pb;
+    // smooth limit (about x2.6 at most, exactly 1 at both ends): no kink in the curve
+    gk = t0 > 0.000000000001 ? sqrt(sqrt(t0 * t0 * 1.0225) / sqrt(p0 * p0 + 0.0225 * t0 * t0)) : 1;
+    ga *= gk; gb *= gk;
+    k = loop_len - n + i; s = XF_MAX - n + i;
+    BUF[2*k]   = BUF[2*k]   * ga + SNAP[2*s]   * gb;
+    BUF[2*k+1] = BUF[2*k+1] * ga + SNAP[2*s+1] * gb;
     i += 1;
   );
 );

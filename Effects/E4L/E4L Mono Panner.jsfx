@@ -62,6 +62,7 @@ out_pin:ACN 15
 
 @init
 ext_tail_size = -1;
+ext_noinit = 1;      // keep the movement (LFO phases) when REAPER starts / resumes
 
 sh = 0; cur = 16; inc = 32; tgt = 48;
 

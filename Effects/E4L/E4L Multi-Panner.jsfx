@@ -163,6 +163,7 @@ out_pin:ACN 15
 
 @init
 ext_tail_size = -1;
+ext_noinit = 1;      // keep the movement (LFO phases) when REAPER starts / resumes
 
 // memory map: 16 sources x (cur, inc, tgt) of 16 values, plus scratch
 sh  = 0;
