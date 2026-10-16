@@ -38,6 +38,12 @@ medidores (los de REAPER muestran los 16 canales).
    - `Scripts/E4L` → `<recursos>/Scripts/E4L` (opcional, script de configuración)
 3. En REAPER: abre el navegador de FX y pulsa **F5** para refrescar. Aparecerán como `JS: E4L …`.
 
+### Actualizar
+
+Ejecuta `Scripts/E4L/E4L - Update from GitHub.lua` (en Mac usa curl y unzip; en Windows, PowerShell).
+Descarga la última versión de `main` y reemplaza solo las carpetas `Effects/E4L`, `Data/E4L` y
+`Scripts/E4L` de la carpeta de recursos de REAPER.
+
 ## Uso rápido
 
 **Automático:** en **Actions › Show action list › New action › Load ReaScript…**, carga

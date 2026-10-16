@@ -367,8 +367,14 @@ def build(path):
         "Escribe <b>E4L</b> en el buscador: deben aparecer los plugins <b>JS: E4L …</b>",
     ])
     st.append(box([
-        "Cuando haya una versión nueva, repite estos mismos pasos. Tus proyectos guardados "
-        "siguen funcionando y usan automáticamente la versión nueva."], title="Para actualizar"))
+        "Carga una vez el script <b>E4L - Update from GitHub</b> (como se explica abajo). Cada vez "
+        "que haya una versión nueva, ejecútalo: descarga la última versión de GitHub y reemplaza "
+        "los plugins, los scripts, los filtros y esta guía en la carpeta de recursos. No toca "
+        "tus otros plugins. Si ya estás al día, te lo avisa.",
+        "Después pulsa <b>F5</b> en el navegador de FX y vuelve a abrir el proyecto (y el Live "
+        "Panel, si estaba abierto). Tus proyectos guardados siguen funcionando con la versión "
+        "nueva. La guía actualizada queda en <b>Data/E4L</b> dentro de la carpeta de recursos."],
+        title="Para actualizar (Mac y Windows)"))
     st.append(P("Cargar el script de configuración (una sola vez)", "h2"))
     st += steps([
         "En REAPER abre <b>Actions › Show action list…</b> (o pulsa <b>?</b>).",
