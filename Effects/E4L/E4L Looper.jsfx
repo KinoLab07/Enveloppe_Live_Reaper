@@ -39,6 +39,7 @@ slider13:qn_out=0<0,1000,0.0001>-Loop Length (QN)
 slider14:xf_ms=50<1,170,1>Loop Seam Crossfade (ms)
 slider15:fade_ms=30<1,200,1>Start / Stop Fade (ms)
 slider16:pause_btn=0<0,1,1{Off,On}>Pause
+slider17:comp_mode=0<0,2,1{Auto (by pitch),Off,Full}>Seam Level Compensation
 
 in_pin:Input L
 in_pin:Input R
@@ -107,20 +108,29 @@ function snap_preroll() local(j, r)
 // seamless seam: the end of the loop crossfades into the audio that preceded its start,
 // so when playback wraps from the last frame to the first the waveform is continuous
 // The two pieces are compared first: with a steady tone they are the same wave, out of phase,
-// and a plain crossfade partly cancels them (a short dip in level). The gains are raised by
-// what that correlation would remove, so the level stays even through the seam.
-function seam_xfade() local(n, i, g, k, s, pa, pb, c, ga, gb, p0, t0, gk)
+// and a plain crossfade partly cancels them (a short dip in level). The gains can be raised by
+// what that correlation would remove, so the level stays even. But the wave must still shift
+// its phase inside the crossfade, and at full level that shift is a pitch blip that grows
+// towards the bass (55% at 55 Hz, 2.5% above 1 kHz), while the dip hides it. So "Auto"
+// compensates high tones (no dip) and leaves low ones alone (no blip), judging the pitch by
+// the zero crossings of the crossfade region.
+function seam_xfade() local(n, i, g, k, s, pa, pb, c, ga, gb, p0, t0, gk, zc, prev, v, fz, amt)
 (
   n = min(min(floor(srate * xf_ms / 1000), XF_MAX), floor(loop_len / 4));
-  pa = pb = c = 0;
+  pa = pb = c = zc = prev = 0;
   i = 0;
   loop(n,
     k = loop_len - n + i; s = XF_MAX - n + i;
     pa += sqr(BUF[2*k]) + sqr(BUF[2*k+1]);
     pb += sqr(SNAP[2*s]) + sqr(SNAP[2*s+1]);
     c  += BUF[2*k] * SNAP[2*s] + BUF[2*k+1] * SNAP[2*s+1];
+    v = BUF[2*k] + BUF[2*k+1];
+    i > 0 && ((v >= 0) != (prev >= 0)) ? zc += 1;
+    prev = v;
     i += 1;
   );
+  fz = zc * srate / (2 * max(n, 1));            // rough pitch of the region (Hz)
+  amt = comp_mode == 1 ? 0 : comp_mode == 2 ? 1 : min(1, max(0, (fz - 400) / 600));
   i = 0;
   loop(n,
     g = 0.5 - 0.5 * cos($pi * (i + 1) / n);
@@ -129,6 +139,7 @@ function seam_xfade() local(n, i, g, k, s, pa, pb, c, ga, gb, p0, t0, gk)
     t0 = ga * pa + gb * pb;
     // smooth limit (about x2.6 at most, exactly 1 at both ends): no kink in the curve
     gk = t0 > 0.000000000001 ? sqrt(sqrt(t0 * t0 * 1.0225) / sqrt(p0 * p0 + 0.0225 * t0 * t0)) : 1;
+    gk = gk ^ amt;
     ga *= gk; gb *= gk;
     k = loop_len - n + i; s = XF_MAX - n + i;
     BUF[2*k]   = BUF[2*k]   * ga + SNAP[2*s]   * gb;

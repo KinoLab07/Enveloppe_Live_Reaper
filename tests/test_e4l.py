@@ -182,9 +182,22 @@ def seam_dip(o, f, at):
     lv = [np.abs(o[i:i + w, 0]).max() for i in range(at - 3000, at + 500, w // 4)]
     return 20 * np.log10(min(lv) / np.abs(o[at - 20000:at - 10000, 0]).max())
 mid = np.stack([0.5 * np.sin(2 * np.pi * 440.7 * t)] * 2, 1)
-o = run(LP, mid, "s1=0", "s2@30000=1", "s8=10")
-check("looper: steady 440 Hz tone, the level stays even through the seam (dip %.1f dB)" % seam_dip(o, 440.7, 288000),
+o = run(LP, mid, "s1=0", "s2@30000=1", "s8=10", "s17=2")
+check("looper: compensation Full, 440 Hz: the level stays even through the seam (dip %.1f dB)" % seam_dip(o, 440.7, 288000),
       seam_dip(o, 440.7, 288000) > -3)
+# Auto: low tones without compensation (no pitch blip), high tones with it (no dip)
+def tone(f):
+    return np.stack([0.5 * np.sin(2 * np.pi * f * t)] * 2, 1)
+seam_rng = slice(284000, 288100)
+o_auto = run(LP, tone(220.3), "s1=0", "s2@30000=1", "s8=10")[seam_rng]
+o_off = run(LP, tone(220.3), "s1=0", "s2@30000=1", "s8=10", "s17=1")[seam_rng]
+o_full = run(LP, tone(220.3), "s1=0", "s2@30000=1", "s8=10", "s17=2")[seam_rng]
+check("looper: Auto, 220 Hz tone -> no compensation (as before: no pitch blip)",
+      np.allclose(o_auto, o_off, atol=1e-6) and not np.allclose(o_auto, o_full, atol=1e-3))
+o_auto = run(LP, tone(1500.9), "s1=0", "s2@30000=1", "s8=10")
+o_full = run(LP, tone(1500.9), "s1=0", "s2@30000=1", "s8=10", "s17=2")
+check("looper: Auto, 1500 Hz tone -> full compensation (no dip: %.1f dB)" % seam_dip(o_auto, 1500.9, 288000),
+      np.allclose(o_auto[seam_rng], o_full[seam_rng], atol=1e-6) and seam_dip(o_auto, 1500.9, 288000) > -3)
 
 # transport: STOP then PLAY starts the loops from their beginning; PAUSE continues
 o = run(LP, ramp, *EXACT, "s1=1", "s2=1", "ps@300000=0", "beat@310016=4", "ps@310016=1")

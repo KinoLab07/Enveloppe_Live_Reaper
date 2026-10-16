@@ -732,7 +732,9 @@ def build(path):
         "• Steady, unmodulated tones (drones, bass): a wave whose cycles do not fit the loop exactly "
         "always has a jump in phase at the seam. The looper hides it with a crossfade (<b>Loop Seam "
         "Crossfade</b>, 50 ms): instead of a click you may hear, at most, a very short softening of "
-        "the tone. Raise it (up to 170 ms) for very low notes. Keep the note sounding a moment before "
+        "the tone. Raise it (up to 170 ms) for very low notes. <b>Seam Level Compensation</b> on Auto keeps "
+        "the level of high tones even through the seam and leaves low tones alone (on them it would "
+        "cause a small pitch blip). Keep the note sounding a moment before "
         "REC starts: the crossfade uses that sound.",
     ], kind="warn", title="Good to know"))
 
@@ -809,6 +811,7 @@ def build(path):
         ["Input Thru", "Off / On"],
         ["Recording Latency Compensation (ms)", "0 to 500 (set automatically)"],
         ["Loop Seam Crossfade (ms)", "1 to 170 (50)"],
+        ["Seam Level Compensation", "Auto (by pitch) / Off / Full"],
         ["Start / Stop Fade (ms)", "1 to 200 (30)"],
     ], [60, 110]))
     st.append(Spacer(1, 8))
