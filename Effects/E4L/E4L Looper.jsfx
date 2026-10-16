@@ -11,7 +11,9 @@ desc: E4L Looper (bar-synced live looper)
 //
 //   REC      : waits for the next bar, records "Length" bars, then plays the loop.
 //              On a track that already has a loop, REC records a new one.
-//   PLAY     : starts (or stops) the loop on the next bar.
+//   PLAY     : starts the loop from its beginning on the next bar (or stops it on the next bar).
+//   PAUSE    : pauses the loop now; PAUSE again continues it on the next bar, from the bar of
+//              the loop where it was paused.
 //   OVERDUB  : while playing, adds what comes in on top of the loop.
 //   CLEAR    : erases the loop.
 //
@@ -27,14 +29,15 @@ slider6:vol_db=0<-60,12,0.1>Loop Volume (dB)
 slider7:thru=0<0,1,1{Off,On}>Input Thru (live input also to the output)
 slider8:lat_ms=0<0,500,0.1>Recording Latency Compensation (ms)
 // read-only status, published for the "E4L - Live Panel" script (hidden in the plugin UI)
-slider9:st_out=0<0,4,1>-Status (0 empty 1 armed 2 rec 3 play 4 stop)
-slider10:pend_out=0<0,2,1>-Pending (1 play 2 stop)
+slider9:st_out=0<0,5,1>-Status (0 empty 1 armed 2 rec 3 play 4 stop 5 pause)
+slider10:pend_out=0<0,3,1>-Pending (1 play 2 stop 3 resume)
 slider11:bars_out=0<0,64,1>-Loop Bars
 slider12:start_out=0<-1000000,100000000,0.0001>-Loop Start (QN)
 slider13:qn_out=0<0,1000,0.0001>-Loop Length (QN)
 // smoothing: longer = smoother with steady, unmodulated tones (bass, drones)
 slider14:xf_ms=50<1,170,1>Loop Seam Crossfade (ms)
 slider15:fade_ms=30<1,200,1>Start / Stop Fade (ms)
+slider16:pause_btn=0<0,1,1{Off,On}>Pause
 
 in_pin:Input L
 in_pin:Input R
@@ -56,18 +59,19 @@ ring_pos = 0;
 env = 0;                                  // output ramp: no click when a loop starts / stops
 
 // states (armed = waiting for the next bar to start recording)
-ST_EMPTY = 0; ST_REC = 2; ST_PLAY = 3; ST_STOP = 4;
+ST_EMPTY = 0; ST_REC = 2; ST_PLAY = 3; ST_STOP = 4; ST_PAUSE = 5;
 state = ST_EMPTY;
 armed = 0;
 has_loop = 0;
 loop_len = 0;          // frames
 loop_qn = 0;           // length in quarter notes
 start_qn = 0;          // project position (quarter notes) where the loop starts
-pend_play = 0; pend_stop = 0;
+pend_play = 0; pend_stop = 0; pend_resume = 0;
+paused_qn = 0;         // position in the loop (quarter notes) where it was paused
 recording = 0; rec_count = 0;
 last_bar = -1;
 err_msg = 0;
-p_rec = p_play = p_clear = 0;   // previous button values (edge detection)
+p_rec = p_play = p_clear = p_pause = 0;   // previous button values (edge detection)
 
 function bars_from_sel(s) ( s == 0 ? 1 : s == 1 ? 2 : s == 2 ? 4 : s == 3 ? 8 : s == 4 ? 16 : 32; );
 
@@ -81,8 +85,9 @@ function set_slider(idx, val) local(m)
 function do_clear()
 (
   state = ST_EMPTY; has_loop = 0; recording = 0; armed = 0;
-  pend_play = pend_stop = 0; loop_len = 0;
+  pend_play = pend_stop = pend_resume = 0; loop_len = 0;
   play_btn != 0 ? set_slider(3, 0);
+  pause_btn != 0 ? ( set_slider(16, 0); p_pause = 0; );
   rec_btn != 0 ? set_slider(2, 0);
   odub_btn != 0 ? set_slider(4, 0);
 );
@@ -139,16 +144,30 @@ gain = 10 ^ (vol_db / 20);
 rec_btn && !p_rec && state != ST_REC ? ( armed = 1; err_msg = 0; );
 !rec_btn && p_rec && armed ? armed = 0;
 clear_btn && !p_clear ? ( do_clear(); set_slider(5, 0); );
-play_btn && !p_play && has_loop && state == ST_STOP ? ( pend_play = 1; pend_stop = 0; );
+// PLAY: from the beginning on the next bar (also from a pause)
+play_btn && !p_play && has_loop && (state == ST_STOP || state == ST_PAUSE) ? (
+  pend_play = 1; pend_stop = 0; pend_resume = 0;
+  pause_btn ? ( set_slider(16, 0); p_pause = 0; );
+);
 play_btn && !p_play && state == ST_PLAY ? pend_stop = 0;
 !play_btn && p_play && state == ST_PLAY ? ( pend_stop = 1; pend_play = 0; );
-!play_btn && p_play && state == ST_STOP ? pend_play = 0;
-p_rec = rec_btn; p_play = play_btn; p_clear = clear_btn;
+!play_btn && p_play && (state == ST_STOP || state == ST_PAUSE) ? pend_play = 0;
+// PAUSE: now (with the fade); PAUSE off: continue on the next bar from where it was
+pause_btn && !p_pause ? (
+  state == ST_PLAY && loop_qn > 0 ? (
+    paused_qn = (beat_position - start_qn) - floor((beat_position - start_qn) / loop_qn) * loop_qn;
+    state = ST_PAUSE; pend_stop = 0; pend_play = 0;
+    play_btn ? ( set_slider(3, 0); p_play = 0; );
+  ) : ( set_slider(16, 0); );               // nothing playing: nothing to pause
+);
+!pause_btn && p_pause && state == ST_PAUSE ? pend_resume = 1;
+pause_btn && p_pause && state == ST_PAUSE ? pend_resume = 0;
+p_rec = rec_btn; p_play = play_btn; p_clear = clear_btn; p_pause = pause_btn;
 
 // ---------- publish the status for the Live Panel (only when it changes) ----------
 v = armed ? 1 : state;
 v != st_out ? ( st_out = v; sliderchange(2 ^ 8); );
-v = pend_play ? 1 : pend_stop ? 2 : 0;
+v = pend_play ? 1 : pend_stop ? 2 : pend_resume ? 3 : 0;
 v != pend_out ? ( pend_out = v; sliderchange(2 ^ 9); );
 v = state == ST_REC ? bars_from_sel(len_sel) : has_loop && bar_qn > 0 ? floor(loop_qn / bar_qn + 0.5) : 0;
 v != bars_out ? ( bars_out = v; sliderchange(2 ^ 10); );
@@ -198,7 +217,14 @@ playing_now ? (
         has_loop = 0;            // the previous loop is replaced
       );
     );
-    pend_play ? ( state = ST_PLAY; pend_play = 0; );
+    pend_play ? (                     // from the beginning of the loop
+      state = ST_PLAY; pend_play = 0; start_qn = cur_bar * bar_qn;
+    );
+    pend_resume ? (                   // from the bar of the loop where it was paused
+      state = ST_PLAY; pend_resume = 0;
+      start_qn = cur_bar * bar_qn - floor(paused_qn / bar_qn + 0.0000001) * bar_qn;
+      play_btn == 0 ? ( set_slider(3, 1); p_play = 1; );
+    );
     pend_stop ? ( state = ST_STOP; pend_stop = 0; );
   );
 
@@ -268,6 +294,7 @@ state == ST_EMPTY ? ( gfx_set(0.55, 0.55, 0.6, 1); lbl = "EMPTY"; );
 state == ST_REC   ? ( gfx_set(1, 0.25, 0.25, 1); lbl = "REC"; );
 state == ST_PLAY  ? ( gfx_set(0.3, 0.9, 0.4, 1); lbl = odub_btn ? "PLAY + OVERDUB" : "PLAY"; );
 state == ST_STOP  ? ( gfx_set(0.6, 0.75, 0.9, 1); lbl = "STOPPED"; );
+state == ST_PAUSE ? ( gfx_set(1, 0.8, 0.3, 1); lbl = pend_resume ? "PAUSED - continues next bar" : "PAUSED"; );
 armed ? ( gfx_set(1, 0.6, 0.2, 1); lbl = "ARMED - next bar"; );
 gfx_x = 8; gfx_y = 26; gfx_drawstr(lbl);
 
@@ -309,14 +336,16 @@ function button(x, y, w, h, label, on, r, g, bl, idx)
     idx == 3 ? set_slider(3, play_btn ? 0 : 1);
     idx == 4 ? set_slider(4, odub_btn ? 0 : 1);
     idx == 5 ? set_slider(5, 1);
+    idx == 16 ? set_slider(16, pause_btn ? 0 : 1);
   );
 );
-gfx_setfont(2, "Arial", 16, 'b');
-bw = (gfx_w - 16 - 3 * 6) / 4; by = 122; bh = 40;
+gfx_setfont(3, "Arial", 13, 'b');
+bw = (gfx_w - 16 - 4 * 6) / 5; by = 122; bh = 40;
 button(8,               by, bw, bh, "REC",     armed || state == ST_REC, 1, 0.3, 0.3, 2);
 button(8 + (bw + 6),    by, bw, bh, "PLAY",    play_btn, 0.3, 0.9, 0.4, 3);
-button(8 + 2*(bw + 6),  by, bw, bh, "OVERDUB", odub_btn, 1, 0.75, 0.2, 4);
-button(8 + 3*(bw + 6),  by, bw, bh, "CLEAR",   0, 0.6, 0.6, 0.6, 5);
+button(8 + 2*(bw + 6),  by, bw, bh, "PAUSE",   pause_btn, 1, 0.8, 0.3, 16);
+button(8 + 3*(bw + 6),  by, bw, bh, "OVERDUB", odub_btn, 1, 0.75, 0.2, 4);
+button(8 + 4*(bw + 6),  by, bw, bh, "CLEAR",   0, 0.6, 0.6, 0.6, 5);
 last_cap = mouse_cap & 1;
 
 gfx_setfont(1, "Arial", 12);

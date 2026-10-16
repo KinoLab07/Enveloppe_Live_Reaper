@@ -193,6 +193,25 @@ check("looper: after STOP, PLAY (here from bar 2) starts the loop from its begin
 o = run(LP, ramp, *EXACT, "s1=1", "s2=1", "ps@300032=2", "ps@340000=1")
 check("looper: after PAUSE, PLAY continues where it was",
       np.allclose(o[343000:380000, 0], ramp[111000:148000, 0], atol=1e-4))
+# per-loop PAUSE (2-bar loop playing from bar 3 = sample 192000): paused at 250000 (inside
+# loop bar 1), PAUSE off at 300000 -> continues at the next bar (384000) from loop bar 1
+o = run(LP, ramp, *EXACT, "s1=1", "s2=1", "s16@250112=1", "s16@300032=0")
+check("looper: PAUSE silences the loop at once",
+      np.abs(o[250500:384000]).max() == 0)
+check("looper: PAUSE off continues on the next bar from the bar where it was paused",
+      np.allclose(o[384000 + 1000:384000 + 90000, 0], ramp[1000:90000, 0]))
+ramp14 = np.stack([np.arange(14 * SR) * 1e-6, -np.arange(14 * SR) * 1e-6], 1)
+o = run(LP, ramp14, *EXACT, "s1=1", "s2=1", "s16@300032=1", "s16@400128=0")
+check("looper: paused in loop bar 2 -> continues from loop bar 2",
+      np.allclose(o[480000 + 1000:480000 + 90000, 0], ramp14[96000 + 1000:96000 + 90000, 0]))
+o = run(LP, ramp14, *EXACT, "s1=1", "s2=1", "s16@300032=1", "s3@400128=1")
+check("looper: PLAY while paused starts the loop from its beginning on the next bar",
+      np.allclose(o[480000 + 1000:480000 + 90000, 0], ramp14[1000:90000, 0]))
+# 2-bar loop recorded in bars 2-3, playing from bar 4; its STOP at bar 5, PLAY again at bar 6:
+# in phase it would play its 2nd bar there, from the beginning it plays its 1st
+o = run(LP, ramp14, *EXACT, "s1=1", "s2@30000=1", "s3@300032=0", "s3@400128=1")
+check("looper: PLAY after its STOP starts it from its beginning",
+      np.allclose(o[480000 + 1000:480000 + 90000, 0], ramp14[96000 + 1000:96000 + 90000, 0]))
 o = run(LP, ramp, *EXACT, "s1=0", "s2=1", "s4@192000=1", "s4@288000=0")
 check("looper: overdub adds a layer", np.allclose(o[288000 + j, 0], ramp[j, 0] + ramp[192000 + j, 0], atol=1e-5))
 o = run(LP, ramp, *EXACT, "s1=0", "s2=1", "s2@200000=1")

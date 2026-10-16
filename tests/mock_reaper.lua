@@ -55,6 +55,8 @@ function reaper.GetCursorPosition() return 0 end
 function reaper.TimeMap2_timeToBeats(_, t) local q = t * 2; return q % 4, math.floor(q / 4), 4, q, 4 end
 function reaper.TimeMap_GetTimeSigAtTime() return 4, 4, 120 end
 function reaper.TimeMap2_timeToQN(_, t) return t * 2 end
+function reaper.TimeMap2_QNToTime(_, q) return q / 2 end
+function reaper.GetMediaItemTakeInfo_Value(take, k) return take.vals[k] or 0 end
 function reaper.Master_GetTempo() return 120 end
 function reaper.IsTrackSelected(tr) return MOCK_SEL == tr end
 function reaper.SetOnlyTrackSelected(tr) MOCK_SEL = tr end

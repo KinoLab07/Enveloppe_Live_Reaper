@@ -176,10 +176,13 @@ opening any plug-in.
     positions, movements, tempo) in `E4L_Templates` inside the resource folder, to move from one
     piece to the next.
   - **NEW TEMPLATE** – a new live project from scratch.
-- **One row per loop:** state (empty, waiting, recording, playing, stopped), length (1-32 bars),
-  input (**ALL** / **IN n**), **REC**, **PLAY**, **OVERDUB**, **CLEAR**, **MOVEMENT** (movement
-  editor) and the position inside the loop. Record, play and stop are
-  quantised to the next bar.
+- **One row per loop:** state (empty, waiting, recording, playing, stopped, paused), length
+  (1-32 bars), input (**ALL** / **IN n**), **REC**, **PLAY**, **PAUSE**, **OVERDUB**, **CLEAR**,
+  **MOVEMENT** (movement editor) and the position inside the loop. Record, play and stop are
+  quantised to the next bar. **PLAY** starts the loop from its beginning; **PAUSE** silences it at
+  once and, pressed again, continues it on the next bar from the bar where it was paused.
+  Audio rows have the same **PLAY** / **PAUSE** (the file is moved only while it is silent) and
+  **DELETE**. The movement (LFOs) freezes while REAPER is paused and continues from there.
 - **Room view**, seen from above: the four speakers and one dot per loop, moving live with its
   animations. Drag a dot to move that loop.
 - **Keys:** space = play/stop, 1-9 = record on loop 1-9, 0 = stop all loops, Esc = close the editor.

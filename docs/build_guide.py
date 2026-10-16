@@ -634,9 +634,9 @@ def build(path):
         "continues exactly where it was.",
         "<b>Toolbar:</b> <b>+ LOOP</b>, <b>+ AUDIO</b>, <b>+ INPUT</b>, <b>SAVE TEMPLATE</b>, "
         "<b>LOAD TEMPLATE</b>, <b>NEW TEMPLATE</b> (see below).",
-        "<b>One row per loop:</b> state (EMPTY, WAITING, RECORDING, PLAYING, STOPPED; it blinks while "
-        "waiting for the bar), length, input (<b>ALL</b> or <b>IN n</b>), <b>REC</b>, <b>PLAY</b>, "
-        "<b>OVERDUB</b>, <b>CLEAR</b>, <b>MOVEMENT</b> and the position inside the loop.",
+        "<b>One row per loop:</b> state (EMPTY, WAITING, RECORDING, PLAYING, STOPPED, PAUSED; it blinks "
+        "while waiting for the bar), length, input (<b>ALL</b> or <b>IN n</b>), <b>REC</b>, <b>PLAY</b>, "
+        "<b>PAUSE</b>, <b>OVERDUB</b>, <b>CLEAR</b>, <b>MOVEMENT</b> and the position inside the loop.",
         "<b>The room seen from above:</b> the 4 numbered speakers and one dot per loop (green "
         "playing, red recording), moving live with the animations. <b>Drag a dot</b> to move that loop.",
         "<b>Keys:</b> <b>Space</b> = play/stop · <b>1-9</b> = record on loop 1-9 · <b>0</b> = stop all "
@@ -647,7 +647,9 @@ def build(path):
         ["Loop button", "What it does"],
         ["<b>REC</b>", "Records on the next bar. On a loop that already has audio it records a new "
          "one; the old one keeps playing until the new recording starts."],
-        ["<b>PLAY</b>", "Starts or stops the loop on the next bar, always in phase with the project."],
+        ["<b>PLAY</b>", "Starts the loop from its beginning on the next bar, or stops it on the next bar."],
+        ["<b>PAUSE</b>", "Silences the loop at once. Press it again: the loop continues on the next bar, "
+                         "from the bar where it was paused. PLAY while paused starts it from the beginning."],
         ["<b>OVERDUB</b>", "While on, what you play is added on top of the loop."],
         ["<b>CLEAR</b>", "Erases the loop."],
         ["<b>ALL / IN n</b>", "Which interface input the loop records: <b>ALL</b> (every input, the "
@@ -659,7 +661,9 @@ def build(path):
         "<b>+ AUDIO</b>: choose a file (wav, aif, mp3…). A new <b>AUDIO n</b> track is created, "
         "spatialised like a loop. The file starts at bar 1 and repeats; if it lasts almost a whole "
         "number of bars it is fitted to the tempo without changing its pitch. It starts "
-        "<b>MUTED</b>: press <b>PLAY</b> and it comes in on the next bar (same to take it out). It "
+        "<b>STOPPED</b>: press <b>PLAY</b> and it comes in from its beginning on the next bar (same to take it "
+        "out). <b>PAUSE</b> works as on the loops: silent at once, then it continues from the bar where it "
+        "was paused. It "
         "has its own <b>MOVEMENT</b> button. You can also drag files from the Finder onto the panel.",
         "The effect follows the channels of the file: <b>mono</b> = one point; <b>stereo</b> = two "
         "points, L and R on speakers 1 and 2; <b>quad</b> = four points, each channel on its own "

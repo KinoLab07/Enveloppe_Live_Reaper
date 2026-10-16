@@ -44,7 +44,7 @@ local function setp(tr, fx, p, v) if fx >= 0 and p and p >= 0 then reaper.TrackF
 
 local LENGTHS = { 1, 2, 4, 8, 16, 32 }
 local SYNC_LABELS = { "1/4", "1/2", "1", "2", "3", "4", "6", "8", "16", "32", "64" }
-local STATE_NAME = { [0] = "EMPTY", "WAITING", "RECORDING", "PLAYING", "STOPPED" }
+local STATE_NAME = { [0] = "EMPTY", "WAITING", "RECORDING", "PLAYING", "STOPPED", "PAUSED" }
 
 -- E4L effects that can follow the looper
 local EFFECTS = {
@@ -116,7 +116,7 @@ local function scan()
         effect = pfx >= 0 and effect_of(pname) or 0, pn = pn,
         p = {
           len = find_prefix(ln, "Length"), rec = ln["Record"], play = ln["Play"],
-          odub = ln["Overdub"], clear = ln["Clear"], status = find_prefix(ln, "Status"),
+          odub = ln["Overdub"], clear = ln["Clear"], pause = ln["Pause"], status = find_prefix(ln, "Status"),
           pend = find_prefix(ln, "Pending"), bars = ln["Loop Bars"], start = find_prefix(ln, "Loop Start"),
           qn = find_prefix(ln, "Loop Length"),
           az = pn["Azimuth"] or -1, cur_az = pn["Current Azimuth"] or -1, sp = pn["Azimuth Spread"] or -1, cur_sp = pn["Current Spread"] or -1,
@@ -289,11 +289,56 @@ local function apply_pending(tp)
     for tr, m in pairs(pend_mute) do
       if reaper.ValidatePtr2 == nil or reaper.ValidatePtr2(0, tr, "MediaTrack*") then
         reaper.SetMediaTrackInfo_Value(tr, "B_MUTE", m)
+        if m == 0 then E4L.set_audio_paused(tr, nil) end
       end
     end
     pend_mute = {}
   end
   last_bar = tp.bar
+end
+
+-- time of the next bar line (or where playback will start, when stopped)
+local function next_bar_time(tp)
+  if not tp.playing then return reaper.GetCursorPosition() end
+  local bq = tp.num * 4 / tp.denom
+  return reaper.TimeMap2_QNToTime(0, (math.floor(tp.qn / bq + 0.000001) + 1) * bq)
+end
+
+-- AUDIO track PLAY: from the beginning of the file on the next bar / stop on the next bar.
+-- The read position is only moved while the track is silent, so no jump is heard.
+local function audio_play(L, tp)
+  local muted = reaper.GetMediaTrackInfo_Value(L.tr, "B_MUTE") > 0.5
+  local pm = pend_mute[L.tr]
+  if not muted then
+    if pm == 1 then pend_mute[L.tr] = nil else pend_mute[L.tr] = 1 end
+  elseif pm == 0 then
+    pend_mute[L.tr] = nil
+  else
+    E4L.audio_set_pos(L.tr, next_bar_time(tp), 0)
+    pend_mute[L.tr] = 0
+  end
+end
+
+-- AUDIO track PAUSE: silent at once, remembering where it was; PAUSE again: continues on the
+-- next bar from the bar of the file where it was paused (from that exact point if the file
+-- is not a whole number of bars)
+local function audio_pause(L, tp)
+  local muted = reaper.GetMediaTrackInfo_Value(L.tr, "B_MUTE") > 0.5
+  local paused = E4L.audio_paused(L.tr)
+  if not muted then
+    E4L.set_audio_paused(L.tr, E4L.audio_pos(L.tr, tp.time))
+    reaper.SetMediaTrackInfo_Value(L.tr, "B_MUTE", 1)
+    pend_mute[L.tr] = nil
+  elseif paused then
+    if pend_mute[L.tr] == 0 then pend_mute[L.tr] = nil return end
+    local u = paused
+    if L.bars > 0 then
+      local bs = E4L.bar_seconds(tp.time)
+      u = math.floor(u / bs + 0.000001) * bs
+    end
+    E4L.audio_set_pos(L.tr, next_bar_time(tp), u)
+    pend_mute[L.tr] = 0
+  end
 end
 
 local status_text, status_time = "", 0
@@ -456,6 +501,9 @@ local function play_stop()
   if reaper.GetPlayState() % 2 == 1 then
     reaper.OnStopButton()
     reaper.SetEditCurPos(0, true, false)
+    for _, L in ipairs(loops) do
+      if L.kind == "audio" then E4L.audio_set_pos(L.tr, 0, 0) end
+    end
   else
     reaper.OnPlayButton()
   end
@@ -520,7 +568,11 @@ local function draw_rows(tp, x0, y0, W, H)
     text("No loops yet. Press NEW TEMPLATE or + LOOP.", x0, y0 + 10)
     return
   end
-  local col = { [0] = { 0.4, 0.4, 0.45 }, { 1, 0.6, 0.2 }, { 1, 0.3, 0.3 }, { 0.35, 0.95, 0.5 }, { 0.55, 0.7, 0.9 } }
+  local col = { [0] = { 0.4, 0.4, 0.45 }, { 1, 0.6, 0.2 }, { 1, 0.3, 0.3 }, { 0.35, 0.95, 0.5 }, { 0.55, 0.7, 0.9 },
+                { 1, 0.8, 0.3 } }
+  -- button columns: REC, PLAY, PAUSE, OVERDUB (DELETE on audio rows), CLEAR, MOVEMENT
+  local bx = x0 + 344
+  local XR, XP, XPA, XO, XC, XM = bx, bx + 56, bx + 112, bx + 176, bx + 254, bx + 308
   for i, L in ipairs(loops) do
     local y = y0 + (i - 1) * rowh
     local bh = rowh - 16
@@ -530,7 +582,7 @@ local function draw_rows(tp, x0, y0, W, H)
     text(string.format("%d  %s", i, L.name), x0 + 8, y, nil, rowh - 4)
     if clicked and hit(x0, y, 110, rowh - 4) then reaper.SetOnlyTrackSelected(L.tr) end
     local blink_on = math.floor(reaper.time_precise() * 4) % 2 == 0
-    local px = x0 + 706                                   -- position bar
+    local px = x0 + 748                                   -- position bar
     local pw = W - (px - x0) - 6
 
     if L.kind == "loop" then
@@ -541,7 +593,7 @@ local function draw_rows(tp, x0, y0, W, H)
       rgb(c[1], c[2], c[3], blink and 0.45 or 1); rect(x0 + 110, y + 6, 96, bh)
       rgb(0.05, 0.05, 0.05)
       local label = STATE_NAME[st] or "?"
-      if pend == 1 then label = "→ PLAY" elseif pend == 2 then label = "→ STOP" end
+      if pend == 1 then label = "→ PLAY" elseif pend == 2 then label = "→ STOP" elseif pend == 3 then label = "→ RESUME" end
       text(label, x0 + 110, y + 6, 96, bh, 1)
 
       local li = math.floor(getp(L.tr, L.lfx, L.p.len) + 0.5)
@@ -556,20 +608,23 @@ local function draw_rows(tp, x0, y0, W, H)
         E4L.set_loop_input(L.tr, k); L.input = k
       end
 
-      local bx = x0 + 344
-      if button("REC", bx, y + 6, 60, bh, st == 1 or st == 2, 1, 0.3, 0.3) then
+      if button("REC", XR, y + 6, 52, bh, st == 1 or st == 2, 1, 0.3, 0.3) then
         setp(L.tr, L.lfx, L.p.rec, getp(L.tr, L.lfx, L.p.rec) > 0.5 and 0 or 1)
       end
       local play_on = getp(L.tr, L.lfx, L.p.play) > 0.5
-      if button("PLAY", bx + 64, y + 6, 56, bh, play_on, 0.35, 0.95, 0.5) then
+      if button("PLAY", XP, y + 6, 52, bh, play_on, 0.35, 0.95, 0.5) then
         setp(L.tr, L.lfx, L.p.play, play_on and 0 or 1)
       end
+      local pause_on = getp(L.tr, L.lfx, L.p.pause) > 0.5
+      if button(pause_on and "PAUSED" or "PAUSE", XPA, y + 6, 60, bh, pause_on, 1, 0.8, 0.3) then
+        setp(L.tr, L.lfx, L.p.pause, pause_on and 0 or 1)
+      end
       local od = getp(L.tr, L.lfx, L.p.odub) > 0.5
-      if button("OVERDUB", bx + 124, y + 6, 78, bh, od, 1, 0.75, 0.2) then
+      if button("OVERDUB", XO, y + 6, 74, bh, od, 1, 0.75, 0.2) then
         setp(L.tr, L.lfx, L.p.odub, od and 0 or 1)
       end
-      if button("CLEAR", bx + 206, y + 6, 50, bh, false) then setp(L.tr, L.lfx, L.p.clear, 1) end
-      if button("MOVEMENT", bx + 260, y + 6, 96, bh, editing == i, 0.45, 0.75, 1) then
+      if button("CLEAR", XC, y + 6, 50, bh, false) then setp(L.tr, L.lfx, L.p.clear, 1) end
+      if button("MOVEMENT", XM, y + 6, 90, bh, editing == i, 0.45, 0.75, 1) then
         editing = (editing == i) and nil or i
       end
       if pw > 30 then
@@ -585,28 +640,27 @@ local function draw_rows(tp, x0, y0, W, H)
         for k = 1, nb - 1 do gfx.line(px + pw * k / nb, y + 10, px + pw * k / nb, y + rowh - 15) end
       end
     else
-      -- pre-recorded audio: PLAY / MUTE on the next bar
+      -- pre-recorded audio: PLAY (from its beginning) / STOP on the next bar, PAUSE now
       local muted = reaper.GetMediaTrackInfo_Value(L.tr, "B_MUTE") > 0.5
       local pm = pend_mute[L.tr]
-      local c = muted and col[0] or col[3]
+      local paused = muted and E4L.audio_paused(L.tr) ~= nil
+      local c = paused and col[5] or muted and col[0] or col[3]
       rgb(c[1], c[2], c[3], (pm ~= nil and blink_on) and 0.45 or 1); rect(x0 + 110, y + 6, 96, bh)
       rgb(0.05, 0.05, 0.05)
-      local label = muted and "MUTED" or "PLAYING"
-      if pm == 0 then label = "→ PLAY" elseif pm == 1 then label = "→ MUTE" end
+      local label = paused and "PAUSED" or muted and "STOPPED" or "PLAYING"
+      if pm == 0 then label = paused and "→ RESUME" or "→ PLAY" elseif pm == 1 then label = "→ STOP" end
       text(label, x0 + 110, y + 6, 96, bh, 1)
       rgb(0.7, 0.7, 0.75)
       text(L.bars > 0 and ("audio · " .. L.bars .. " bars") or "audio", x0 + 212, y + 6, 128, bh)
-      local bx = x0 + 344
-      local want_on = (pm ~= nil) and (pm == 0) or (pm == nil and not muted)
-      if button("PLAY", bx + 64, y + 6, 56, bh, want_on, 0.35, 0.95, 0.5) then
-        pend_mute[L.tr] = want_on and 1 or 0
-      end
-      if button("MOVEMENT", bx + 260, y + 6, 96, bh, editing == i, 0.45, 0.75, 1) then
+      local want_on = (pm ~= nil) and (pm == 0 and not paused) or (pm == nil and not muted)
+      if button("PLAY", XP, y + 6, 52, bh, want_on, 0.35, 0.95, 0.5) then audio_play(L, tp) end
+      if button(paused and "PAUSED" or "PAUSE", XPA, y + 6, 60, bh, paused, 1, 0.8, 0.3) then audio_pause(L, tp) end
+      if button("MOVEMENT", XM, y + 6, 90, bh, editing == i, 0.45, 0.75, 1) then
         editing = (editing == i) and nil or i
       end
       -- DELETE: a second click within 3 s confirms (no window in the middle of a set)
       local sure = confirm_del and confirm_del.tr == L.tr and reaper.time_precise() - confirm_del.t < 3
-      if button(sure and "SURE?" or "DELETE", bx + 124, y + 6, 78, bh, sure, 1, 0.3, 0.3) then
+      if button(sure and "SURE?" or "DELETE", XO, y + 6, 74, bh, sure, 1, 0.3, 0.3) then
         if sure then
           confirm_del = nil
           reaper.Undo_BeginBlock()
@@ -622,7 +676,7 @@ local function draw_rows(tp, x0, y0, W, H)
         rgb(0.2, 0.2, 0.24); rect(px, y + 10, pw, rowh - 24)
         if L.bars > 0 and tp.playing and not muted then
           local ll = L.bars * E4L.bar_seconds(0)
-          rgb(0.35, 0.95, 0.5, 0.9); rect(px, y + 10, pw * ((tp.time % ll) / ll), rowh - 24)
+          rgb(0.35, 0.95, 0.5, 0.9); rect(px, y + 10, pw * ((E4L.audio_pos(L.tr, tp.time) % ll) / ll), rowh - 24)
         end
         rgb(0.5, 0.5, 0.55)
         for k = 1, L.bars - 1 do gfx.line(px + pw * k / L.bars, y + 10, px + pw * k / L.bars, y + rowh - 15) end
@@ -830,7 +884,7 @@ local function keyboard(c)
   if c >= 49 and c <= 57 then                                            -- 1-9: record
     local L = loops[c - 48]
     if L and L.kind == "loop" then setp(L.tr, L.lfx, L.p.rec, getp(L.tr, L.lfx, L.p.rec) > 0.5 and 0 or 1)
-    elseif L then pend_mute[L.tr] = reaper.GetMediaTrackInfo_Value(L.tr, "B_MUTE") > 0.5 and 0 or 1 end
+    elseif L then audio_play(L, transport()) end
   end
   if c == 48 then for _, L in ipairs(loops) do if L.kind == "loop" then setp(L.tr, L.lfx, L.p.play, 0) end end end  -- 0
 end

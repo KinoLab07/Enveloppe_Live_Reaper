@@ -142,7 +142,7 @@ mouse(dx, dy, 1); frame(); mouse(cx + 100, cy, 1); frame(); mouse(cx + 100, cy, 
 check("panel: dragging loop 1 in the room sets its azimuth (+90 = right)", param(2, 2, "Azimuth") == 90)
 
 # movement editor of loop 1
-click(BX + 256 + 10, row_y(1, n))
+click(BX + 308 + 10, row_y(1, n))
 lw = W - room - 24
 colw = (lw - 40) // 2
 c1, c2 = 8 + 10, 8 + 30 + colw
@@ -204,6 +204,38 @@ click(BX + 70 + 10, row_y(14, n))                # PLAY on the audio row (quanti
 check("audio row: PLAY waits for the next bar", lua.eval("MOCK.T[%d].vals.B_MUTE" % a1) == 1)
 lua.execute("MOCK_POS = MOCK_POS + 2.0"); frame()   # next bar (2 s per bar at 120 BPM)
 check("audio row: ... and unmutes on the next bar", lua.eval("MOCK.T[%d].vals.B_MUTE" % a1) == 0)
+# loop PAUSE button
+click(BX + 112 + 10, row_y(1, n))
+check("loop row: PAUSE presses the looper's Pause", param(tr_index("LOOP 1"), 1, "Pause") == 1)
+click(BX + 112 + 10, row_y(1, n))
+check("loop row: PAUSE again releases it (the loop continues on the next bar)", param(tr_index("LOOP 1"), 1, "Pause") == 0)
+# audio PAUSE / RESUME (AUDIO 1: 4 bars = 8 s at 120 BPM, playing)
+lua.execute("E4LT = dofile([[%s]])" % os.path.join(SCRIPTS, "e4l_lib.lua").replace("\\", "/"))
+apos = lua.eval("function(i, t) return E4LT.audio_pos(MOCK.T[i], t) end")
+lua.execute("MOCK_POS = 15.0"); frame()          # the file started at 12 s (PLAY above): 3.0 s in
+click(BX + 112 + 10, row_y(14, n))                # PAUSE there (its bar 2)
+check("audio row: PAUSE silences it at once and remembers where it was",
+      lua.eval("MOCK.T[%d].vals.B_MUTE" % a1) == 1 and abs(float(lua.eval("MOCK.T[%d].ext['P_EXT:E4L_pause']" % a1)) - 3.0) < 1e-6)
+lua.execute("MOCK_POS = 15.5"); frame()
+click(BX + 112 + 10, row_y(14, n))                # PAUSE again: continue on the next bar (16 s)
+check("audio row: PAUSE again -> on the next bar (16 s) the file continues from its bar 2 (2.0 s)",
+      abs(apos(a1, 16.0) - 2.0) < 1e-6 and lua.eval("MOCK.T[%d].vals.B_MUTE" % a1) == 1)
+lua.execute("MOCK_POS = 16.1"); frame()
+check("audio row: ... it comes back in on that bar", lua.eval("MOCK.T[%d].vals.B_MUTE" % a1) == 0
+      and lua.eval("MOCK.T[%d].ext['P_EXT:E4L_pause']" % a1) == "")
+# audio PLAY: stop on the next bar, then PLAY again starts the file from its beginning
+click(BX + 56 + 10, row_y(14, n))
+lua.execute("MOCK_POS = 18.1"); frame()
+lua.execute("MOCK_POS = 19.0"); frame()
+click(BX + 56 + 10, row_y(14, n))
+check("audio row: PLAY after a stop starts the file from its beginning on the next bar (20 s)",
+      lua.eval("MOCK.T[%d].vals.B_MUTE" % a1) == 1 and abs(apos(a1, 20.0)) < 1e-6)
+lua.execute("MOCK_POS = 20.1"); frame()
+check("audio row: ... and comes in on that bar", lua.eval("MOCK.T[%d].vals.B_MUTE" % a1) == 0)
+lua.execute("MOCK_KEY = 32"); frame()
+check("master STOP: back to bar 1 with every audio file at its beginning",
+      lua.eval("MOCK_PLAY") == 0 and abs(apos(a1, 0.0)) < 1e-6)
+lua.execute("MOCK_KEY = 32"); frame()
 check("+ AUDIO builds the item directly (no InsertMedia, which can stop the transport)",
       lua.eval("MOCK_INSERTMEDIA_USED") is False and lua.eval("MOCK.T[%d].items[1].file" % a1) == "/sounds/pad.wav")
 # something stops the transport while the file dialog is open -> the panel restarts it
@@ -252,9 +284,9 @@ check("8-channel file -> Multi-Panner, 8 inputs in a circle, the others off",
 rows = [x for x in name_list() if x.startswith("LOOP ") or x.startswith("AUDIO ")]
 nrows = len(rows)
 i5 = rows.index("AUDIO 5") + 1
-click(BX + 124 + 10, row_y(i5, nrows))
+click(BX + 176 + 10, row_y(i5, nrows))
 check("audio row: first click on DELETE only asks (SURE?)", "AUDIO 5" in name_list())
-click(BX + 124 + 10, row_y(i5, nrows))
+click(BX + 176 + 10, row_y(i5, nrows))
 check("audio row: second click on DELETE deletes the track",
       "AUDIO 5" not in name_list() and "AUDIO 4" in name_list() and "AUDIO 6" in name_list())
 frame()

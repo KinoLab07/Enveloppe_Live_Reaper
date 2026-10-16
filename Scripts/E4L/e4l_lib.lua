@@ -288,6 +288,45 @@ end
 
 function E.delete_track(tr) reaper.DeleteTrack(tr) end
 
+-- position inside the file of an AUDIO track (project seconds from the file's start).
+-- The item starts at 0 and loops; where it is read from is set with the take's start offset.
+local function audio_take(tr)
+  local item = reaper.CountTrackMediaItems(tr) > 0 and reaper.GetTrackMediaItem(tr, 0)
+  if not item then return end
+  local take = reaper.GetActiveTake(item)
+  if not take then return end
+  local rate = reaper.GetMediaItemTakeInfo_Value(take, "D_PLAYRATE")
+  local len = reaper.GetMediaSourceLength(reaper.GetMediaItemTake_Source(take))
+  return item, take, (rate > 0 and rate or 1), len
+end
+
+function E.audio_pos(tr, t)
+  local item, take, rate, len = audio_take(tr)
+  if not item or len <= 0 then return 0 end
+  local src = reaper.GetMediaItemTakeInfo_Value(take, "D_STARTOFFS")
+            + (t - reaper.GetMediaItemInfo_Value(item, "D_POSITION")) * rate
+  return (src % len) / rate
+end
+
+-- makes the file be at position `u` (project seconds from its start) at time `t`
+function E.audio_set_pos(tr, t, u)
+  local item, take, rate, len = audio_take(tr)
+  if not item or len <= 0 then return end
+  local offs = (u - (t - reaper.GetMediaItemInfo_Value(item, "D_POSITION"))) * rate
+  reaper.SetMediaItemTakeInfo_Value(take, "D_STARTOFFS", offs % len)
+  reaper.UpdateItemInProject(item)
+end
+
+-- paused position of an AUDIO track (nil = not paused)
+function E.audio_paused(tr)
+  local _, v = reaper.GetSetMediaTrackInfo_String(tr, "P_EXT:E4L_pause", "", false)
+  return tonumber(v)
+end
+
+function E.set_audio_paused(tr, u)
+  reaper.GetSetMediaTrackInfo_String(tr, "P_EXT:E4L_pause", u and tostring(u) or "", true)
+end
+
 ---------------------------------------------------------------------------------------
 -- songs: saved set-ups (tracks, positions, animations, tempo; not the recorded loops)
 function E.songs_dir()

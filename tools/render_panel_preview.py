@@ -31,7 +31,7 @@ q.fx[1].p["-Current Azimuth"] = 20; q.fx[1].p["-Current Spread"] = 90
 """ % os.path.join(ROOT, "Scripts", "E4L", "e4l_lib.lua"))
 lua.execute('''
 local T = MOCK.T
-local ST, BARS, LQN = "-Status (0 empty 1 armed 2 rec 3 play 4 stop)", "-Loop Bars", "-Loop Length (QN)"
+local ST, BARS, LQN = "-Status (0 empty 1 armed 2 rec 3 play 4 stop 5 pause)", "-Loop Bars", "-Loop Length (QN)"
 local function L(i) return T[i+2].fx[1].p end
 local function P(i) return T[i+2].fx[2].p end
 L(1)[ST]=3; L(1)[BARS]=4; L(1)[LQN]=16; L(1)["Play"]=1; L(1)["Length (bars)"]=2
@@ -90,7 +90,7 @@ def render(out_name):
 
 render("live_panel_preview.png")
 # open the movement editor of loop 1 (click on its MOVIMIENTO button)
-lua.execute("gfx.mouse_x = 8 + 344 + 266; gfx.mouse_y = 116 + 15; gfx.mouse_cap = 1")
+lua.execute("gfx.mouse_x = 8 + 344 + 320; gfx.mouse_y = 116 + 15; gfx.mouse_cap = 1")
 lua.execute("local f = MOCK_DEFER; MOCK_DEFER = nil; f()")
 lua.execute("gfx.mouse_cap = 0")
 render("live_panel_editor.png")
