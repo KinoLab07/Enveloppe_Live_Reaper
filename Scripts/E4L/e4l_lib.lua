@@ -209,24 +209,58 @@ function E.bar_seconds(t)
   return (num or 4) * (4 / (denom or 4)) * 60 / (bpm or reaper.Master_GetTempo())
 end
 
--- pre-recorded audio: AUDIO n track with a looped item from bar 1, muted until PLAY
-function E.add_audio(file, stereo_pan)
+-- the E4L panner that fits a file with `nch` channels, placed on the speakers:
+--   1 = Mono Panner, 2 = Stereo Panner (L/R on the front speakers 1-2),
+--   3-4 = Quad Panner (each channel on its own speaker), 5+ = Multi-Panner (in a circle)
+local function add_file_panner(tr, nch, mono_az)
+  local pfx
+  if nch <= 1 then
+    pfx = E.add_fx(tr, "E4L Mono Panner.jsfx", "E4L Mono Panner (3rd order ambisonics)")
+    E.set_param(tr, pfx, "Azimuth", mono_az)
+  elseif nch == 2 then
+    pfx = E.add_fx(tr, "E4L Stereo Panner.jsfx", "E4L Stereo Panner (3rd order ambisonics)")
+    E.set_param(tr, pfx, "Azimuth", 0)
+    E.set_param(tr, pfx, "Azimuth Spread", 45)      -- left -45 (speaker 1), right +45 (speaker 2)
+  elseif nch <= 4 then
+    pfx = E.add_fx(tr, "E4L Quad Panner.jsfx", "E4L Quad Panner (3rd order ambisonics)")
+    E.set_param(tr, pfx, "Azimuth", 0)
+    E.set_param(tr, pfx, "Azimuth Spread", 90)      -- FL -45, FR 45, RL -135, RR 135
+    E.set_param(tr, pfx, "Azimuth Spread Mode", 0)
+  else
+    pfx = E.add_fx(tr, "E4L Multi-Panner.jsfx", "E4L Multi-Panner (3rd order ambisonics)")
+    E.set_param(tr, pfx, "Azimuth", 0)
+    for k = 1, 16 do
+      E.set_param(tr, pfx, "Input " .. k .. " Active", k <= nch and 1 or 0)
+      E.set_param(tr, pfx, "Input " .. k .. " Azimuth", k <= nch and ((k - 1) * 360 / nch + 180) % 360 - 180 or 0)
+    end
+  end
+  E.set_param(tr, pfx, "Radius", 0.1)               -- full level (distance 1)
+  return pfx
+end
+
+-- pre-recorded audio: AUDIO n track with a looped item from bar 1, muted until PLAY.
+-- Returns the track (nil if the file cannot be read), its length in bars (0 = free) and
+-- its number of channels.
+function E.add_audio(file)
+  -- the item is built directly (not with InsertMedia, which is REAPER's "Insert media
+  -- file" action: it moves the cursor and can show import dialogs and stop the transport
+  -- in the middle of a live set)
+  local src = reaper.PCM_Source_CreateFromFile(file)
+  if not src then return nil, 0, 0 end
+  local len, is_qn = reaper.GetMediaSourceLength(src)
+  if is_qn or not len or len <= 0 then reaper.PCM_Source_Destroy(src); return nil, 0, 0 end
+  local nch = math.floor(reaper.GetMediaSourceNumChannels(src) or 1)
+
   local num = #E.tracks_matching("^AUDIO %d+$") + 1
   local tr = E.new_track("AUDIO " .. num, before_master())
   reaper.SetMediaTrackInfo_Value(tr, "I_NCHAN", E.NCH)
   reaper.SetMediaTrackInfo_Value(tr, "B_MAINSEND", 0)
   reaper.SetMediaTrackInfo_Value(tr, "B_MUTE", 1)
-  add_panner(tr, stereo_pan ~= false, E.SPREAD[(num + 3) % #E.SPREAD + 1])
+  add_file_panner(tr, nch, E.SPREAD[(num + 3) % #E.SPREAD + 1])
   local m = E.find_track("E4L Master")
   if m then E.add_send(tr, m, E.NCH, 0) end
 
-  -- the file, at bar 1, looping. The item is built directly (not with InsertMedia, which is
-  -- REAPER's "Insert media file" action: it moves the cursor and can show import dialogs
-  -- and stop the transport in the middle of a live set)
-  local src = reaper.PCM_Source_CreateFromFile(file)
-  if not src then return tr, 0 end
-  local len, is_qn = reaper.GetMediaSourceLength(src)
-  if is_qn or not len or len <= 0 then reaper.PCM_Source_Destroy(src); return tr, 0 end
+  -- the file, at bar 1, looping
   local item = reaper.AddMediaItemToTrack(tr)
   local take = reaper.AddTakeToMediaItem(item)
   reaper.SetMediaItemTake_Source(take, src)
@@ -249,8 +283,10 @@ function E.add_audio(file, stereo_pan)
   reaper.SetMediaItemInfo_Value(item, "D_LENGTH", loop_len * math.max(1, math.ceil(cover / loop_len)))
   reaper.UpdateItemInProject(item)
   reaper.GetSetMediaTrackInfo_String(tr, "P_EXT:E4L_bars", tostring(bars), true)
-  return tr, bars
+  return tr, bars, nch
 end
+
+function E.delete_track(tr) reaper.DeleteTrack(tr) end
 
 ---------------------------------------------------------------------------------------
 -- songs: saved set-ups (tracks, positions, animations, tempo; not the recorded loops)

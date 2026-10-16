@@ -657,7 +657,14 @@ def build(path):
         "spatialised like a loop. The file starts at bar 1 and repeats; if it lasts almost a whole "
         "number of bars it is fitted to the tempo without changing its pitch. It starts "
         "<b>MUTED</b>: press <b>PLAY</b> and it comes in on the next bar (same to take it out). It "
-        "has its own <b>MOVEMENT</b> button.",
+        "has its own <b>MOVEMENT</b> button. You can also drag files from the Finder onto the panel.",
+        "The effect follows the channels of the file: <b>mono</b> = one point; <b>stereo</b> = two "
+        "points, L and R on speakers 1 and 2; <b>quad</b> = four points, each channel on its own "
+        "speaker (channel order FL, FR, RL, RR); <b>5 or more</b> channels = Multi-Panner, in a "
+        "circle. The room view shows one small dot per channel. Turning the direction or the "
+        "automatic rotation turns the whole image.",
+        "<b>DELETE</b> on an audio row: click once (it turns into <b>SURE?</b>) and again within "
+        "3 seconds. Cmd+Z in REAPER brings it back.",
         "<b>+ INPUT</b>: type the interface channel and mono/stereo. A new <b>SYNTH IN 2</b> (then "
         "3…) is created; it also goes to the headphones and has its own <b>IN</b> meter. Loops set "
         "to <b>ALL</b> record it straight away.",

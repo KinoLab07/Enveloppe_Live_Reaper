@@ -218,13 +218,42 @@ function gfx.getdropfile(i) if i < 0 then MOCK_DROP = {} return 0 end
 MOCK_TEXT = {}""")
 frame(); frame()
 check("drag & drop: an audio file dropped on the panel becomes an AUDIO track (no file window)",
-      "AUDIO 4" in name_list() and lua.eval("#MOCK_DROP") == 0
+      "AUDIO 3" in name_list() and "AUDIO 4" not in name_list() and lua.eval("#MOCK_DROP") == 0
       and "Not an audio file: notes.txt" in lua.eval("status_text_for_test()"))
 lua.execute("gfx.getdropfile = nil")
 lua.execute("MOCK_TEXT = {}; function reaper.GetUserFileNameForRead() error('boom') end")
 click(xs[1], TB)
 check("toolbar: an error inside an action does not kill the panel",
       "boom" in lua.eval("status_text_for_test()") and lua.eval("MOCK_DEFER") is not None)
+
+# the panner follows the channels of the file, placed on the speakers
+a1 = tr_index("AUDIO 1")
+check("stereo file -> Stereo Panner, L/R on the front speakers (az 0, spread 45)",
+      fxfile(a1, 1) == "E4L Stereo Panner.jsfx" and param(a1, 1, "Azimuth") == 0 and param(a1, 1, "Azimuth Spread") == 45)
+lua.execute("""MOCK_DROP = {'/s/pad_quad.wav', '/s/voice_mono.wav', '/s/room_8ch.wav'}
+function gfx.getdropfile(i) if i < 0 then MOCK_DROP = {} return 0 end
+  if MOCK_DROP[i + 1] then return 1, MOCK_DROP[i + 1] end return 0 end""")
+frame(); frame()
+lua.execute("gfx.getdropfile = nil")
+aq, am, a8 = tr_index("AUDIO 4"), tr_index("AUDIO 5"), tr_index("AUDIO 6")
+check("quad file -> Quad Panner, each channel on its speaker (spread 90, LR mode)",
+      fxfile(aq, 1) == "E4L Quad Panner.jsfx" and param(aq, 1, "Azimuth") == 0
+      and param(aq, 1, "Azimuth Spread") == 90 and param(aq, 1, "Azimuth Spread Mode") == 0)
+check("mono file -> Mono Panner", fxfile(am, 1) == "E4L Mono Panner.jsfx")
+check("8-channel file -> Multi-Panner, 8 inputs in a circle, the others off",
+      fxfile(a8, 1) == "E4L Multi-Panner.jsfx" and param(a8, 1, "Input 2 Azimuth") == 45
+      and param(a8, 1, "Input 8 Active") == 1 and param(a8, 1, "Input 9 Active") == 0)
+
+# DELETE on an audio row: first click asks SURE?, the second deletes the track
+rows = [x for x in name_list() if x.startswith("LOOP ") or x.startswith("AUDIO ")]
+nrows = len(rows)
+i5 = rows.index("AUDIO 5") + 1
+click(BX + 124 + 10, row_y(i5, nrows))
+check("audio row: first click on DELETE only asks (SURE?)", "AUDIO 5" in name_list())
+click(BX + 124 + 10, row_y(i5, nrows))
+check("audio row: second click on DELETE deletes the track",
+      "AUDIO 5" not in name_list() and "AUDIO 4" in name_list() and "AUDIO 6" in name_list())
+frame()
 lua.execute("function reaper.GetUserInputs() return true, 'Piece 1' end")
 click(xs[3], TB)
 check("toolbar: SAVE TEMPLATE saves E4L_Templates/Piece 1.RPP",

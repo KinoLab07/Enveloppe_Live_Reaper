@@ -53,6 +53,10 @@ slider41:es_tmode=0<0,1,1{Freq,Sync}>Elevation Spread LFO Mode
 slider42:es_freq=1<0.01,4,0.001>Elevation Spread LFO Frequency (Hz)
 slider43:es_sync=2<0,10,1{1/4,1/2,1,2,3,4,6,8,16,32,64}>Elevation Spread LFO Sync (bars)
 slider44:es_depth=30<0,90,0.1>Elevation Spread LFO Depth
+// read-only: modulated position, published for the "E4L - Live Panel" script
+slider60:0<-180,180,0.1>-Current Azimuth
+slider61:0<-90,90,0.1>-Current Elevation
+slider62:0<-180,180,0.1>-Current Spread
 
 import e4l_ambix.jsfx-inc
 import e4l_gfx.jsfx-inc
@@ -116,6 +120,7 @@ function compute_targets(bpos, n) local(az, el, s, e, h, w1, w2)
   s  = aslfo.e4l_spread_lfo(azsp, as_on, as_tmode, as_freq, as_sync, as_depth, bpos, n);
   e  = eslfo.e4l_spread_lfo(elsp, es_on, es_tmode, es_freq, es_sync, es_depth, bpos, n);
   h  = s * 0.5;
+  cur_az = e4l_wrap180(az); cur_el = el; cur_sp = s;
 
   spmode == 0 ? (            // LR
     set_source(0, az - h,       el + e);
@@ -137,6 +142,14 @@ function compute_targets(bpos, n) local(az, el, s, e, h, w1, w2)
 );
 
 @block
+// publish the modulated position for the Live Panel, about 30 times per second
+pub_ctr += samplesblock;
+pub_ctr >= srate / 30 ? (
+  pub_ctr = 0;
+  abs(cur_az - slider60) > 0.2 ? ( slider60 = cur_az; sliderchange(slider60); );
+  abs(cur_el - slider61) > 0.2 ? ( slider61 = cur_el; sliderchange(slider61); );
+  abs(cur_sp - slider62) > 0.2 ? ( slider62 = cur_sp; sliderchange(slider62); );
+);
 blk_beat = beat_position;
 blk_spb  = tempo / 60 / srate;
 

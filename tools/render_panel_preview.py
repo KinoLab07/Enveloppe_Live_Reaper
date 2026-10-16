@@ -22,10 +22,12 @@ lua.execute("""
 local E = dofile([[%s]])
 E.add_input(3, true, 7)
 E.set_loop_input(MOCK.T[4], 2)
-E.add_audio("/sounds/pad.wav", true)
-local a = MOCK.T[#MOCK.T - 2]
+local a = E.add_audio("/sounds/pad.wav")
 a.vals.B_MUTE = 0
-a.fx[1].p["-Current Azimuth"] = 150
+a.fx[1].p["-Current Azimuth"] = 150; a.fx[1].p["-Current Spread"] = 30
+local q = E.add_audio("/sounds/pad_quad.wav")
+q.vals.B_MUTE = 0
+q.fx[1].p["-Current Azimuth"] = 20; q.fx[1].p["-Current Spread"] = 90
 """ % os.path.join(ROOT, "Scripts", "E4L", "e4l_lib.lua"))
 lua.execute('''
 local T = MOCK.T

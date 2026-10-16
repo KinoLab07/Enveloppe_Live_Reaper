@@ -54,11 +54,28 @@ local EFFECTS = {
     label = "Two points, left and right (Stereo Panner)" },
   { key = "Source", file = "E4L Source Panner.jsfx", desc = "E4L Source Panner (3rd order ambisonics)",
     label = "Fixed position, no animation (Source Panner)" },
+  { key = "Quad", file = "E4L Quad Panner.jsfx", desc = "E4L Quad Panner (3rd order ambisonics)",
+    label = "Four points, for quad files (Quad Panner)" },
+  { key = "Multi", match = "E4L Multi-Panner", file = "E4L Multi-Panner.jsfx",
+    desc = "E4L Multi-Panner (3rd order ambisonics)", label = "Many points, for 5+ channel files (Multi-Panner)" },
 }
 
 local function effect_of(name)
-  for i, e in ipairs(EFFECTS) do if name:find("E4L " .. e.key .. " Panner", 1, true) then return i end end
+  for i, e in ipairs(EFFECTS) do
+    if name:find(e.match or ("E4L " .. e.key .. " Panner"), 1, true) then return i end
+  end
   return 0
+end
+
+-- directions of the channels of a panner around its centre azimuth (for the room view)
+local function channel_dirs(L, az)
+  local key = EFFECTS[L.effect] and EFFECTS[L.effect].key
+  local sp = (L.p.cur_sp and L.p.cur_sp >= 0) and getp(L.tr, L.pfx, L.p.cur_sp)
+             or (L.p.sp and L.p.sp >= 0) and getp(L.tr, L.pfx, L.p.sp) or 0
+  if key == "Stereo" then return { az - sp, az + sp }, { "L", "R" } end
+  if key == "Quad" then
+    return { az - sp / 2, az + sp / 2, az + 180 + sp / 2, az + 180 - sp / 2 }, {}
+  end
 end
 
 ---------------------------------------------------------------------------------------
@@ -85,7 +102,7 @@ local function scan()
       list[#list + 1] = {
         kind = "audio", tr = tr, name = tname ~= "" and tname or ("Track " .. (t + 1)), lfx = -1, pfx = pfx,
         effect = effect_of(pname), pn = pn, bars = tonumber(bars) or 0,
-        p = { az = pn["Azimuth"] or -1, cur_az = pn["Current Azimuth"] or -1 },
+        p = { az = pn["Azimuth"] or -1, cur_az = pn["Current Azimuth"] or -1, sp = pn["Azimuth Spread"] or -1, cur_sp = pn["Current Spread"] or -1 },
       }
     end
     if lfx >= 0 then
@@ -102,7 +119,7 @@ local function scan()
           odub = ln["Overdub"], clear = ln["Clear"], status = find_prefix(ln, "Status"),
           pend = find_prefix(ln, "Pending"), bars = ln["Loop Bars"], start = find_prefix(ln, "Loop Start"),
           qn = find_prefix(ln, "Loop Length"),
-          az = pn["Azimuth"] or -1, cur_az = pn["Current Azimuth"] or -1,
+          az = pn["Azimuth"] or -1, cur_az = pn["Current Azimuth"] or -1, sp = pn["Azimuth Spread"] or -1, cur_sp = pn["Current Spread"] or -1,
         },
       }
     end
@@ -263,6 +280,7 @@ end
 
 ---------------------------------------------------------------------------------------
 local editing = nil   -- index of the loop whose movement editor is open
+local confirm_del = nil   -- { tr = track, t = time } after a first click on DELETE
 
 -- audio tracks: PLAY / MUTE switch on the next bar, like the loops
 local pend_mute, last_bar = {}, nil
@@ -297,16 +315,17 @@ local function is_stopped() return reaper.GetPlayState() % 2 == 0 end
 local function add_audio_file(file, why)
   local was_playing = not is_stopped()
   reaper.Undo_BeginBlock()
-  local tr, bars = E4L.add_audio(file, true)
+  local tr, bars, nch = E4L.add_audio(file)
   reaper.Undo_EndBlock("E4L: + audio", -1)
   last_scan = -1
   if was_playing and is_stopped() then why = "while adding the track" end
   local note = why and ("  [REAPER's play stopped " .. why .. " - restarted]") or ""
-  if reaper.CountTrackMediaItems(tr) == 0 then
-    status(E4L.track_name(tr) .. ": REAPER could not read that file." .. note) return
-  end
-  status(E4L.track_name(tr) .. (bars > 0 and (": " .. bars .. " bars, fitted to the tempo") or
-         ": not a whole number of bars, plays at its own speed") .. ". MUTED: press its PLAY." .. note)
+  local fname = file:match("([^/\\]+)$") or file
+  if not tr then status("REAPER could not read " .. fname .. note) return end
+  local kind = nch == 1 and "mono" or nch == 2 and "stereo" or nch == 4 and "quad" or (nch .. " channels")
+  status(E4L.track_name(tr) .. " (" .. kind .. ")" ..
+         (bars > 0 and (": " .. bars .. " bars, fitted to the tempo") or ": plays at its own speed") ..
+         ". MUTED: press its PLAY." .. note)
 end
 
 local function act_add_audio()
@@ -574,6 +593,20 @@ local function draw_rows(tp, x0, y0, W, H)
       if button("MOVEMENT", bx + 260, y + 6, 96, bh, editing == i, 0.45, 0.75, 1) then
         editing = (editing == i) and nil or i
       end
+      -- DELETE: a second click within 3 s confirms (no window in the middle of a set)
+      local sure = confirm_del and confirm_del.tr == L.tr and reaper.time_precise() - confirm_del.t < 3
+      if button(sure and "SURE?" or "DELETE", bx + 124, y + 6, 78, bh, sure, 1, 0.3, 0.3) then
+        if sure then
+          confirm_del = nil
+          reaper.Undo_BeginBlock()
+          E4L.delete_track(L.tr)
+          reaper.Undo_EndBlock("E4L: delete " .. L.name, -1)
+          pend_mute[L.tr] = nil; editing = nil; last_scan = -1
+          status(L.name .. " deleted (Cmd+Z in REAPER brings it back).")
+          return
+        end
+        confirm_del = { tr = L.tr, t = reaper.time_precise() }
+      end
       if pw > 30 then
         rgb(0.2, 0.2, 0.24); rect(px, y + 10, pw, rowh - 24)
         if L.bars > 0 and tp.playing and not muted then
@@ -699,7 +732,7 @@ local function draw_editor(x0, y0, W, H)
   y = y + 26
 
   if has("Azimuth Spread LFO On/Off") then
-    section("STEREO WIDTH", c2, y, colw); y = y + 42
+    section(EFFECTS[L.effect] and EFFECTS[L.effect].key == "Quad" and "WIDTH (quad)" or "STEREO WIDTH", c2, y, colw); y = y + 42
     v = hslider("sp", c2, y, colw, 12, g("Azimuth Spread"), 0, 180, "Left / right spread", string.format("± %d°", math.floor(g("Azimuth Spread") + 0.5)))
     if v then s("Azimuth Spread", math.floor(v + 0.5)) end
     y = y + 22
@@ -747,9 +780,23 @@ local function draw_room(x, y, size)
       local dx, dy = cx + math.sin(r) * R * 0.78, cy - math.cos(r) * R * 0.78
       local st = L.kind == "loop" and math.floor(getp(L.tr, L.lfx, L.p.status) + 0.5)
                  or (reaper.GetMediaTrackInfo_Value(L.tr, "B_MUTE") > 0.5 and 0 or 3)
-      if st == 3 then rgb(0.35, 0.95, 0.5) elseif st == 2 then rgb(1, 0.3, 0.3)
-      else rgb(0.5, 0.5, 0.6) end
-      gfx.circle(dx, dy, 11, 1, 1)
+      local r0, g0, b0 = 0.5, 0.5, 0.6
+      if st == 3 then r0, g0, b0 = 0.35, 0.95, 0.5 elseif st == 2 then r0, g0, b0 = 1, 0.3, 0.3 end
+      local dirs, labels = channel_dirs(L, az)
+      if dirs then
+        for k, a in ipairs(dirs) do
+          local ra = math.rad(a)
+          local sx, sy = cx + math.sin(ra) * R * 0.95, cy - math.cos(ra) * R * 0.95
+          rgb(r0, g0, b0, 0.2); gfx.line(dx, dy, sx, sy)
+          if labels[k] then
+            rgb(r0, g0, b0); gfx.circle(sx, sy, 7, 1, 1)
+            rgb(0.05, 0.05, 0.05); text(labels[k], sx - 7, sy - 7, 14, 14, 1)
+          else
+            rgb(r0, g0, b0); gfx.circle(sx, sy, 5, 0, 1); gfx.circle(sx, sy, 4, 0, 1)
+          end
+        end
+      end
+      rgb(r0, g0, b0); gfx.circle(dx, dy, 11, 1, 1)
       if editing == i then rgb(0.45, 0.75, 1); gfx.circle(dx, dy, 15, 0, 1) end
       rgb(0.05, 0.05, 0.05); text(tostring(i), dx - 11, dy - 11, 22, 22, 1)
       if clicked and (gfx.mouse_x - dx) ^ 2 + (gfx.mouse_y - dy) ^ 2 < 14 ^ 2 then drag = i end

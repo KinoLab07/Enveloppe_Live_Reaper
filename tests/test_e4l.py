@@ -91,6 +91,20 @@ check("multi-panner: input 3 at 10 + 60*0.5 = 40, elevation 30*2 = 60", angle_cl
 o = run("E4L Multi-Panner.jsfx", x, "s58=0")[-1]
 check("multi-panner: inactive input is silent", np.abs(o).max() < 1e-6)
 
+def final_sliders(fx, x, *sliders):
+    args = [RUNFX, os.path.join(FX, fx), DATA, str(SR), str(len(x)), os.path.join(TMP, "in.raw"),
+            str(x.shape[1]), os.path.join(TMP, "out.raw"), *sliders, "tempo=120", "play=1"]
+    x.astype(np.float32).tofile(args[5])
+    err = subprocess.run(args, capture_output=True, text=True).stderr
+    return {int(k[6:]): float(v) for k, v in (l.split("=") for l in err.splitlines() if l.startswith("slider"))}
+
+
+sl = final_sliders("E4L Quad Panner.jsfx", np.zeros((SR // 2, 4)), "s1=30", "s5=120", "s3=0.1")
+check("quad panner publishes its position and width for the Live Panel",
+      abs(sl[60] - 30) < 0.5 and abs(sl[62] - 120) < 0.5)
+sl = final_sliders("E4L Stereo Panner.jsfx", np.zeros((SR // 2, 2)), "s1=-20", "s5=45", "s3=0.1")
+check("stereo panner publishes its width for the Live Panel", abs(sl[60] + 20) < 0.5 and abs(sl[62] - 45) < 0.5)
+
 # --- LFOs ------------------------------------------------------------------
 o = run("E4L Mono Panner.jsfx", dc, "s3=0.1", "s10=1", "s11=0", "s13=1")
 az, _ = direction(o)

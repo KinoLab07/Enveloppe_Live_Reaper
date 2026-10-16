@@ -166,7 +166,10 @@ opening any plug-in.
   - **+ LOOP** – another loop track.
   - **+ AUDIO** – a pre-recorded file on a new `AUDIO n` track, looped from bar 1. If it is close
     to a whole number of bars it is fitted to the tempo (pitch preserved). It starts muted and
-    enters on the next bar with **PLAY**.
+    enters on the next bar with **PLAY**. Files can also be dragged from the Finder onto the
+    panel. The panner follows the file: mono → Mono Panner, stereo → Stereo Panner (L/R on
+    speakers 1-2), quad → Quad Panner (each channel on its speaker), 5+ channels →
+    Multi-Panner. **DELETE** (click twice) removes the track.
   - **+ INPUT** – another interface input (`SYNTH IN 2`…). Loops record **ALL** inputs by
     default; each loop's input button switches between **ALL**, **IN 1**, **IN 2**…
   - **SAVE / LOAD TEMPLATE** – save / load the set-up (tracks, inputs, audio files,
