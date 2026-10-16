@@ -120,4 +120,6 @@ function reaper.Main_OnCommand(c, f)
   _cmd(c, f)
 end
 
+function reaper.Track_GetPeakInfo() return 0.25 end
+
 MOCK = {T=T, master=master}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera docs/Guia_E4L_REAPER_Cuadrafonia.pdf (guía de usuario en español)."""
+"""Builds docs/E4L_REAPER_Guide.pdf (user guide)."""
 import math
 import os
 
@@ -125,22 +125,22 @@ def flow_diagram():
 
     tw, th = 108, 42
     ys = [H - th - 2, H / 2 - th / 2, 4]
-    names = [("Pista 1", ["Stereo Panner", "16 canales"]), ("Pista 2", ["Mono Panner", "16 canales"]),
-             ("Pista 3 …", ["Panner + LFO", "16 canales"])]
+    names = [("Track 1", ["Stereo Panner", "16 channels"]), ("Track 2", ["Mono Panner", "16 channels"]),
+             ("Track 3 …", ["Panner + LFO", "16 channels"])]
     for y, (t, s) in zip(ys, names):
         node(0, y, tw, th, t, s, colors.HexColor("#f4f8fa"))
     mx, mw, mh = 172, 122, 62
     my = H / 2 - mh / 2
-    node(mx, my, mw, mh, "Pista «E4L Master»", ["E4L Master Bus", "Decoder = Quad", "16 canales"],
+    node(mx, my, mw, mh, "\"E4L Master\" track", ["E4L Master Bus", "Decoder = Quad", "16 channels"],
          ACCENT_LIGHT)
     for y in ys:
         arrow(tw, y + th / 2, mx, my + mh / 2, None)
-    d.add(String((tw + mx) / 2 + 4, H / 2 + 6, "envíos 1-16", fontName="DV", fontSize=7,
+    d.add(String((tw + mx) / 2 + 4, H / 2 + 6, "sends 1-16", fontName="DV", fontSize=7,
                  textAnchor="middle", fillColor=ACCENT))
     ox, ow, oh = 352, 128, 62
-    node(ox, my, ow, oh, "Master de REAPER", ["4 canales", "Salidas 1-2 y 3-4", "de la interfaz"],
+    node(ox, my, ow, oh, "REAPER master", ["4 channels (+ sub)", "Outputs 1-2 and 3-4", "of the interface"],
          colors.HexColor("#f4f8fa"))
-    arrow(mx + mw, my + mh / 2, ox, my + mh / 2, "canales 1-4")
+    arrow(mx + mw, my + mh / 2, ox, my + mh / 2, "channels 1-4")
     return d
 
 
@@ -150,18 +150,16 @@ def speaker_diagram():
     cx, cy, R = W / 2, H / 2 - 2, 31 * mm
     d.add(Circle(cx, cy, R, fillColor=None, strokeColor=colors.HexColor("#bbbbbb"), strokeWidth=1,
                  strokeDashArray=[3, 3]))
-    # listener
     d.add(Circle(cx, cy, 9, fillColor=colors.HexColor("#dddddd"), strokeColor=GREY))
     d.add(Polygon([cx - 4, cy + 8, cx + 4, cy + 8, cx, cy + 15], fillColor=GREY, strokeColor=GREY))
-    d.add(String(cx, cy - 22, "oyente", fontName="DV", fontSize=7.5, textAnchor="middle",
+    d.add(String(cx, cy - 22, "listener", fontName="DV", fontSize=7.5, textAnchor="middle",
                  fillColor=GREY))
-    # angle marks
-    for ang, lab in ((0, "0° (frente)"), (90, "+90°"), (180, "±180°"), (-90, "−90°")):
+    for ang, lab in ((0, "0° (front)"), (90, "+90°"), (180, "±180°"), (-90, "−90°")):
         a = math.radians(ang)
         x, y = cx + (R + 12) * math.sin(a), cy + (R + 12) * math.cos(a)
         d.add(String(x, y - 3, lab, fontName="DV", fontSize=7.5, textAnchor="middle", fillColor=GREY))
-    spk = [(-45, "Salida 1", "delantero izq.", "−45°"), (45, "Salida 2", "delantero der.", "+45°"),
-           (135, "Salida 3", "trasero der.", "+135°"), (-135, "Salida 4", "trasero izq.", "−135°")]
+    spk = [(-45, "Output 1", "front left", "−45°"), (45, "Output 2", "front right", "+45°"),
+           (135, "Output 3", "rear right", "+135°"), (-135, "Output 4", "rear left", "−135°")]
     for i, (ang, out, name, deg) in enumerate(spk):
         a = math.radians(ang)
         x, y = cx + R * math.sin(a), cy + R * math.cos(a)
@@ -173,8 +171,7 @@ def speaker_diagram():
         d.add(String(tx, y + 4, "%s  (%s)" % (out, deg), fontName="DVB", fontSize=8.5,
                      textAnchor=anchor, fillColor=SPK[i]))
         d.add(String(tx, y - 7, name, fontName="DV", fontSize=8, textAnchor=anchor, fillColor=GREY))
-    # rotation arrow (clockwise = positive)
-    d.add(String(cx + R + 52, cy + R - 2, "Azimut positivo = sentido horario", fontName="DVI",
+    d.add(String(cx + R + 52, cy + R - 2, "Positive azimuth = clockwise", fontName="DVI",
                  fontSize=7.5, textAnchor="middle", fillColor=ACCENT))
     return d
 
@@ -202,31 +199,31 @@ def live_diagram():
             d.add(String(lx, ly, label, fontName="DV", fontSize=6.8, fillColor=color))
 
     HP = colors.HexColor("#8a4fbf")
-    node(0, 118, 92, 64, "Sinte analógico", ["entrada de la", "interfaz"], colors.HexColor("#f4f8fa"))
-    node(122, 118, 92, 64, "SYNTH IN", ["monitoreo", "(no graba)"], colors.HexColor("#f4f8fa"))
+    node(0, 118, 92, 64, "Analog synth", ["input of the", "interface"], colors.HexColor("#f4f8fa"))
+    node(122, 118, 92, 64, "SYNTH IN", ["monitored", "(not recorded)"], colors.HexColor("#f4f8fa"))
     for k in range(3):
         node(250, 196 - k * 48, 104, 40, ["LOOP 1", "LOOP 2", "LOOP …"][k],
              ["E4L Looper", "+ E4L Panner"], ACCENT_LIGHT)
-    node(386, 118, 95, 64, "E4L Master", ["Master Bus = Quad", "salidas 1-4 + sub 5", "(altavoces)"],
+    node(386, 118, 95, 64, "E4L Master", ["Master Bus = Quad", "outputs 1-4 + sub 5", "(speakers)"],
          ACCENT_LIGHT)
-    node(122, 4, 92, 44, "Auriculares", ["salidas 7-8 →", "toma de auriculares"], colors.HexColor("#f3ecf9"), HP)
-    node(250, 4, 104, 44, "CUE (auriculares)", ["Master Bus = Binaural"], colors.HexColor("#f3ecf9"), HP)
+    node(122, 4, 92, 44, "Headphones", ["outputs 7-8 →", "headphone jack"], colors.HexColor("#f3ecf9"), HP)
+    node(250, 4, 104, 44, "CUE (headphones)", ["Master Bus = Binaural"], colors.HexColor("#f3ecf9"), HP)
     arrow([(92, 150), (122, 150)])
     for k in range(3):
         y = 216 - k * 48
         arrow([(214, 150), (232, 150), (232, y), (250, y)])
         arrow([(354, y), (370, y), (370, 150), (386, 150)])
-    arrow([(168, 118), (168, 48)], HP, "sinte en vivo", 172, 80)
+    arrow([(168, 118), (168, 48)], HP, "live synth", 172, 80)
     arrow([(250, 26), (214, 26)], HP)
-    arrow([(433, 118), (433, 72), (302, 72), (302, 48)], HP, "copia de los loops", 330, 76)
+    arrow([(433, 118), (433, 72), (302, 72), (302, 48)], HP, "copy of the loops", 330, 76)
     return d
 
 
 def lfo_diagram():
     W, H = 170 * mm, 38 * mm
     d = Drawing(W, H)
-    panels = [("Cycle: giro completo", "cycle"), ("Sin: vaivén ± Depth", "sin"),
-              ("Sync: 1 vuelta cada N compases", "sync")]
+    panels = [("Cycle: full turn", "cycle"), ("Sin: swing ± Depth", "sin"),
+              ("Sync: 1 turn every N bars", "sync")]
     pw = W / 3
     for i, (title, kind) in enumerate(panels):
         x0 = i * pw + 8
@@ -258,651 +255,564 @@ def lfo_diagram():
 
 # ---------------------------------------------------------------- content
 def build(path):
+    here = os.path.dirname(os.path.abspath(__file__))
     st = []
-    st += [Spacer(1, 40 * mm), P("Envelop for REAPER", "title"),
-           P("Espacialización en cuadrafonía con los plugins E4L", "subtitle"),
-           Spacer(1, 6), P("Guía de instalación y uso", "subtitle"), Spacer(1, 22 * mm)]
+    st += [Spacer(1, 40 * mm), P("Enveloppe Live Reaper", "title"),
+           P("Envelop for Live (E4L) in REAPER: quadraphonic spatialisation and live looping", "subtitle"),
+           Spacer(1, 6), P("Installation and user guide", "subtitle"), Spacer(1, 22 * mm)]
     st.append(box([
-        "Este documento explica, paso a paso, cómo montar en REAPER un proyecto donde "
-        "<b>cada pista de audio se mueve por cuatro altavoces</b> con sus propias "
-        "automatizaciones de movimiento, y una <b>pista master que decodifica a cuadrafonía</b>.",
-        "Repositorio del proyecto: <b>github.com/KinoLab07/enveloppe_live_reaper</b>",
+        "This guide explains, step by step, how to set up a REAPER project where <b>every audio "
+        "track moves around four speakers</b> with its own movement automation, a <b>master that "
+        "decodes to quadraphony</b> (plus a subwoofer), and an <b>Ableton-style live looper</b> to "
+        "build a piece from a synth, all controlled from one window.",
+        "Project repository: <b>github.com/KinoLab07/enveloppe_live_reaper</b>",
     ], kind="info"))
     st.append(Spacer(1, 10 * mm))
-    st.append(P("<b>Contenido</b>", "h2"))
-    for t in ["1. Qué se hizo hasta ahora", "2. Cómo funciona (la idea en un dibujo)",
-              "3. Instalación en REAPER", "4. Preparar el proyecto para cuadrafonía",
-              "5. Agregar pistas de audio y posicionarlas",
-              "6. Automatizaciones de movimiento", "7. Escuchar con auriculares y exportar",
-              "8. Looper en vivo estilo Ableton (sinte analógico)",
-              "9. Solución de problemas", "10. Referencia rápida de parámetros"]:
+    st.append(P("<b>Contents</b>", "h2"))
+    for t in ["1. What is included", "2. How it works (the idea in one drawing)",
+              "3. Installing in REAPER", "4. Setting up a project for quadraphony",
+              "5. Adding audio tracks and positioning them", "6. Movement automation",
+              "7. Headphones and export", "8. Live looping, Ableton style (analog synth)",
+              "9. Troubleshooting", "10. Quick parameter reference"]:
         st.append(P(t, "toc"))
     st.append(PageBreak())
 
     # 1
-    st.append(P("1. Qué se hizo hasta ahora", "h1"))
-    st.append(P("<b>Envelop for Live (E4L)</b> es un conjunto de dispositivos para Ableton Live que "
-                "sirve para mezclar en sonido envolvente (ambisonics). Esos dispositivos solo "
-                "funcionan dentro de Ableton, así que se <b>reescribieron como plugins nativos de "
-                "REAPER</b> (formato JSFX). Funcionan en Windows y Mac, no hay que instalar nada "
-                "aparte y todos sus controles se pueden automatizar."))
+    st.append(P("1. What is included", "h1"))
+    st.append(P("<b>Envelop for Live (E4L)</b> is a set of Ableton Live devices for mixing in "
+                "surround sound (ambisonics). Those devices only run inside Ableton, so they were "
+                "<b>rewritten as native REAPER plug-ins</b> (JSFX). They run on macOS and Windows, "
+                "need nothing else installed, and every control can be automated."))
     st.append(table([
-        ["Plugin", "Para qué sirve"],
-        ["<b>E4L Master Bus</b>", "Va en la pista master de espacialización. Convierte la mezcla "
-         "espacial en las señales de los altavoces. Tiene salida <b>Quad (cuadrafonía)</b>, y "
-         "también binaural (auriculares), estéreo, 5.1, 7.1, 7.1.4 y otras."],
-        ["<b>E4L Mono Panner</b>", "Mueve una fuente mono por el espacio. Incluye LFO de movimiento."],
-        ["<b>E4L Stereo Panner</b>", "Mueve una fuente estéreo (izquierda y derecha separadas). "
-         "Incluye LFO de movimiento y de apertura."],
-        ["<b>E4L Quad Panner</b>", "Mueve un audio que ya es de 4 canales. Incluye LFO."],
-        ["E4L Source Panner", "Posición fija en grados o en coordenadas X/Y/Z (sin LFO)."],
-        ["E4L Multi-Panner", "Hasta 16 canales de una misma pista (no necesario para tu proyecto)."],
-        ["Script <b>E4L - Setup session</b>", "Arma automáticamente el ruteo: crea la pista master "
-         "y configura las pistas que elijas."],
-    ], [45, 125]))
-    st.append(P("Además se hizo:"))
+        ["Plug-in / script", "What it is for"],
+        ["<b>E4L Master Bus</b>", "On the spatial master track. Turns the spatial mix into the "
+         "speaker signals: <b>Quad</b>, binaural (headphones), stereo, 5.1, 7.1, 7.1.4 and more."],
+        ["<b>E4L Mono Panner</b>", "Moves a mono source in space, with movement LFOs."],
+        ["<b>E4L Stereo Panner</b>", "Moves a stereo source (left and right apart), with movement "
+         "and width LFOs."],
+        ["<b>E4L Quad Panner</b>", "Moves audio that is already 4-channel, with LFOs."],
+        ["E4L Source Panner", "Fixed position in degrees or X/Y/Z (no LFO)."],
+        ["E4L Multi-Panner", "Up to 16 channels of one track."],
+        ["<b>E4L Looper</b>", "Bar-synced live looper (record, play, overdub, clear)."],
+        ["<b>E4L Sub Out</b>", "On REAPER's master: sends everything to the subwoofer output."],
+        ["<b>E4L - New live project</b>", "Script: new project with the whole live set-up and the panel."],
+        ["<b>E4L - Live Panel</b>", "Script: one window to play the loops and move them."],
+        ["<b>E4L - Update from GitHub</b>", "Script: installs the latest version."],
+        ["E4L - Setup session", "Script: spatialises selected tracks (no looper)."],
+    ], [48, 122]))
     st += bullets([
-        "Pruebas automáticas que comprueban que el sonido sale por donde debe, que los LFO giran "
-        "a la velocidad correcta y que la sincronización con el tempo funciona.",
-        "Cambio de la licencia del proyecto a <b>GNU GPL v2 o posterior</b>, la misma de E4L, "
-        "porque es una obra derivada. Puedes usarlo, modificarlo y compartirlo, siempre que se "
-        "mantenga esa licencia y se dé crédito a Envelop.",
-        "Todo está publicado en la rama <b>main</b> del repositorio de GitHub.",
+        "Automated tests check that the sound comes out where it should, that the LFOs turn at the "
+        "right speed, that tempo sync works and that the looper records exactly on the bar.",
+        "License: <b>GNU GPL v2 or later</b>, the same as E4L, since this is a derivative work. "
+        "You can use, modify and share it as long as the license is kept and Envelop is credited.",
     ])
 
     # 2
-    st.append(P("2. Cómo funciona (la idea en un dibujo)", "h1"))
-    st.append(P("Cada pista de audio lleva un <b>paneador E4L</b>. El paneador no manda el sonido "
-                "directo a los altavoces, sino a un formato intermedio de <b>16 canales</b> "
-                "(ambisonics) que describe <i>desde dónde</i> viene el sonido. Todas las pistas se "
-                "envían a la pista <b>«E4L Master»</b>, donde el <b>E4L Master Bus</b> lo convierte "
-                "en las 4 señales de los altavoces."))
+    st.append(P("2. How it works (the idea in one drawing)", "h1"))
+    st.append(P("Every audio track carries an <b>E4L panner</b>. The panner does not send the "
+                "sound straight to the speakers but to an intermediate <b>16-channel</b> format "
+                "(ambisonics) that describes <i>where</i> the sound comes from. All tracks are sent "
+                "to the <b>\"E4L Master\"</b> track, where the <b>E4L Master Bus</b> turns it into "
+                "the 4 speaker signals."))
     st.append(flow_diagram())
     st.append(Spacer(1, 4))
     st.append(box([
-        "Gracias a este formato intermedio, el mismo proyecto puede escucharse en cuadrafonía, "
-        "en auriculares o en otro sistema cambiando <b>solo una opción</b> del Master Bus. "
-        "Las automatizaciones de las pistas no cambian."], kind="info", title="¿Por qué 16 canales?"))
-    st.append(P("Disposición de los altavoces", "h2"))
-    st.append(P("Coloca los cuatro altavoces en cuadrado, a la misma distancia del oyente, y "
-                "conéctalos a las salidas de la interfaz de audio así:"))
+        "Thanks to this intermediate format the same project can be heard in quadraphony, on "
+        "headphones or on another system by changing <b>one option</b> of the Master Bus. The "
+        "tracks' automation does not change."], kind="info", title="Why 16 channels?"))
+    st.append(P("Speaker layout", "h2"))
+    st.append(P("Place the four speakers in a square, at the same distance from the listener, "
+                "and connect them to the outputs of the audio interface like this:"))
     st.append(speaker_diagram())
     st.append(box([
-        "El orden de E4L va <b>en círculo, en sentido horario</b>: 1 delantero izquierdo, "
-        "2 delantero derecho, <b>3 trasero derecho</b>, <b>4 trasero izquierdo</b>. "
-        "Muchos equipos usan otro orden (1 FL, 2 FR, 3 RL, 4 RR): si es tu caso, conecta los "
-        "cables siguiendo este dibujo, no el número de la etiqueta del equipo."],
-        kind="warn", title="Atención con las salidas 3 y 4"))
-    st.append(P("Los ángulos se miden como en E4L: <b>0°</b> es el frente, <b>+90°</b> la "
-                "derecha, <b>−90°</b> la izquierda y <b>±180°</b> la parte de atrás."))
+        "E4L's order goes <b>round the circle, clockwise</b>: 1 front left, 2 front right, "
+        "<b>3 rear right</b>, <b>4 rear left</b>. Many systems use another order (1 FL, 2 FR, "
+        "3 RL, 4 RR): if that is your case, wire the speakers following this drawing."],
+        kind="warn", title="Mind outputs 3 and 4"))
+    st.append(P("Angles are measured as in E4L: <b>0°</b> is the front, <b>+90°</b> the right, "
+                "<b>−90°</b> the left and <b>±180°</b> the back."))
     st.append(PageBreak())
 
     # 3
-    st.append(P("3. Instalación en REAPER", "h1"))
-    st.append(P("Descargar", "h2"))
+    st.append(P("3. Installing in REAPER", "h1"))
+    st.append(P("Download", "h2"))
     st += steps([
-        "Abre <b>github.com/KinoLab07/enveloppe_live_reaper</b> y pulsa el botón verde "
-        "<b>Code › Download ZIP</b> (o usa el archivo <b>E4L_para_REAPER.zip</b> que te envié).",
-        "Descomprime el archivo. Verás las carpetas <b>Effects</b>, <b>Data</b> y <b>Scripts</b>.",
+        "Open <b>github.com/KinoLab07/enveloppe_live_reaper</b> and press the green "
+        "<b>Code › Download ZIP</b> button.",
+        "Unzip it. You will see the folders <b>Effects</b>, <b>Data</b> and <b>Scripts</b>.",
     ])
-    st.append(P("Abrir la carpeta de recursos de REAPER", "h2"))
-    st.append(P("Es la carpeta donde REAPER guarda sus plugins y scripts. Hay tres maneras de abrirla:"))
+    st.append(P("Open REAPER's resource folder", "h2"))
+    st.append(P("It is where REAPER keeps its plug-ins and scripts. Three ways to open it:"))
     st += bullets([
-        "En REAPER pulsa la tecla <b>?</b> (lista de acciones), escribe <b>resource path</b> y haz "
-        "doble clic en <b>Show REAPER resource path in explorer/finder</b>.",
-        "<b>Windows:</b> pulsa <b>Win + R</b>, escribe <b>%APPDATA%\\REAPER</b> y pulsa Enter.",
-        "<b>Mac:</b> en el Finder pulsa <b>Cmd + Shift + G</b> y escribe "
+        "In REAPER press <b>?</b> (action list), type <b>resource path</b> and double-click "
+        "<b>Show REAPER resource path in explorer/finder</b>.",
+        "<b>macOS:</b> in the Finder press <b>Cmd + Shift + G</b> and type "
         "<b>~/Library/Application Support/REAPER</b>.",
+        "<b>Windows:</b> press <b>Win + R</b>, type <b>%APPDATA%\\REAPER</b> and press Enter.",
     ])
-    st.append(P("La carpeta correcta contiene, entre otras, las carpetas <b>Effects</b>, <b>Data</b> "
-                "y <b>Scripts</b>, y un archivo <b>reaper.ini</b>."))
-    st.append(P("Copiar los archivos", "h2"))
+    st.append(P("The right folder contains, among others, the folders <b>Effects</b>, <b>Data</b> "
+                "and <b>Scripts</b>, and a <b>reaper.ini</b> file."))
+    st.append(P("Copy the files", "h2"))
     st += steps([
-        "Cierra REAPER.",
-        "Copia las carpetas <b>Effects</b>, <b>Data</b> y <b>Scripts</b> del zip dentro de la "
-        "carpeta de recursos. Si pregunta por <b>carpetas</b>, elige <b>combinar</b>; si pregunta "
-        "por <b>archivos</b>, elige <b>reemplazar</b>. Nunca reemplaces la carpeta entera, o "
-        "perderás tus otros plugins.",
-        "Abre REAPER, abre el navegador de efectos (botón <b>FX</b> de una pista) y pulsa <b>F5</b>. "
-        "Escribe <b>E4L</b> en el buscador: deben aparecer los plugins <b>JS: E4L …</b>",
+        "Close REAPER.",
+        "Copy <b>Effects</b>, <b>Data</b> and <b>Scripts</b> from the zip into the resource "
+        "folder. When asked about <b>folders</b>, choose <b>merge</b>; about <b>files</b>, choose "
+        "<b>replace</b>. Never replace a whole folder, or you will lose your other plug-ins.",
+        "Open REAPER, open the FX browser (<b>FX</b> button of a track) and press <b>F5</b> "
+        "(Mac laptops: <b>fn + F5</b>). Type <b>E4L</b>: the <b>JS: E4L …</b> plug-ins appear.",
+    ])
+    st.append(P("Load the scripts (once)", "h2"))
+    st += steps([
+        "Open <b>Actions › Show action list…</b> (or press <b>?</b>).",
+        "Bottom right: <b>New action…</b> › <b>Load ReaScript…</b>",
+        "In the resource folder choose <b>Scripts/E4L/E4L - New live project.lua</b> and press "
+        "<b>Open</b>. Repeat with <b>E4L - Live Panel.lua</b> and <b>E4L - Update from GitHub.lua</b> "
+        "(and any other script you want to use).",
+        "Optional: with a script selected press <b>Add…</b> (bottom left) and press a key, e.g. "
+        "<b>Shift + E</b>, to run it with a shortcut.",
     ])
     st.append(box([
-        "Carga una vez el script <b>E4L - Update from GitHub</b> (como se explica abajo). Cada vez "
-        "que haya una versión nueva, ejecútalo: descarga la última versión de GitHub y reemplaza "
-        "los plugins, los scripts, los filtros y esta guía en la carpeta de recursos. No toca "
-        "tus otros plugins. Si ya estás al día, te lo avisa.",
-        "Al terminar, <b>cierra y vuelve a abrir el Live Panel</b> por su cuenta y te ofrece "
-        "<b>volver a abrir el proyecto</b>, que es como se cargan los plugins nuevos (los loops "
-        "grabados en memoria se pierden). La guía actualizada queda en <b>Data/E4L</b> dentro de la "
-        "carpeta de recursos.",
-        "Solo si apareció un plugin <b>nuevo</b> y no lo ves en el navegador de FX: con esa "
-        "ventana activa pulsa <b>F5</b> (en un portátil Mac, <b>fn + F5</b>)."],
-        title="Para actualizar (Mac y Windows)"))
-    st.append(P("Cargar el script de configuración (una sola vez)", "h2"))
-    st += steps([
-        "En REAPER abre <b>Actions › Show action list…</b> (o pulsa <b>?</b>).",
-        "Abajo a la derecha pulsa <b>New action…</b> y elige <b>Load ReaScript…</b>",
-        "Selecciona <b>Scripts/E4L/E4L - Setup session.lua</b> dentro de la carpeta de recursos y "
-        "pulsa <b>Abrir</b>. Quedará en la lista como <b>Script: E4L - Setup session.lua</b>.",
-        "Opcional: con el script seleccionado, pulsa <b>Add…</b> (abajo a la izquierda) y presiona "
-        "una tecla, por ejemplo <b>Shift + E</b>, para lanzarlo con un atajo.",
-    ])
+        "Run <b>E4L - Update from GitHub</b> whenever there is a new version. It downloads it from "
+        "GitHub and replaces the plug-ins, scripts, filters and this guide in the resource folder, "
+        "without touching your other plug-ins. It tells you when you are already up to date.",
+        "Then it <b>closes and reopens the Live Panel</b> by itself and offers to <b>reopen the "
+        "project</b>, which is how the new plug-ins are loaded (loops recorded in memory are lost). "
+        "The updated guide is in <b>Data/E4L</b> inside the resource folder.",
+        "Only if a <b>new</b> plug-in does not show up in the FX browser: with that window active "
+        "press <b>F5</b> (<b>fn + F5</b> on a Mac laptop)."],
+        title="Updating (macOS and Windows)"))
     st.append(PageBreak())
 
     # 4
-    st.append(P("4. Preparar el proyecto para cuadrafonía", "h1"))
-    st.append(P("Esto se hace <b>una vez por proyecto</b>."))
-    st.append(P("Paso A: la interfaz de audio", "h2"))
+    st.append(P("4. Setting up a project for quadraphony", "h1"))
+    st.append(P("This section explains the set-up by hand, for normal (non-looping) projects. "
+                "For live looping, <b>E4L - New live project</b> does all of it in one click "
+                "(section 8)."))
+    st.append(P("Step A: the audio interface", "h2"))
     st += steps([
-        "Abre <b>Options › Preferences › Audio › Device</b>.",
-        "Elige tu interfaz de audio y comprueba que estén activadas al menos las "
-        "<b>salidas 1 a 4</b>.",
+        "Open <b>Settings › Audio › Device</b> (Windows: <b>Options › Preferences › Audio › Device</b>).",
+        "Choose your interface and make sure at least <b>outputs 1 to 4</b> are enabled.",
     ])
-    st.append(P("Paso B: el master de REAPER a 4 canales", "h2"))
+    st.append(P("Step B: REAPER's master to 4 channels", "h2"))
     st += steps([
-        "En la pista <b>MASTER</b> pulsa el botón <b>Route</b> (o clic derecho sobre el master › "
-        "<b>Routing</b>).",
-        "Arriba, en <b>Track channels</b>, elige <b>4</b> (o <b>6</b> si usas sub en la salida 5).",
-        "En <b>Audio Hardware Outputs</b> deja la salida que ya existe: canales <b>1/2 → "
-        "salidas 1/2</b>.",
-        "Pulsa <b>Add new hardware output</b> y elige las <b>salidas 3/4</b>. En esa nueva salida, "
-        "cambia el origen a los canales <b>3/4</b>. Así: canales 1-2 → salidas 1-2 y "
-        "canales 3-4 → salidas 3-4.",
+        "On the <b>MASTER</b> track press <b>Route</b> (or right-click the master › <b>Routing</b>).",
+        "At the top, in <b>Track channels</b>, choose <b>4</b> (or <b>6</b> with a sub on output 5).",
+        "In <b>Audio Hardware Outputs</b> keep the existing output: channels <b>1/2 → outputs 1/2</b>.",
+        "Press <b>Add new hardware output</b>, choose <b>outputs 3/4</b> and set its source to "
+        "channels <b>3/4</b>.",
     ])
-    st.append(P("Paso C: crear la pista «E4L Master» con el script", "h2"))
+    st.append(P("Step C: the \"E4L Master\" track with a script", "h2"))
     st += steps([
-        "Selecciona las pistas de audio que quieres espacializar (clic en el nombre; "
-        "<b>Ctrl/Cmd + clic</b> para elegir varias).",
-        "Lanza el script <b>E4L - Setup session</b> (tecla <b>?</b>, busca «E4L», doble clic).",
-        "Escribe el número del paneador y pulsa <b>OK</b>: <b>1</b> Stereo, <b>2</b> Mono, "
-        "3 Source, <b>4</b> Quad, 5 Multi. Para audio estéreo usa 1, para audio mono usa 2.",
+        "Select the audio tracks to spatialise (click the name; <b>Cmd/Ctrl + click</b> for several).",
+        "Run <b>E4L - Setup session</b> (press <b>?</b>, search \"E4L\", double-click).",
+        "Type the panner number and press <b>OK</b>: <b>1</b> Stereo, <b>2</b> Mono, 3 Source, "
+        "<b>4</b> Quad, 5 Multi.",
     ])
-    st.append(P("El script crea la pista <b>«E4L Master»</b> con el plugin <b>E4L Master Bus</b> y "
-                "deja cada pista seleccionada con <b>16 canales</b>, el paneador, el envío al "
-                "master principal <b>desactivado</b> y un envío de 16 canales a «E4L Master». "
-                "Si lo ejecutas otra vez con otras pistas, reutiliza la misma «E4L Master»."))
-    st.append(P("Paso D: poner el Master Bus en cuadrafonía", "h2"))
+    st.append(P("The script creates the <b>\"E4L Master\"</b> track with <b>E4L Master Bus</b> and "
+                "gives every selected track <b>16 channels</b>, the panner, its master send "
+                "<b>off</b> and a 16-channel send to \"E4L Master\"."))
+    st.append(P("Step D: the Master Bus in quadraphony", "h2"))
     st += steps([
-        "En la pista «E4L Master» abre el plugin <b>E4L Master Bus</b> (botón <b>FX</b>).",
-        "En <b>Decoder</b> elige <b>Quad</b>.",
-        "Deja <b>Order Weighting</b> en <b>In-phase (E4L)</b> y <b>Ambisonics Order</b> en "
+        "On \"E4L Master\" open <b>E4L Master Bus</b> (<b>FX</b> button).",
+        "Set <b>Decoder</b> to <b>Quad</b>.",
+        "Keep <b>Order Weighting</b> on <b>In-phase (E4L)</b> and <b>Ambisonics Order</b> on "
         "<b>3rd order</b>.",
     ])
     st.append(box([
-        "Se midió el decodificador Quad con las tres opciones de <i>Order Weighting</i>. "
-        "<b>In-phase (E4L)</b> es la mejor para cuatro altavoces: cuando un sonido gira, el volumen "
-        "se mantiene casi constante y ningún altavoz recibe la señal invertida. "
-        "Con <i>Basic</i> o <i>max-rE</i>, el sonido baja mucho de volumen entre altavoces."],
-        title="¿Por qué «In-phase»?"))
-    st.append(P("Paso E: comprobar", "h2"))
+        "The Quad decoder was measured with the three <i>Order Weighting</i> options. "
+        "<b>In-phase (E4L)</b> is the best for four speakers: when a sound turns the level stays "
+        "almost constant and no speaker gets an inverted signal. With <i>Basic</i> or "
+        "<i>max-rE</i> the level drops a lot between speakers."], title="Why \"In-phase\"?"))
+    st.append(P("Check", "h2"))
     st += bullets([
-        "La pista «E4L Master» debe tener <b>16 canales</b> y el envío al master principal "
-        "<b>activado</b> (botón <b>Route › Master send</b>).",
-        "Las pistas de audio deben tener <b>16 canales</b>, el <b>Master send desactivado</b> y "
-        "un envío a «E4L Master» con <b>Audio: 1-16 → 1-16</b>.",
-        "Al reproducir, en el medidor del master deben moverse <b>4 barras</b>.",
-    ])
-    st.append(P("Hacerlo a mano (sin script)", "h2"))
-    st.append(P("Si prefieres no usar el script, el resultado es el mismo:"))
-    st += steps([
-        "Crea una pista, llámala <b>E4L Master</b>, pulsa <b>Route</b> y pon <b>Track channels: "
-        "16</b>. Agrégale el plugin <b>JS: E4L Master Bus</b> con <b>Decoder = Quad</b>.",
-        "En cada pista de audio: <b>Route</b> › <b>Track channels: 16</b>, desmarca "
-        "<b>Master send</b> y en <b>Add new send</b> elige «E4L Master». En ese envío, en "
-        "<b>Audio</b> elige <b>Multichannel source › 16 channels › 1-16</b> hacia los canales "
-        "<b>1-16</b>.",
-        "Agrega a la pista el plugin <b>JS: E4L Stereo Panner</b> (o Mono/Quad).",
+        "\"E4L Master\" has <b>16 channels</b> and its master send <b>on</b>.",
+        "Audio tracks have <b>16 channels</b>, the <b>master send off</b> and a send to "
+        "\"E4L Master\" with <b>Audio: 1-16 → 1-16</b>.",
+        "When playing, <b>4 bars</b> move on the master meter.",
     ])
 
     # 5
-    st.append(P("5. Agregar pistas de audio y posicionarlas", "h1"))
-    st.append(P("¿Qué paneador uso?", "h2"))
+    st.append(P("5. Adding audio tracks and positioning them", "h1"))
+    st.append(P("Which panner?", "h2"))
     st.append(table([
-        ["Tipo de audio", "Plugin", "Comentario"],
-        ["Mono (una voz, un instrumento)", "<b>E4L Mono Panner</b>", "Un punto que se mueve."],
-        ["Estéreo", "<b>E4L Stereo Panner</b>", "Dos puntos (izq./der.) que se mueven juntos. "
-         "La distancia entre ellos es la <i>Azimuth Spread</i>."],
-        ["Ya en 4 canales (cuadrafónico)", "<b>E4L Quad Panner</b>", "Cuatro puntos que se mueven "
-         "juntos: el audio debe estar en los canales 1-4 de la pista."],
+        ["Kind of audio", "Plug-in", "Notes"],
+        ["Mono (a voice, an instrument)", "<b>E4L Mono Panner</b>", "One moving point."],
+        ["Stereo", "<b>E4L Stereo Panner</b>", "Two points (L/R) moving together; their distance "
+         "is the <i>Azimuth Spread</i>."],
+        ["Already 4 channels", "<b>E4L Quad Panner</b>", "Four points moving together; audio on "
+         "channels 1-4 of the track."],
     ], [50, 45, 75]))
-    st.append(P("Los controles básicos", "h2"))
+    st.append(P("The basic controls", "h2"))
     st.append(table([
-        ["Control", "Qué hace", "Para cuadrafonía"],
-        ["<b>Azimuth</b>", "Dirección en grados: 0 frente, +90 derecha, −90 izquierda, ±180 atrás.",
-         "−45 = altavoz 1, +45 = altavoz 2, +135 = altavoz 3, −135 = altavoz 4."],
-        ["<b>Radius</b> y <b>Range</b>", "Distancia: Radius × Range. Más lejos = más bajo "
-         "(−1,5 dB por unidad).", "Pon <b>Radius = 0,1</b> con Range 10 para volumen completo."],
-        ["<b>Elevation</b>", "Altura en grados.", "Déjala en <b>0</b>: la cuadrafonía no tiene "
-         "altavoces arriba."],
-        ["<b>Azimuth Spread</b>", "(Stereo/Quad) Apertura entre los canales.", "Stereo: 30 = "
-         "estrecho; 45 = izq. y der. en los altavoces 1 y 2 si Azimuth = 0."],
-        ["<b>Azimuth Spread Mode</b>", "(Quad) LR = cuadrado; X = traseros cruzados; "
-         "W = abanico.", "Con LR y apertura 90, cada canal va a su altavoz."],
+        ["Control", "What it does", "For quadraphony"],
+        ["<b>Azimuth</b>", "Direction in degrees: 0 front, +90 right, −90 left, ±180 back.",
+         "−45 = speaker 1, +45 = speaker 2, +135 = speaker 3, −135 = speaker 4."],
+        ["<b>Radius</b> and <b>Range</b>", "Distance: Radius × Range. Further = quieter "
+         "(−1.5 dB per unit).", "<b>Radius = 0.1</b> with Range 10 for full level."],
+        ["<b>Elevation</b>", "Height in degrees.", "Keep it at <b>0</b>: quad has no speakers above."],
+        ["<b>Azimuth Spread</b>", "(Stereo/Quad) Width between the channels.", "Stereo: 30 = "
+         "narrow; 45 = L and R on speakers 1 and 2 with Azimuth 0."],
+        ["<b>Azimuth Spread Mode</b>", "(Quad) LR = square; X = rear pair crossed; W = fan.",
+         "With LR and spread 90 each channel goes to its speaker."],
     ], [32, 70, 68]))
     st.append(box([
-        "Con los valores de fábrica (Radius 1 y Range 10) el sonido se escucha <b>13,5 dB más "
-        "bajo</b>: así funciona E4L, que lo considera «lejos». Para oírlo a volumen normal, baja "
-        "<b>Radius a 0,1</b>. Puedes automatizar Radius para acercar y alejar el sonido."],
-        kind="warn", title="¿Suena muy bajo?"))
-    st.append(P("La ventana del plugin muestra una vista desde arriba: el círculo es la sala, el "
-                "centro es el oyente (mirando hacia arriba) y los puntos de color son las "
-                "fuentes. Sirve para ver en tiempo real cómo se mueven."))
+        "With the factory values (Radius 1, Range 10) the sound is <b>13.5 dB down</b>: that is how "
+        "E4L works, it treats it as \"far\". For normal level set <b>Radius to 0.1</b>. You can "
+        "automate Radius to bring the sound closer and further."], kind="warn", title="Too quiet?"))
 
     # 6
-    st.append(P("6. Automatizaciones de movimiento", "h1"))
-    st.append(P("Hay dos formas de mover el sonido, y se pueden combinar:"))
+    st.append(P("6. Movement automation", "h1"))
+    st.append(P("There are two ways to move a sound, and they can be combined:"))
     st += bullets([
-        "<b>LFO integrados</b> (como en E4L): movimientos repetitivos automáticos, como giros, "
-        "vaivenes o movimientos sincronizados al tempo. Solo hay que activarlos.",
-        "<b>Envolventes de REAPER</b>: dibujas tú el recorrido en la línea de tiempo, punto "
-        "por punto.",
+        "<b>Built-in LFOs</b> (as in E4L): automatic repeating movements (turns, swings, tempo-synced "
+        "movements). Just switch them on. The Live Panel's <b>MOVEMENT</b> editor shows them with "
+        "plain names (section 8).",
+        "<b>REAPER envelopes</b>: you draw the path on the timeline, point by point.",
     ])
-    st.append(KeepTogether([P("6.1 LFO integrados", "h2"), lfo_diagram()]))
+    st.append(KeepTogether([P("6.1 Built-in LFOs", "h2"), lfo_diagram()]))
     st.append(table([
-        ["Control del LFO de azimut", "Qué hace"],
-        ["<b>Azimuth LFO On/Off</b>", "Enciende o apaga el movimiento automático."],
-        ["<b>Mode</b>", "<b>Cycle</b>: gira 360° completos, dando vueltas por los 4 altavoces. "
-         "<b>Sin</b>: va y vuelve alrededor de <i>Azimuth</i>, ± <i>Depth</i> grados."],
-        ["<b>Time Mode</b>", "<b>Freq</b>: velocidad en Hz (vueltas por segundo). "
-         "<b>Sync</b>: sincronizado al tempo del proyecto."],
-        ["<b>Frequency</b> y <b>Rate</b>", "(Freq) La velocidad es Frequency × Rate. Con un Rate "
-         "negativo gira al revés. Ejemplo: 0,1 Hz × 0,5 = una vuelta cada 20 s."],
-        ["<b>Sync (bars)</b>", "(Sync) Compases por vuelta: 1/4, 1/2, 1, 2, 3, 4, 6, 8, 16, 32, 64."],
-        ["<b>Direction</b>", "(Sync) Clockwise = sentido horario; Counter = antihorario."],
-        ["<b>Depth</b>", "(Sin) Amplitud del vaivén en grados."],
-        ["<b>Azimuth</b>", "Con el LFO encendido, indica el punto de partida (Cycle) o el "
-         "centro del vaivén (Sin)."],
+        ["Azimuth LFO control", "What it does"],
+        ["<b>Azimuth LFO On/Off</b>", "Switches the automatic movement on or off."],
+        ["<b>Mode</b>", "<b>Cycle</b>: full 360° turns around the 4 speakers. <b>Sin</b>: swings "
+         "around <i>Azimuth</i>, ± <i>Depth</i> degrees."],
+        ["<b>Time Mode</b>", "<b>Freq</b>: speed in Hz (turns per second). <b>Sync</b>: synced to "
+         "the project tempo."],
+        ["<b>Frequency</b> and <b>Rate</b>", "(Freq) Speed = Frequency × Rate. A negative Rate turns "
+         "the other way. Example: 0.1 Hz × 0.5 = one turn every 20 s."],
+        ["<b>Sync (bars)</b>", "(Sync) Bars per turn: 1/4, 1/2, 1, 2, 3, 4, 6, 8, 16, 32, 64."],
+        ["<b>Direction</b>", "(Sync) Clockwise or Counter."],
+        ["<b>Depth</b>", "(Sin) Swing width in degrees."],
+        ["<b>Azimuth</b>", "With the LFO on: start point (Cycle) or centre of the swing (Sin)."],
     ], [48, 122]))
-    st.append(P("Recetas listas para usar", "h2"))
+    st.append(P("Ready-made recipes", "h2"))
     st.append(table([
-        ["Movimiento deseado", "Ajustes"],
-        ["Giro lento por toda la sala", "LFO On · Mode <b>Cycle</b> · Time Mode <b>Freq</b> · "
-         "Frequency <b>0,1</b> · Rate <b>1</b> (10 s por vuelta). Para que gire al revés: Rate −1."],
-        ["Giro de una vuelta cada 4 compases", "LFO On · Mode <b>Cycle</b> · Time Mode "
-         "<b>Sync</b> · Sync <b>4</b> · Direction a elección."],
-        ["Vaivén entre los dos altavoces delanteros", "Azimuth <b>0</b> · LFO On · Mode <b>Sin</b> "
-         "· Depth <b>45</b> · Frequency 0,25 (4 s ida y vuelta)."],
-        ["Vaivén entre delante y atrás por la derecha", "Azimuth <b>90</b> · Mode <b>Sin</b> · "
-         "Depth <b>45</b> (va de 45° a 135°, entre los altavoces 2 y 3)."],
-        ["Ida y vuelta de lado a lado pasando por delante", "Azimuth <b>0</b> · Mode <b>Sin</b> · "
-         "Depth <b>90</b>."],
-        ["Una fuente estéreo que «respira»", "Stereo Panner · <b>Azimuth Spread LFO On</b> · "
-         "Frequency 0,2 · Depth 30. Los canales se abren y cierran."],
+        ["Movement", "Settings"],
+        ["Slow turn around the room", "LFO On · Mode <b>Cycle</b> · Time Mode <b>Freq</b> · "
+         "Frequency <b>0.1</b> · Rate <b>1</b> (10 s per turn). Other way: Rate −1."],
+        ["One turn every 4 bars", "LFO On · Mode <b>Cycle</b> · Time Mode <b>Sync</b> · Sync "
+         "<b>4</b> · Direction as you like."],
+        ["Swing between the two front speakers", "Azimuth <b>0</b> · LFO On · Mode <b>Sin</b> · "
+         "Depth <b>45</b> · Frequency 0.25 (4 s there and back)."],
+        ["Swing front to back on the right", "Azimuth <b>90</b> · Mode <b>Sin</b> · Depth <b>45</b> "
+         "(45° to 135°, between speakers 2 and 3)."],
+        ["Side to side through the front", "Azimuth <b>0</b> · Mode <b>Sin</b> · Depth <b>90</b>."],
+        ["A stereo source that \"breathes\"", "Stereo Panner · <b>Azimuth Spread LFO On</b> · "
+         "Frequency 0.2 · Depth 30."],
     ], [60, 110]))
     st.append(box([
-        "En modo <b>Sync</b>, mientras REAPER reproduce, el giro queda «enganchado» a la posición "
-        "de la canción: el sonido está siempre en el mismo lugar en el mismo compás, en cada "
-        "reproducción y al exportar."], title="Sincronizado al tempo"))
-
-    st.append(P("6.2 Envolventes de REAPER (dibujar el recorrido)", "h2"))
+        "In <b>Sync</b> mode, while REAPER plays, the movement is locked to the project position: "
+        "the sound is always in the same place at the same bar, on every playback and in the render."],
+        title="Tempo sync"))
+    st.append(P("6.2 REAPER envelopes (drawing the path)", "h2"))
     st += steps([
-        "En la pista, pulsa el botón de <b>envolventes</b> (el icono con una curva, junto a "
-        "<b>FX</b>). Se abre la lista de parámetros automatizables.",
-        "Busca el plugin <b>E4L Stereo Panner</b> (o Mono/Quad) y marca <b>Azimuth</b>. "
-        "Aparece un carril de automatización debajo de la pista.",
-        "<b>Clic</b> en el carril para añadir puntos; <b>arrastra</b> los puntos para moverlos. "
-        "Arriba del carril es +180°, el centro es 0° (frente) y abajo es −180°.",
-        "Clic derecho sobre un punto para cambiar la forma de la curva (lineal, suave, escalón…).",
-        "Repite con otros parámetros: <b>Radius</b> para acercar o alejar, o "
-        "<b>Azimuth Spread</b> para abrir o cerrar el estéreo.",
+        "On the track press the <b>envelope</b> button (the curve icon next to <b>FX</b>).",
+        "Find the <b>E4L</b> panner and tick <b>Azimuth</b>. An automation lane appears.",
+        "<b>Click</b> on the lane to add points, <b>drag</b> them to move them. Top = +180°, "
+        "middle = 0° (front), bottom = −180°.",
+        "Right-click a point to change the curve shape (linear, smooth, square…).",
+        "Same for other parameters: <b>Radius</b> (closer / further), <b>Azimuth Spread</b> (width).",
     ])
-    st.append(P("<b>Grabar el movimiento en tiempo real:</b> en el botón de modo de automatización "
-                "de la pista (normalmente dice <b>Trim/Read</b>), elige <b>Latch</b>. Reproduce y "
-                "mueve el control <b>Azimuth</b> del plugin con el ratón: REAPER grabará el "
-                "movimiento. Al terminar, vuelve a poner el modo en <b>Read</b>."))
+    st.append(P("<b>Recording the movement live:</b> set the track's automation mode (usually "
+                "<b>Trim/Read</b>) to <b>Latch</b>, play and move <b>Azimuth</b> with the mouse; "
+                "then set it back to <b>Read</b>."))
     st.append(box([
-        "+180° y −180° son el mismo punto (atrás). Si dibujas una línea de +170 a −170, REAPER "
-        "pasará por todos los valores intermedios y el sonido <b>dará la vuelta por delante</b>. "
-        "Para vueltas completas usa el LFO en modo <b>Cycle</b>, o pon un punto en +180 y el "
-        "siguiente en −180 con forma <b>escalón</b> (square)."],
-        kind="warn", title="Cuidado al cruzar por detrás"))
-    st.append(P("6.3 Combinar LFO y envolventes", "h2"))
-    st.append(P("Los propios controles del LFO también se pueden automatizar. Por ejemplo:"))
+        "+180° and −180° are the same point (back). A line from +170 to −170 goes through every "
+        "value in between, so the sound <b>goes round through the front</b>. For full turns use the "
+        "LFO in <b>Cycle</b> mode, or a point at +180 followed by −180 with a <b>square</b> shape."],
+        kind="warn", title="Crossing the back"))
+    st.append(P("6.3 Combining LFOs and envelopes", "h2"))
     st += bullets([
-        "Automatiza <b>Azimuth LFO On/Off</b> para que el giro empiece en el compás 9 y pare "
-        "en el 17.",
-        "Automatiza <b>Azimuth LFO Frequency</b> para que el giro acelere poco a poco.",
-        "Automatiza <b>Azimuth</b> con el LFO en <b>Sin</b> para que el centro del vaivén se "
-        "desplace por la sala.",
+        "Automate <b>Azimuth LFO On/Off</b> so the turn starts at bar 9 and stops at bar 17.",
+        "Automate <b>Azimuth LFO Frequency</b> so the turn speeds up little by little.",
+        "Automate <b>Azimuth</b> with the LFO in <b>Sin</b> so the centre of the swing travels.",
+        "REAPER's <b>Parameter modulation</b> (in the plug-in: <b>Param › Parameter modulation</b>) "
+        "can also drive any control, e.g. from the level of another track.",
     ])
-    st.append(P("Otra opción es la <b>modulación de parámetros</b> de REAPER: en el plugin, pulsa "
-                "<b>Param › Parameter modulation</b>. Permite, por ejemplo, que el volumen de otra "
-                "pista mueva el Azimuth."))
     st.append(PageBreak())
 
     # 7
-    st.append(P("7. Escuchar con auriculares y exportar", "h1"))
-    st.append(P("Previsualizar con auriculares", "h2"))
-    st.append(P("Si no tienes los cuatro altavoces a mano, en el <b>E4L Master Bus</b> cambia "
-                "<b>Decoder</b> a <b>Binaural (3rd-order)</b>. El sonido saldrá en las salidas 1-2 "
-                "con efecto 3D para auriculares (delante, atrás y a los lados). "
-                "<b>Vuelve a Quad</b> antes de exportar o de usar los altavoces."))
-    st.append(P("Exportar el archivo cuadrafónico", "h2"))
+    st.append(P("7. Headphones and export", "h1"))
+    st.append(P("Preview on headphones", "h2"))
+    st.append(P("Without the four speakers at hand, set the <b>E4L Master Bus</b> <b>Decoder</b> to "
+                "<b>Binaural (3rd-order)</b>: outputs 1-2 then carry a 3D headphone mix (front, back "
+                "and sides). <b>Set it back to Quad</b> before exporting or using the speakers. "
+                "(The live set-up of section 8 already has a separate binaural CUE track.)"))
+    st.append(P("Exporting the quadraphonic file", "h2"))
     st += steps([
-        "<b>File › Render…</b>",
-        "<b>Source:</b> Master mix.",
-        "<b>Channels:</b> elige <b>4</b>.",
-        "Formato <b>WAV</b> y pulsa <b>Render</b>.",
+        "<b>File › Render…</b>", "<b>Source:</b> Master mix.", "<b>Channels:</b> <b>4</b> "
+        "(<b>6</b> to include the sub on channel 5).", "<b>WAV</b> format, then <b>Render</b>.",
     ])
-    st.append(P("El archivo tendrá 4 canales en el orden de E4L: <b>1</b> delantero izquierdo, "
-                "<b>2</b> delantero derecho, <b>3</b> trasero derecho, <b>4</b> trasero izquierdo. "
-                "Avísale a quien lo reproduzca, o pídeme una opción para exportar en otro orden."))
+    st.append(P("Channel order (E4L): <b>1</b> front left, <b>2</b> front right, <b>3</b> rear right, "
+                "<b>4</b> rear left."))
 
     # 8
     st.append(PageBreak())
-    st.append(P("8. Looper en vivo estilo Ableton (sinte analógico)", "h1"))
-    st.append(P("Esta plantilla sirve para componer en vivo: tocas el sinte analógico y lo "
-                "escuchas <b>solo en los auriculares</b>. Cuando un sonido te gusta, lo grabas en "
-                "un <b>loop de N compases</b> que entra <b>justo en el siguiente compás</b>, "
-                "sincronizado con el «loop general» (el tempo y los compases del proyecto). "
-                "Desde ese momento suena en la cuadrafonía, en su propia posición y con sus "
-                "movimientos."))
+    st.append(P("8. Live looping, Ableton style (analog synth)", "h1"))
+    st.append(P("Compose live: you play the synth and hear it <b>only on the headphones</b>. When "
+                "you like a sound you record it into a <b>loop of N bars</b> that starts <b>exactly "
+                "on the next bar</b>, in sync with the \"global loop\" (the project's tempo and bars). "
+                "From then on it plays on the speakers, in its own position, with its own movement."))
     st.append(live_diagram())
     st.append(Spacer(1, 6))
-    st.append(P("Antes de empezar: auriculares y sub (Mbox Pro)", "h2"))
-    st.append(P("Los auriculares tienen que recibir una mezcla <b>distinta</b> de la de los altavoces. "
-                "La plantilla manda la mezcla de auriculares a las <b>salidas 7-8</b> de la "
-                "interfaz, que no van a ningún altavoz. En la <b>Mbox Pro</b>, cada salida de "
-                "auriculares (A y B) tiene su propia mezcla, configurable en el panel de control "
-                "del driver:"))
-    s_ = steps([
-        "En REAPER, abre <b>Options › Preferences › Audio › Device</b> y pulsa el botón del panel "
-        "de control de la interfaz (<b>ASIO Configuration…</b> en Windows), o abre el "
-        "<b>Mbox Pro Control Panel</b>.",
-        "En la configuración de salidas, busca <b>Headphones A</b> (y B si la usas) y elige como "
-        "origen la señal que llega del ordenador por las <b>salidas 7-8</b>. Los nombres "
-        "exactos dependen de la versión del driver.",
-        "Comprueba que las salidas <b>1-4</b> (altavoces) y <b>5</b> (sub) reciben lo que llega "
-        "del ordenador por esas mismas salidas.",
-        "El <b>volumen maestro</b> de la Mbox afecta a todas las salidas. Si quieres que solo "
-        "controle los auriculares, desmarca <i>Master Vol.</i> para las demás salidas en "
-        "<b>Output Setup</b>.",
-    ])
-    st += s_
-    st.append(P("Si en tu interfaz las salidas 7-8 no existen, indica en el script otro par libre "
-                "(campo <i>Headphones output</i>)."))
-    st.append(box([
-        "El script pone el plugin <b>E4L Sub Out</b> en el <b>master de REAPER</b>: la suma de "
-        "<b>todo lo que llega al master</b> sale también por la <b>salida 5</b>. Por eso "
-        "<b>cualquier pista que agregues</b> (loops, pistas espacializadas o pistas normales) "
-        "alimenta el sub sin hacer nada más.",
-        "En el plugin ajustas <b>Sub Level</b> (volumen) y <b>Sub Low-pass</b> (0 = sin filtro, "
-        "si tu sub tiene su propio filtro de corte; si no, 80-120 Hz).",
-        "Para agregarlo a un proyecto que ya tengas, ejecuta el script "
-        "<b>E4L - Add sub to master</b> y escribe la salida del sub (5).",
-    ], kind="info", title="El sub (salida 5)"))
-    st.append(P("Crear la plantilla", "h2"))
+    st.append(P("Before you start: headphones and sub (Mbox Pro)", "h2"))
+    st.append(P("The headphones need a mix <b>different</b> from the speakers'. The set-up sends the "
+                "headphone mix to <b>outputs 7-8</b> of the interface, which feed no speaker. On an "
+                "<b>Avid Mbox Pro (3rd gen)</b> each headphone output (A and B) has its own mix, set "
+                "in the driver's control panel:"))
     st += steps([
-        "Copia de nuevo las carpetas <b>Effects</b> y <b>Scripts</b> en la carpeta de recursos "
-        "de REAPER (sección 3), para tener el <b>E4L Looper</b> y los scripts nuevos.",
-        "Carga el script <b>E4L - New live project</b> (<b>Actions › New action › Load "
-        "ReaScript…</b>, como en la sección 3) y ejecútalo. Crea un proyecto nuevo, arma la "
-        "plantilla y abre el <b>Live Panel</b>, todo de una vez. Hace lo mismo que ejecutar a mano "
-        "<b>E4L - Live Looper template</b> y después <b>E4L - Live Panel</b>.",
-        "Completa la ventana que aparece y pulsa <b>OK</b>:",
+        "In REAPER open <b>Settings › Audio › Device</b> and open the interface's control panel, "
+        "or open the <b>Mbox Pro Control Panel</b> directly.",
+        "In the output settings, set <b>Headphones A</b> (and B if used) to what comes from the "
+        "computer on <b>outputs 7-8</b>. Exact names depend on the driver version.",
+        "Check that outputs <b>1-4</b> (speakers) and <b>5</b> (sub) carry what comes from the "
+        "computer on those same outputs.",
+        "The Mbox master volume affects every output; to make it control the headphones only, "
+        "untick <i>Master Vol.</i> for the other outputs in <b>Output Setup</b>.",
     ])
+    st.append(box([
+        "The set-up puts <b>E4L Sub Out</b> on <b>REAPER's master</b>: the sum of <b>everything "
+        "that reaches the master</b> also goes to <b>output 5</b>, so <b>any track you add</b> "
+        "feeds the sub.",
+        "In the plug-in: <b>Sub Level</b> and <b>Sub Low-pass</b> (0 = no filter, if the sub has its "
+        "own crossover; otherwise 80-120 Hz).",
+        "For an existing project run <b>E4L - Add sub to master</b> and type the sub output (5).",
+    ], kind="info", title="The sub (output 5)"))
+    st.append(P("Creating the live project", "h2"))
+    st.append(P("Run <b>E4L - New live project</b>: a new project, the whole live set-up and the "
+                "<b>Live Panel</b>, in one click (the same as running <b>E4L - Live Looper template</b> "
+                "and then <b>E4L - Live Panel</b>). Fill in the dialog and press <b>OK</b>:"))
     st.append(table([
-        ["Campo", "Qué poner", "Por defecto"],
-        ["Loop tracks to add", "Cuántas pistas de loop crear.", "8"],
-        ["Synth input (first channel)", "Entrada de la interfaz donde está conectado el sinte.", "1"],
-        ["Synth input: 1 mono 2 stereo", "1 si el sinte tiene una salida; 2 si tiene dos.", "1"],
-        ["Headphones output (first channel)", "Primera salida para los auriculares.", "7 (salidas 7-8)"],
-        ["Loop panner: 1 Mono 2 Stereo", "Paneador de cada loop: Mono para un sinte mono.", "1"],
-        ["Sub output (0 = none)", "Salida del subwoofer; recibe la suma de todo.", "5"],
+        ["Field", "What to type", "Default"],
+        ["Loop tracks to add", "How many loop tracks.", "8"],
+        ["Synth input (first channel)", "Interface input where the synth is connected.", "1"],
+        ["Synth input: 1 mono 2 stereo", "1 if the synth has one output, 2 if it has two.", "1"],
+        ["Headphones output (first channel)", "First output for the headphones.", "7 (outputs 7-8)"],
+        ["Loop panner: 1 Mono 2 Stereo", "Panner of each loop: Mono for a mono synth.", "1"],
+        ["Sub output (0 = none)", "Subwoofer output; it gets the sum of everything.", "5"],
     ], [52, 88, 30]))
-    st.append(P("El script crea <b>SYNTH IN</b>, las pistas <b>LOOP 1…8</b>, <b>E4L Master</b> "
-                "(Quad, con el sub) y <b>CUE (auriculares)</b>. También prepara el master de REAPER "
-                "(salidas 1-2, 3-4 y el sub en la 5) "
-                "y calcula la <b>compensación de latencia</b> de grabación de tu interfaz. Cada "
-                "loop empieza en una posición distinta de la sala (−45°, 45°, 135°, −135°…). Si "
-                "lo vuelves a ejecutar en el mismo proyecto, solo agrega más pistas LOOP."))
-    st.append(P("Tocar en vivo, paso a paso", "h2"))
+    st.append(P("It creates <b>SYNTH IN</b>, <b>LOOP 1…8</b>, <b>E4L Master</b> (quad) and "
+                "<b>CUE (headphones)</b>, sets up the master (outputs 1-2, 3-4, sub on 5) and "
+                "measures your interface's <b>recording latency compensation</b>. Each loop starts in "
+                "a different place in the room (−45°, 45°, 135°, −135°…)."))
+    st.append(P("Playing live, step by step", "h2"))
     st += steps([
-        "Ajusta el <b>tempo</b> y el <b>compás</b> (ver el recuadro de abajo).",
-        "Pulsa <b>PLAY</b> en REAPER (barra espaciadora). El proyecto en marcha es el «loop "
-        "general»: todos los loops se sincronizan con sus compases.",
-        "Toca el sinte: lo oyes en los auriculares. Por los altavoces todavía no sale nada.",
-        "Abre el <b>E4L Looper</b> de <b>LOOP 1</b> (botón FX), elige <b>Length</b> (1, 2, 4, 8, "
-        "16 o 32 compases) y pulsa <b>REC</b>.",
-        "El looper muestra <b>ARMED - next bar</b>. Al empezar el siguiente compás pasa a "
-        "<b>REC</b> (rojo) y graba exactamente los compases elegidos.",
-        "Al terminar pasa solo a <b>PLAY</b> (verde): el loop suena en la cuadrafonía y en los "
-        "auriculares (por la pista CUE).",
-        "Para el siguiente sonido, usa <b>LOOP 2</b>, y así sucesivamente: cada capa en su pista, "
-        "con su posición.",
+        "Set the <b>tempo</b> and <b>time signature</b> (box below).",
+        "Press <b>PLAY</b> in the panel (or the space bar). The running project is the "
+        "\"global loop\": every loop follows its bars.",
+        "Play the synth: you hear it on the headphones. Nothing goes to the speakers yet. The "
+        "<b>IN</b> meters at the top of the panel show that the input reaches REAPER.",
+        "On a loop row choose the length (click it: 1, 2, 4, 8, 16 or 32 bars) and press <b>REC</b>.",
+        "The state shows <b>WAITING</b>; on the next bar it becomes <b>RECORDING</b> (red) and "
+        "records exactly the chosen bars.",
+        "Then it switches to <b>PLAYING</b> (green) by itself: the loop plays on the speakers and "
+        "on the headphones (CUE).",
+        "For the next sound use the next loop: each layer on its own track, in its own place.",
     ])
     st.append(box([
-        "<b>En la barra de transporte</b> (abajo de las pistas): a la derecha se ven el tempo "
-        "(<b>BPM</b>, por ejemplo 120) y el compás (por ejemplo <b>4/4</b>). <b>Doble clic</b> en "
-        "el número de BPM o del compás para escribir el valor nuevo. También puedes arrastrar el "
-        "BPM hacia arriba o hacia abajo con el ratón.",
-        "<b>En la configuración del proyecto:</b> <b>File › Project settings…</b> (Alt + Enter), "
-        "pestaña <b>Project settings</b>: <i>Project BPM</i> y <i>Time signature</i>.",
-        "<b>Por pulsaciones:</b> la acción <i>Transport: Tap tempo</i> (en la lista de acciones) "
-        "calcula el tempo según tus golpes.",
-        "<b>Metrónomo:</b> el botón con forma de metrónomo en la barra de transporte. Para que "
-        "suene solo en los auriculares, en <b>Options › Metronome settings</b> envíalo a las "
-        "salidas 7-8.",
-        "Ajusta el tempo <b>antes</b> de grabar loops. Si lo cambias después, los loops ya "
-        "grabados se aceleran o se frenan (y cambia su afinación).",
-    ], kind="info", title="Cómo ajustar tempo y compás"))
-    st.append(table([
-        ["Botón del looper", "Qué hace"],
-        ["<b>REC</b>", "Graba en el siguiente compás. Si la pista ya tiene un loop, lo reemplaza; "
-         "el anterior sigue sonando hasta que empieza la nueva grabación."],
-        ["<b>PLAY</b>", "Para o arranca el loop en el siguiente compás, siempre en fase con el "
-         "proyecto."],
-        ["<b>OVERDUB</b>", "Mientras está encendido, lo que tocas se suma encima del loop."],
-        ["<b>CLEAR</b>", "Borra el loop."],
-        ["Loop Volume", "Volumen del loop."],
-        ["Input Thru", "Si lo enciendes, el sinte en vivo también sale por los altavoces desde "
-         "esa pista. Normalmente apagado."],
-        ["Recording Latency Compensation", "La pone el script. Si el loop suena adelantado o "
-         "atrasado respecto al tempo, ajústala: más ms si suena tarde."],
-    ], [48, 122]))
-    st.append(P("El movimiento en el espacio se hace con el paneador que va después del looper, en "
-                "la misma pista. Funciona igual que en la sección 6: LFO, envolventes, "
-                "o ambos."))
-    st.append(P("El panel en vivo: todo en una sola ventana", "h2"))
-    st.append(P("Para no tener que abrir el looper ni el paneador de cada pista, usa el script "
-                "<b>E4L - Live Panel</b> (cárgalo como los demás, sección 3). Abre una ventana que "
-                "controla <b>todos los loops y sus movimientos</b>:"))
-    _img = os.path.join(os.path.dirname(os.path.abspath(__file__)), "live_panel_preview.png")
+        "<b>Transport bar</b> (below the tracks): on the right you see the tempo (<b>BPM</b>, e.g. "
+        "120) and the time signature (e.g. <b>4/4</b>). <b>Double-click</b> them to type a new value, "
+        "or drag the BPM up and down.",
+        "<b>Project settings:</b> <b>File › Project settings…</b>: <i>Project BPM</i> and "
+        "<i>Time signature</i>.",
+        "<b>Tap tempo:</b> the action <i>Transport: Tap tempo</i>.",
+        "<b>Metronome:</b> the metronome button in the transport bar. To hear it on the headphones "
+        "only, send it to outputs 7-8 in <b>Settings › Metronome</b>.",
+        "Set the tempo <b>before</b> recording loops: changing it later speeds up or slows down the "
+        "recorded loops (and changes their pitch).",
+    ], kind="info", title="Setting the tempo and time signature"))
+    st.append(P("The Live Panel: everything in one window", "h2"))
+    _img = os.path.join(here, "live_panel_preview.png")
     if os.path.exists(_img):
         st.append(Image(_img, width=170 * mm, height=170 * mm * 560 / 1240))
         st.append(Spacer(1, 4))
     st += bullets([
-        "<b>Arriba:</b> el <b>compás y el tiempo</b> en grande, los tiempos del compás (el primero "
-        "en naranja), una <b>frase de 4 compases</b>, el tempo, INICIAR/DETENER y "
-        "<b>PARAR TODOS LOS LOOPS</b>.",
-        "<b>Barra de herramientas:</b> <b>+ LOOP</b> (otra pista de loop), <b>+ AUDIO</b> (un audio "
-        "pregrabado), <b>+ ENTRADA</b> (otra entrada de la interfaz), <b>GUARDAR TEMPLATE</b>, "
-        "<b>CARGAR TEMPLATE</b> y <b>NUEVO TEMPLATE</b> (ver más abajo).",
-        "<b>Una fila por loop:</b> estado (VACÍO, ESPERANDO, GRABANDO, SONANDO, PARADO; parpadea "
-        "mientras espera el compás), largo (clic para cambiarlo), <b>ENT</b> (de qué entrada graba; clic para cambiarla), "
-        "<b>GRABAR</b>, <b>SONAR</b>, "
-        "<b>CAPA</b> (sumar encima), <b>BORRAR</b>, <b>MOVIMIENTO</b> y la posición dentro del loop.",
-        "<b>La sala, vista desde arriba:</b> los 4 altavoces numerados y un punto por loop "
-        "(verde sonando, rojo grabando). Se mueven en vivo con las animaciones. <b>Arrastra un "
-        "punto</b> para cambiar la dirección de ese loop.",
-        "<b>Teclas:</b> <b>Espacio</b> = iniciar/detener · <b>1-9</b> = grabar en el loop 1-9 · "
-        "<b>0</b> = parar todos · <b>Esc</b> = cerrar el editor de movimiento.",
-        "<b>Clic derecho</b> en la parte de arriba: <b>acoplar</b> el panel dentro de REAPER (dock), "
-        "para tenerlo siempre a la vista.",
+        "<b>Top:</b> the <b>bar . beat</b> counter, the beats of the bar (the first one in orange), "
+        "a <b>4-bar phrase</b> indicator, the <b>IN</b> input meters, the tempo, PLAY/STOP and "
+        "<b>STOP ALL LOOPS</b>.",
+        "<b>Toolbar:</b> <b>+ LOOP</b>, <b>+ AUDIO</b>, <b>+ INPUT</b>, <b>SAVE TEMPLATE</b>, "
+        "<b>LOAD TEMPLATE</b>, <b>NEW TEMPLATE</b> (see below).",
+        "<b>One row per loop:</b> state (EMPTY, WAITING, RECORDING, PLAYING, STOPPED; it blinks while "
+        "waiting for the bar), length, input (<b>ALL</b> or <b>IN n</b>), <b>REC</b>, <b>PLAY</b>, "
+        "<b>OVERDUB</b>, <b>CLEAR</b>, <b>MOVEMENT</b> and the position inside the loop.",
+        "<b>The room seen from above:</b> the 4 numbered speakers and one dot per loop (green "
+        "playing, red recording), moving live with the animations. <b>Drag a dot</b> to move that loop.",
+        "<b>Keys:</b> <b>Space</b> = play/stop · <b>1-9</b> = record on loop 1-9 · <b>0</b> = stop all "
+        "loops · <b>Esc</b> = close the movement editor.",
+        "<b>Right-click the top area</b> to <b>dock</b> the panel inside REAPER.",
     ])
-    st.append(P("Audios pregrabados, más entradas y más loops", "h2"))
+    st.append(table([
+        ["Loop button", "What it does"],
+        ["<b>REC</b>", "Records on the next bar. On a loop that already has audio it records a new "
+         "one; the old one keeps playing until the new recording starts."],
+        ["<b>PLAY</b>", "Starts or stops the loop on the next bar, always in phase with the project."],
+        ["<b>OVERDUB</b>", "While on, what you play is added on top of the loop."],
+        ["<b>CLEAR</b>", "Erases the loop."],
+        ["<b>ALL / IN n</b>", "Which interface input the loop records: <b>ALL</b> (every input, the "
+         "default) or only <b>IN 1</b>, <b>IN 2</b>… Click to change."],
+        ["<b>MOVEMENT</b>", "Opens the movement editor of the loop."],
+    ], [40, 130]))
+    st.append(P("Pre-recorded audio, more inputs and more loops", "h2"))
     st += bullets([
-        "<b>+ AUDIO</b>: eliges un archivo (wav, aif, mp3…) y se crea la pista <b>AUDIO n</b>, "
-        "espacializada como un loop. El archivo se coloca en el compás 1 y se repite. Si dura "
-        "casi un número entero de compases, se ajusta al tempo sin cambiar la afinación. Empieza "
-        "en <b>SILENCIO</b>: pulsa <b>SONAR</b> y entra en el siguiente compás (lo mismo para "
-        "quitarlo). Tiene su botón <b>MOVIMIENTO</b> como los loops.",
-        "<b>+ ENTRADA</b>: indica el canal de la interfaz y si es mono o estéreo. Se crea "
-        "<b>SYNTH IN 2</b> (luego 3…), que también va a los auriculares. En cada loop, el botón "
-        "<b>ENT</b> elige de qué entrada graba.",
-        "<b>+ LOOP</b>: agrega otra pista de loop al final, lista para grabar.",
+        "<b>+ AUDIO</b>: choose a file (wav, aif, mp3…). A new <b>AUDIO n</b> track is created, "
+        "spatialised like a loop. The file starts at bar 1 and repeats; if it lasts almost a whole "
+        "number of bars it is fitted to the tempo without changing its pitch. It starts "
+        "<b>MUTED</b>: press <b>PLAY</b> and it comes in on the next bar (same to take it out). It "
+        "has its own <b>MOVEMENT</b> button.",
+        "<b>+ INPUT</b>: type the interface channel and mono/stereo. A new <b>SYNTH IN 2</b> (then "
+        "3…) is created; it also goes to the headphones and has its own <b>IN</b> meter. Loops set "
+        "to <b>ALL</b> record it straight away.",
+        "<b>+ LOOP</b>: another loop track at the end, ready to record.",
     ])
-    st.append(P("Templates: guardar, cargar y pasar al siguiente", "h2"))
+    st.append(P("Templates: save, load and move to the next piece", "h2"))
     st += bullets([
-        "<b>GUARDAR TEMPLATE</b>: le pones un nombre y se guarda en la carpeta <b>E4L_Templates</b> "
-        "(dentro de la carpeta de recursos de REAPER) con sus pistas, entradas, audios, posiciones, "
-        "movimientos y tempo. Los audios pregrabados quedan enlazados a sus archivos.",
-        "<b>CARGAR TEMPLATE</b>: muestra la lista de templates guardados y abre el que elijas. "
-        "Si la actual tiene cambios sin guardar, REAPER te pregunta antes.",
-        "<b>NUEVO TEMPLATE</b>: proyecto nuevo con la plantilla en vivo, desde cero.",
-        "Para un concierto: prepara un template por tema y guárdalo. En vivo, al terminar uno, pulsa "
-        "<b>CARGAR TEMPLATE</b> y elige el siguiente. El cambio produce un corte breve de audio, "
-        "y <b>los loops grabados en vivo no se guardan</b>: cada template empieza con los loops vacíos.",
+        "<b>SAVE TEMPLATE</b>: give it a name; it is saved in <b>E4L_Templates</b> (in REAPER's "
+        "resource folder) with its tracks, inputs, audio files, positions, movements and tempo.",
+        "<b>LOAD TEMPLATE</b>: lists the saved templates and opens the one you choose (REAPER asks "
+        "first if the current one has unsaved changes).",
+        "<b>NEW TEMPLATE</b>: a new live project from scratch.",
+        "For a concert: prepare one template per piece. Live, at the end of a piece press <b>LOAD "
+        "TEMPLATE</b> and choose the next one. Switching causes a short audio gap, and <b>loops "
+        "recorded live are not saved</b>: each template starts with empty loops.",
     ])
-    st.append(P("El editor de movimiento", "h2"))
-    st.append(P("El botón <b>MOVIMIENTO</b> de cada loop abre, en el mismo panel, todos los "
-                "controles de su efecto E4L, con nombres claros:"))
-    _img2 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "live_panel_editor.png")
+    st.append(P("The movement editor", "h2"))
+    _img2 = os.path.join(here, "live_panel_editor.png")
     if os.path.exists(_img2):
         st.append(Image(_img2, width=170 * mm, height=170 * mm * 560 / 1240))
         st.append(Spacer(1, 4))
     st.append(table([
-        ["Parte del editor", "Qué hace"],
-        ["<b>Efecto E4L</b> (menú)", "Elige el efecto de la pista: <b>Un punto</b> (Mono Panner), "
-         "<b>Dos puntos, izq. y der.</b> (Stereo Panner) o <b>Posición fija</b> (Source Panner, "
-         "sin animación). Al cambiar se conservan la posición y las animaciones."],
-        ["<b>Posición</b>", "<b>Dirección</b> (por ejemplo «45° derecha»), <b>Altura</b> y "
-         "<b>Distancia</b>, que muestra cuántos dB baja el volumen."],
-        ["<b>Giro automático</b>", "ACTIVADO/APAGADO · <b>Vuelta completa</b> o <b>Vaivén</b> · "
-         "<b>Velocidad libre</b> («1 vuelta cada 10 s») o <b>Al tempo</b> («1 vuelta cada 4 "
-         "compases») · <b>Horario/Antihorario</b> · <b>Amplitud</b> del vaivén."],
-        ["<b>Sube y baja</b>", "Animación de la altura: <b>Solo sube</b> o <b>Sube y baja</b>, "
-         "velocidad y amplitud. En cuadrafonía casi no se nota, porque no hay altavoces arriba."],
-        ["<b>Apertura estéreo</b>", "(Solo con «Dos puntos») <b>Separación</b> entre izquierda y "
-         "derecha y <b>Respira</b>: la imagen se abre y se cierra sola."],
-        ["<b>Movimientos rápidos</b>", "Un clic: <b>Quieto</b>, <b>Giro lento</b>, <b>Giro 4 compases</b>, "
-         "<b>Remolino</b>, <b>Vaivén adelante</b>, <b>Vaivén derecha</b>."],
+        ["Part of the editor", "What it does"],
+        ["<b>E4L effect</b> (menu)", "<b>One point</b> (Mono Panner), <b>Two points, left and "
+         "right</b> (Stereo Panner) or <b>Fixed position</b> (Source Panner, no animation). "
+         "Switching keeps the position and the animations."],
+        ["<b>Position</b>", "<b>Direction</b> (e.g. \"45° right\"), <b>Height</b> and "
+         "<b>Distance</b> (shown as dB of attenuation)."],
+        ["<b>Automatic rotation</b>", "ON/OFF · <b>Full turn</b> or <b>Swing</b> · <b>Free speed</b> "
+         "(\"1 turn every 10 s\") or <b>Tempo sync</b> (\"one turn every 4 bars\") · "
+         "<b>Clockwise / Counter-clockwise</b> · <b>Swing depth</b>."],
+        ["<b>Up and down</b>", "Height animation: <b>Up only</b> or <b>Up and down</b>, speed and "
+         "depth (barely audible in quad: no speakers above)."],
+        ["<b>Stereo width</b>", "(Two points only) <b>Left / right spread</b> and <b>Breathing</b>: "
+         "the image opens and closes by itself."],
+        ["<b>Quick movements</b>", "One click: <b>Still</b>, <b>Slow turn</b>, <b>4-bar turn</b>, "
+         "<b>Whirl</b>, <b>Front swing</b>, <b>Right swing</b>."],
     ], [45, 125]))
-    st.append(P("Controlarlo con teclado o con un controlador MIDI", "h2"))
+    st.append(P("Keyboard and MIDI control", "h2"))
     st += bullets([
-        "<b>Botón por loop (recomendado con un controlador):</b> en el looper de cada pista pulsa "
-        "<b>Param › Learn</b>, elige <b>Record</b> (o <b>Play</b>) y pulsa el botón del "
-        "controlador. Repite en cada loop.",
-        "<b>Con atajos de teclado:</b> carga también los scripts <b>E4L - Loop REC (selected "
-        "tracks)</b>, <b>E4L - Loop PLAY-STOP (selected tracks)</b> y <b>E4L - Loops STOP all</b>, "
-        "y asígnales una tecla (Actions › Add). REC y PLAY-STOP actúan sobre las pistas "
-        "seleccionadas.",
-        "<b>Metrónomo solo en auriculares:</b> en <b>Options › Metronome settings</b> envía "
-        "el metrónomo a las salidas de los auriculares (por ejemplo 7-8), no a la 1-4.",
+        "<b>One button per loop (best with a controller):</b> in a track's <b>E4L Looper</b> press "
+        "<b>Param › Learn</b>, choose <b>Record</b> (or <b>Play</b>) and press the controller "
+        "button. Repeat for each loop.",
+        "<b>Keyboard:</b> load <b>E4L - Loop REC (selected tracks)</b>, <b>E4L - Loop PLAY-STOP "
+        "(selected tracks)</b> and <b>E4L - Loops STOP all</b> and give them keys (Actions › Add).",
     ])
     st.append(box([
-        "• REAPER tiene que estar <b>reproduciendo</b>: el looper sigue la posición del proyecto. "
-        "No uses la repetición (repeat) de REAPER, salvo que su duración sea múltiplo de la de "
-        "los loops.",
-        "• Los loops <b>viven en la memoria del plugin</b> mientras REAPER está abierto: "
-        "<b>no se guardan al cerrar el proyecto</b>. Para conservar una sesión, expórtala "
-        "(sección 7) o graba la salida.",
-        "• Duración máxima de cada loop: unos 5 minutos a 48 kHz (de sobra para 32 compases).",
-        "• Si prefieres oír el sinte sin la latencia del ordenador, usa el <b>monitoreo directo</b> "
-        "de tu interfaz y baja el volumen de la pista SYNTH IN.",
-    ], kind="warn", title="A tener en cuenta"))
+        "• REAPER must be <b>playing</b>: the looper follows the project position. Do not use "
+        "REAPER's repeat unless its length is a multiple of the loops' length.",
+        "• Loops <b>live in the plug-in's memory</b> while REAPER is open: <b>they are not saved "
+        "with the project</b>. Render (section 7) to keep a performance.",
+        "• Maximum loop length: about 5 minutes at 48 kHz (plenty for 32 bars).",
+        "• To hear the synth without the computer's latency, use your interface's <b>direct "
+        "monitoring</b> and turn the SYNTH IN track down.",
+        "• If a loop is slightly early or late, adjust <b>Recording Latency Compensation</b> in its "
+        "E4L Looper (more ms if it sounds late).",
+    ], kind="warn", title="Good to know"))
 
     # 9
     st.append(PageBreak())
-    st.append(P("9. Solución de problemas", "h1"))
+    st.append(P("9. Troubleshooting", "h1"))
     st.append(table([
-        ["Problema", "Solución"],
-        ["Los plugins E4L no aparecen", "Comprueba que copiaste <b>Effects/E4L</b> dentro de la "
-         "carpeta de recursos (no en otra carpeta) y pulsa <b>F5</b> en el navegador de FX."],
-        ["No se oye nada", "La pista de audio debe tener <b>16 canales</b> y un envío a «E4L "
-         "Master». «E4L Master» debe tener el <b>Master send</b> activado. Revisa que Radius no "
-         "esté muy alto."],
-        ["Se oye muy bajo", "Baja <b>Radius</b> a 0,1 (ver sección 5)."],
-        ["Suena solo por 2 altavoces", "El master de REAPER debe tener <b>4 canales</b> y las "
-         "salidas de hardware 1/2 y 3/4 (sección 4, paso B). El Master Bus debe estar en "
-         "<b>Quad</b>."],
-        ["Los traseros están al revés", "Salida 3 = trasero <b>derecho</b> y salida 4 = trasero "
-         "<b>izquierdo</b>. Intercambia esos dos cables."],
-        ["Se oye el sonido también sin espacializar", "El <b>Master send</b> de la pista de audio "
-         "está activado: desactívalo (Route › Master send)."],
-        ["El looper dice «Press play in REAPER»", "Pulsa PLAY: el looper solo graba y "
-         "reproduce con el proyecto en marcha."],
-        ["El sinte sale por los altavoces", "Revisa que la pista SYNTH IN no tenga el Master send "
-         "activado y que el looper tenga <b>Input Thru</b> apagado."],
-        ["No oigo el sinte en los auriculares", "La pista SYNTH IN debe estar armada (botón rojo) "
-         "con el monitoreo activado. En el panel de la Mbox, los auriculares deben tomar las "
-         "salidas 7-8 del ordenador (sección 8)."],
-        ["El sub no suena", "El master de REAPER debe tener el plugin <b>E4L Sub Out</b>, "
-         "6 canales y una salida de hardware mono hacia la salida 5. El script <b>E4L - Add sub "
-         "to master</b> lo configura todo."],
-        ["El loop está un poco desfasado", "Ajusta <b>Recording Latency Compensation</b> en el "
-         "looper (sección 8)."],
-        ["El script da un error", "Copia el texto del error o haz una captura y envíamela."],
-        ["El Master Bus dice «HRIR filters not found»", "Solo afecta al modo binaural. Falta la "
-         "carpeta <b>Data/E4L/hrtf</b> en la carpeta de recursos."],
+        ["Problem", "Solution"],
+        ["The E4L plug-ins do not show up", "Check that <b>Effects/E4L</b> is inside the resource "
+         "folder and press <b>F5</b> (fn + F5) in the FX browser."],
+        ["Nothing is heard", "The track must have <b>16 channels</b> and a send to \"E4L Master\"; "
+         "\"E4L Master\" must have its <b>master send</b> on. Check that Radius is not too high."],
+        ["Too quiet", "Set <b>Radius</b> to 0.1 (section 5)."],
+        ["Only 2 speakers play", "REAPER's master needs <b>4 channels</b> (6 with the sub) and "
+         "hardware outputs 1/2 and 3/4 (section 4, step B). The Master Bus must be on <b>Quad</b>."],
+        ["The rear speakers are swapped", "Output 3 = rear <b>right</b>, output 4 = rear <b>left</b>. "
+         "Swap those two cables."],
+        ["The sound is also heard unspatialised", "The track's <b>master send</b> is on: switch it "
+         "off (Route › Master send)."],
+        ["A second input is heard but not recorded", "The loop's input button must show <b>ALL</b> "
+         "or the right <b>IN n</b>. Check the <b>IN</b> meter of that input at the top of the panel."],
+        ["The looper says \"Press play in REAPER\"", "Press PLAY: the looper only records and plays "
+         "while the project runs."],
+        ["The synth comes out of the speakers", "SYNTH IN must have its master send off, and the "
+         "looper's <b>Input Thru</b> must be off."],
+        ["The synth is not on the headphones", "SYNTH IN must be armed (red button) with "
+         "monitoring on; in the Mbox panel the headphones must take outputs 7-8 (section 8)."],
+        ["The sub is silent", "REAPER's master needs <b>E4L Sub Out</b>, 6 channels and a mono "
+         "hardware output to output 5: <b>E4L - Add sub to master</b> sets it all up."],
+        ["The panel did not change after an update", "Close the panel and run <b>E4L - Live Panel</b> "
+         "again (the new updater does it by itself)."],
+        ["A script shows an error", "Copy the error text or take a screenshot and send it."],
+        ["Master Bus says \"HRIR filters not found\"", "Binaural only: <b>Data/E4L/hrtf</b> is "
+         "missing in the resource folder."],
     ], [52, 118]))
 
-    # 9
+    # 10
     st.append(PageBreak())
-    st.append(KeepTogether([P("10. Referencia rápida de parámetros", "h1"),
+    st.append(KeepTogether([P("10. Quick parameter reference", "h1"),
                             P("E4L Master Bus", "h2"), table([
-        ["Parámetro", "Valores", "Recomendado para tu proyecto"],
+        ["Parameter", "Values", "Recommended here"],
         ["Decoder", "Binaural, Stereo, Quad, Octo, 5.1, 7.1, 5.1.2, 7.1.4, AmbiX", "<b>Quad</b>"],
         ["Order Weighting", "In-phase (E4L), max-rE, Basic", "<b>In-phase (E4L)</b>"],
         ["Ambisonics Order", "3rd order (16 ch), 1st order (4 ch)", "<b>3rd order</b>"],
-        ["Input Gain / Output Gain", "−70 a +6 dB", "0 dB; ajusta según necesites"],
-        ["Sub Output", "Sub propio del decodificador (0 = apagado)", "<b>0</b>: el sub va en el "
-         "master (E4L Sub Out)"],
+        ["Input / Output Gain", "−70 to +6 dB", "0 dB"],
+        ["Sub Output", "Decoder's own sub (0 = off)", "<b>0</b>: the sub is on the master (E4L Sub Out)"],
     ], [40, 80, 50])]))
     st.append(P("E4L Mono / Stereo / Quad Panner", "h2"))
     st.append(table([
-        ["Grupo", "Parámetros"],
-        ["Posición", "Azimuth (−180…180), Elevation (−90…90), Radius (0…1), Range (1…40)"],
-        ["Apertura (Stereo/Quad)", "Azimuth Spread, Elevation Spread, Azimuth Spread Mode (Quad)"],
-        ["LFO de azimut", "On/Off, Mode (Cycle/Sin), Time Mode (Freq/Sync), Frequency, Rate, "
-         "Sync, Direction, Depth"],
-        ["LFO de elevación", "On/Off, Polarity (Unipolar/Bipolar), Time Mode, Frequency, Rate, "
-         "Sync, Direction, Depth. No se necesita en cuadrafonía."],
-        ["LFO de apertura (Stereo/Quad)", "On/Off, Mode (Freq/Sync), Frequency, Sync, Depth"],
+        ["Group", "Parameters"],
+        ["Position", "Azimuth (−180…180), Elevation (−90…90), Radius (0…1), Range (1…40)"],
+        ["Width (Stereo/Quad)", "Azimuth Spread, Elevation Spread, Azimuth Spread Mode (Quad)"],
+        ["Azimuth LFO", "On/Off, Mode (Cycle/Sin), Time Mode (Freq/Sync), Frequency, Rate, Sync, "
+         "Direction, Depth"],
+        ["Elevation LFO", "On/Off, Polarity (Unipolar/Bipolar), Time Mode, Frequency, Rate, Sync, "
+         "Direction, Depth"],
+        ["Spread LFOs (Stereo/Quad)", "On/Off, Mode (Freq/Sync), Frequency, Sync, Depth"],
     ], [45, 125]))
-    st.append(P("E4L Sub Out (en el master de REAPER)", "h2"))
+    st.append(P("E4L Sub Out (on REAPER's master)", "h2"))
     st.append(table([
-        ["Parámetro", "Valores", "Recomendado"],
-        ["Sub Output (channel)", "1 a 16", "<b>5</b>"],
-        ["Sum of", "Canales 1-4 (quad), 1-2 o 1-6", "<b>1-4</b>"],
-        ["Sub Level (dB)", "−40 a +12", "0 dB; ajústalo a oído"],
-        ["Sub Low-pass (Hz)", "0 = sin filtro, o 40-250", "0 si el sub tiene filtro propio; si no, 80-120"],
+        ["Parameter", "Values", "Recommended"],
+        ["Sub Output (channel)", "1 to 16", "<b>5</b>"],
+        ["Sum of", "Channels 1-4 (quad), 1-2 or 1-6", "<b>1-4</b>"],
+        ["Sub Level (dB)", "−40 to +12", "0 dB; adjust by ear"],
+        ["Sub Low-pass (Hz)", "0 = off, or 40-250", "0 if the sub has a crossover; else 80-120"],
         ["Sub", "On / Muted", "On"],
     ], [45, 70, 55]))
     st.append(P("E4L Looper", "h2"))
     st.append(table([
-        ["Parámetro", "Valores"],
-        ["Length (bars)", "1, 2, 4, 8, 16, 32 compases"],
-        ["Record / Play / Overdub / Clear", "Botones (On/Off), cuantizados al compás"],
-        ["Loop Volume (dB)", "−60 a +12"],
+        ["Parameter", "Values"],
+        ["Length (bars)", "1, 2, 4, 8, 16, 32"],
+        ["Record / Play / Overdub / Clear", "Buttons, quantised to the bar"],
+        ["Loop Volume (dB)", "−60 to +12"],
         ["Input Thru", "Off / On"],
-        ["Recording Latency Compensation (ms)", "0 a 500"],
+        ["Recording Latency Compensation (ms)", "0 to 500 (set automatically)"],
     ], [60, 110]))
     st.append(Spacer(1, 8))
-    st.append(P("Envelop for Live © Envelop (envelop.us), Mark C. Slee y colaboradores. "
-                "Port para REAPER bajo licencia GNU GPL v2 o posterior. HRTF: IRCAM Listen. "
-                "Si E4L te resulta útil, considera apoyar a Envelop en envelop.us/memberships.",
-                "small"))
+    st.append(P("Envelop for Live © Envelop (envelop.us), Mark C. Slee and contributors. REAPER port "
+                "under the GNU GPL v2 or later. HRTFs: IRCAM Listen. If E4L is useful to you, consider "
+                "supporting Envelop at envelop.us/memberships.", "small"))
 
     def on_page(canvas, doc):
         canvas.saveState()
         canvas.setFont("DV", 8)
         canvas.setFillColor(GREY)
         if doc.page > 1:
-            canvas.drawString(20 * mm, 287 * mm, "Envelop for REAPER · Guía de cuadrafonía")
-            canvas.drawRightString(190 * mm, 10 * mm, "Página %d" % doc.page)
+            canvas.drawString(20 * mm, 287 * mm, "Enveloppe Live Reaper · User guide")
+            canvas.drawRightString(190 * mm, 10 * mm, "Page %d" % doc.page)
             canvas.setStrokeColor(colors.HexColor("#dddddd"))
             canvas.line(20 * mm, 285 * mm, 190 * mm, 285 * mm)
         canvas.restoreState()
 
     doc = SimpleDocTemplate(path, pagesize=A4, leftMargin=20 * mm, rightMargin=20 * mm,
                             topMargin=18 * mm, bottomMargin=16 * mm,
-                            title="Envelop for REAPER - Guía de cuadrafonía",
-                            author="KinoLab07", subject="Instalación y uso de los plugins E4L en REAPER")
+                            title="Enveloppe Live Reaper - User guide",
+                            author="KinoLab07", subject="Installing and using the E4L plug-ins in REAPER")
     doc.build(st, onFirstPage=on_page, onLaterPages=on_page)
 
 
 if __name__ == "__main__":
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Guia_E4L_REAPER_Cuadrafonia.pdf")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "E4L_REAPER_Guide.pdf")
     build(out)
     print("wrote", out)

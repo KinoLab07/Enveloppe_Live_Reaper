@@ -73,6 +73,6 @@ end
 
 reaper.Undo_EndBlock("E4L: add sub to master", -1)
 if E4L_SUB_QUIET == nil and fx >= 0 then
-  reaper.ShowMessageBox("Sub listo: todo lo que llega al master sale tambien por la salida " .. sub_ch ..
-    ".\nAjusta el nivel y el filtro en el plugin E4L Sub Out del master.", "E4L", 0)
+  reaper.ShowMessageBox("Sub ready: everything that reaches the master also goes to output " .. sub_ch ..
+    ".\nSet its level and low-pass in the E4L Sub Out plug-in on the master.", "E4L", 0)
 end

@@ -5,10 +5,10 @@
 --
 -- Track layout of a live project:
 --   SYNTH IN, SYNTH IN 2, ...   inputs from the interface (monitored, to the headphones only)
---   LOOP 1, LOOP 2, ...         E4L Looper + E4L panner, fed by one of the inputs
+--   LOOP 1, LOOP 2, ...         E4L Looper + E4L panner, fed by all the inputs (or one of them)
 --   AUDIO 1, AUDIO 2, ...       pre-recorded audio, looped on the timeline, + E4L panner
 --   E4L Master                  E4L Master Bus = Quad -> REAPER master (+ E4L Sub Out)
---   CUE (auriculares)           binaural copy for the headphones
+--   CUE (headphones)            binaural copy for the headphones
 
 local E = {}
 E.NCH = 16
@@ -65,7 +65,7 @@ function E.add_fx(track, file, desc)
     local idx = reaper.TrackFX_AddByName(track, name, false, -1)
     if idx >= 0 then return idx end
   end
-  E.msg("No se pudo cargar " .. file .. "\nCopia la carpeta Effects/E4L en la carpeta de recursos de REAPER.")
+  E.msg("Could not load " .. file .. "\nCopy the Effects/E4L folder into REAPER's resource folder.")
   return -1
 end
 
@@ -164,12 +164,13 @@ function E.add_input(in_ch, stereo, cue_ch)
   reaper.SetMediaTrackInfo_Value(tr, "I_RECMON", 1)
   reaper.SetMediaTrackInfo_Value(tr, "B_MAINSEND", 0)
   E.add_hw_out(tr, 0, (cue_ch or 7) - 1)
-  -- feeds every existing loop, muted: each loop chooses its input
-  for _, lp in ipairs(E.tracks_matching("^LOOP %d+$")) do E.add_send(tr, lp, 2, 3, #ins > 0) end
+  -- feeds every existing loop that records from ALL the inputs (the default);
+  -- loops set to one specific input get it muted
+  for _, lp in ipairs(E.tracks_matching("^LOOP %d+$")) do E.add_send(tr, lp, 2, 3, E.loop_input(lp) ~= 0) end
   return tr
 end
 
--- creates the next LOOP n (looper + panner), fed by the first input
+-- creates the next LOOP n (looper + panner), fed by all the inputs
 function E.add_loop(stereo_pan, lat_ms)
   local num = #E.tracks_matching("^LOOP %d+$") + 1
   local tr = E.new_track("LOOP " .. num, before_master())
@@ -178,23 +179,28 @@ function E.add_loop(stereo_pan, lat_ms)
   local lfx = E.add_fx(tr, "E4L Looper.jsfx", "E4L Looper (bar-synced live looper)")
   E.set_param(tr, lfx, "Recording Latency Compensation (ms)", lat_ms or 0)
   add_panner(tr, stereo_pan, E.SPREAD[(num - 1) % #E.SPREAD + 1])
-  for i, src in ipairs(E.synth_inputs()) do E.add_send(src, tr, 2, 3, i > 1) end
+  reaper.GetSetMediaTrackInfo_String(tr, "P_EXT:E4L_in", "all", true)
+  for _, src in ipairs(E.synth_inputs()) do E.add_send(src, tr, 2, 3, false) end
   local m = E.find_track("E4L Master")
   if m then E.add_send(tr, m, E.NCH, 0) end
   return tr
 end
 
--- which input feeds a loop (index in synth_inputs(), 0 = none)
+-- which input feeds a loop: 0 = ALL the inputs (default), k = only input k
 function E.loop_input(loop_tr)
-  for i, src in ipairs(E.synth_inputs()) do
-    local s = E.find_send(src, loop_tr)
-    if s >= 0 and reaper.GetTrackSendInfo_Value(src, 0, s, "B_MUTE") < 0.5 then return i end
-  end
-  return 0
+  local _, v = reaper.GetSetMediaTrackInfo_String(loop_tr, "P_EXT:E4L_in", "", false)
+  return tonumber(v) or 0
+end
+
+-- loops made by older versions have no stored choice: they become ALL
+function E.migrate_loop_input(loop_tr)
+  local _, v = reaper.GetSetMediaTrackInfo_String(loop_tr, "P_EXT:E4L_in", "", false)
+  if v == "" then E.set_loop_input(loop_tr, 0) end
 end
 
 function E.set_loop_input(loop_tr, k)
-  for i, src in ipairs(E.synth_inputs()) do E.add_send(src, loop_tr, 2, 3, i ~= k) end
+  reaper.GetSetMediaTrackInfo_String(loop_tr, "P_EXT:E4L_in", k == 0 and "all" or tostring(k), true)
+  for i, src in ipairs(E.synth_inputs()) do E.add_send(src, loop_tr, 2, 3, k ~= 0 and i ~= k) end
 end
 
 -- bar length in seconds at a time position
@@ -203,7 +209,7 @@ function E.bar_seconds(t)
   return (num or 4) * (4 / (denom or 4)) * 60 / (bpm or reaper.Master_GetTempo())
 end
 
--- pre-recorded audio: AUDIO n track with a looped item from bar 1, muted until SONAR
+-- pre-recorded audio: AUDIO n track with a looped item from bar 1, muted until PLAY
 function E.add_audio(file, stereo_pan)
   local num = #E.tracks_matching("^AUDIO %d+$") + 1
   local tr = E.new_track("AUDIO " .. num, before_master())

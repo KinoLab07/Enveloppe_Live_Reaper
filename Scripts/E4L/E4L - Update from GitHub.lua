@@ -11,7 +11,7 @@ local ZIP    = "https://github.com/" .. REPO .. "/archive/refs/heads/" .. BRANCH
 local API    = "https://api.github.com/repos/" .. REPO .. "/commits/" .. BRANCH
 local EXT    = "E4L_Update"
 
-local function msg(s) reaper.ShowMessageBox(s, "E4L - Actualizar", 0) end
+local function msg(s) reaper.ShowMessageBox(s, "E4L - Update", 0) end
 
 local is_win = reaper.GetOS():match("^Win") ~= nil
 local res = reaper.GetResourcePath()
@@ -23,7 +23,7 @@ local function run(script_text)
   -- writes a small shell / PowerShell script and runs it; returns its output
   local path = tmp .. (is_win and "_run.ps1" or "_run.sh")
   local f = io.open(path, "w")
-  if not f then return nil, "No se puede escribir en " .. path end
+  if not f then return nil, "Cannot write to " .. path end
   f:write(script_text); f:close()
   local cmd = is_win and ('powershell -NoProfile -ExecutionPolicy Bypass -File "' .. path .. '"')
                       or ('/bin/sh "' .. path .. '"')
@@ -47,8 +47,8 @@ end
 local sha = latest_sha()
 local installed = reaper.GetExtState(EXT, "sha")
 if sha and sha == installed then
-  local r = reaper.ShowMessageBox("Ya tienes la última versión (" .. sha:sub(1, 7) .. ").\n\n" ..
-                                  "¿Reinstalar igualmente?", "E4L - Actualizar", 4)
+  local r = reaper.ShowMessageBox("You already have the latest version (" .. sha:sub(1, 7) .. ").\n\n" ..
+                                  "Reinstall anyway?", "E4L - Update", 4)
   if r ~= 6 then return end
 end
 
@@ -67,7 +67,7 @@ if is_win then
     '  New-Item -ItemType Directory -Force "$res\\$d" | Out-Null',
     '  Copy-Item -Recurse -Force "$($src.FullName)\\$d\\*" "$res\\$d\\"',
     '}',
-    'Copy-Item -Force "$($src.FullName)\\docs\\Guia_E4L_REAPER_Cuadrafonia.pdf" "$res\\Data\\E4L\\"',
+    'Copy-Item -Force "$($src.FullName)\\docs\\*.pdf" "$res\\Data\\E4L\\"',
     'Remove-Item -Recurse -Force $tmp',
     'Write-Output "E4L_OK"',
   }, "\n") .. "\n")
@@ -83,7 +83,7 @@ else
     '  mkdir -p "$RES/$d"',
     '  cp -R "$SRC/$d/." "$RES/$d/"',
     'done',
-    'cp "$SRC/docs/Guia_E4L_REAPER_Cuadrafonia.pdf" "$RES/Data/E4L/" 2>/dev/null || true',
+    'cp "$SRC"/docs/*.pdf "$RES/Data/E4L/" 2>/dev/null || true',
     'rm -rf "$TMP"',
     'echo E4L_OK',
   }, "\n") .. "\n")
@@ -94,9 +94,9 @@ local function reopen_project_and_panel(panel_was_open)
   local _, path = reaper.EnumProjects(-1, "")
   if path and path ~= "" then
     local r = reaper.ShowMessageBox(
-      "¿Volver a abrir el proyecto para cargar los plugins nuevos?\n\n" ..
-      "(Si tiene cambios sin guardar, REAPER te preguntará. Los loops grabados en memoria se pierden.)",
-      "E4L - Actualizar", 4)
+      "Reopen the project to load the new plug-ins?\n\n" ..
+      "(REAPER asks first if it has unsaved changes. Loops recorded in memory are lost.)",
+      "E4L - Update", 4)
     if r == 6 then reaper.Main_openProject(path) end
   end
   -- 2. the panel: open the new version
@@ -117,11 +117,11 @@ if out and out:find("E4L_OK", 1, true) then
   local alive = tonumber(reaper.GetExtState("E4L_LivePanel", "alive")) or 0
   local panel_open = reaper.time_precise() - alive < 1.5
   if panel_open then reaper.SetExtState("E4L_LivePanel", "quit", "1", false) end
-  msg("E4L actualizado" .. (sha and (" (versión " .. sha:sub(1, 7) .. ")") or "") .. ".\n\n" ..
-      "• La guía en PDF quedó en: " .. res .. sep .. "Data" .. sep .. "E4L" ..
-      (panel_open and "\n• El Live Panel se vuelve a abrir con la versión nueva." or ""))
+  msg("E4L updated" .. (sha and (" (version " .. sha:sub(1, 7) .. ")") or "") .. ".\n\n" ..
+      "• The PDF guide is in: " .. res .. sep .. "Data" .. sep .. "E4L" ..
+      (panel_open and "\n• The Live Panel reopens with the new version." or ""))
   reopen_project_and_panel(panel_open)
 else
-  msg("No se pudo actualizar.\n\nComprueba la conexión a internet y vuelve a intentarlo.\n\n" ..
-      "Detalle:\n" .. tostring(out or "sin respuesta"):sub(1, 600))
+  msg("The update failed.\n\nCheck the internet connection and try again.\n\n" ..
+      "Details:\n" .. tostring(out or "no answer"):sub(1, 600))
 end

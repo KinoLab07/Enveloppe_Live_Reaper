@@ -7,7 +7,7 @@
 --                     and plays the loop in sync, spatialised, to "E4L Master".
 --   E4L Master        E4L Master Bus = Quad -> REAPER master -> outputs 1-4.
 --   MASTER            "E4L Sub Out": the sum of everything on the master -> sub output.
---   CUE (auriculares) binaural copy of the loops, to the headphone outputs.
+--   CUE (headphones)  binaural copy of the loops, to the headphone outputs.
 --
 -- Headphones: choose an output pair that is not a speaker, e.g. 7-8 on an Mbox Pro, and in the
 -- interface's control panel set the headphone output source to that pair.
@@ -63,9 +63,9 @@ set_param(e4l, fx, "Decoder", 2)              -- Quad
 set_param(e4l, fx, "Sub Output (channel, 0 = off)", 0)   -- the sub is fed from the master
 
 -- CUE: binaural copy of the loops for the headphones
-local cue = find_track("CUE (auriculares)")
+local cue = find_track("CUE (headphones)") or find_track("CUE (auriculares)")   -- older name
 if not cue then
-  cue = new_track("CUE (auriculares)")
+  cue = new_track("CUE (headphones)")
   reaper.SetMediaTrackInfo_Value(cue, "I_NCHAN", NCH)
   reaper.SetMediaTrackInfo_Value(cue, "B_MAINSEND", 0)
   local cfx = add_fx(cue, "E4L Master Bus.jsfx", "E4L Master Bus (3rd order ambisonics decoder)")
@@ -97,10 +97,10 @@ if sub_ch > 0 and not E4L_TEMPLATE_NO_SUB then
 end
 
 if not E4L_TEMPLATE_QUIET then msg(string.format(
-  "Listo: %d pistas LOOP.\n\n" ..
-  "Auriculares: salidas %d-%d (SYNTH IN + CUE binaural).\n" ..
-  "Asigna esas salidas a los auriculares en el panel de control de la interfaz.\n" ..
-  "Cuadrafonia: salidas 1-4.%s\n" ..
-  "Compensacion de latencia de grabacion: %.1f ms.\n\n" ..
-  "Pulsa PLAY en REAPER y graba desde el E4L Live Panel.",
-  n_loops, cue_ch, cue_ch + 1, sub_ch > 0 and ("  Sub: salida " .. sub_ch .. ".") or "", lat_ms)) end
+  "Done: %d LOOP tracks.\n\n" ..
+  "Headphones: outputs %d-%d (SYNTH IN + binaural CUE).\n" ..
+  "Route those outputs to the headphones in the interface's control panel.\n" ..
+  "Quadraphony: outputs 1-4.%s\n" ..
+  "Recording latency compensation: %.1f ms.\n\n" ..
+  "Press play in REAPER and record from the E4L Live Panel.",
+  n_loops, cue_ch, cue_ch + 1, sub_ch > 0 and ("  Sub: output " .. sub_ch .. ".") or "", lat_ms)) end

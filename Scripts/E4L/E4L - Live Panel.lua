@@ -3,13 +3,13 @@
 --
 --   * big bar / beat counter, tempo and time signature, play / stop
 --   * one row per track with an "E4L Looper": state, length, record / play / overdub / clear,
---     loop position with its bars, and a MOVIMIENTO button
---   * MOVIMIENTO opens the movement editor of that loop: which E4L effect, position,
+--     loop position with its bars, and a MOVEMENT button
+--   * MOVEMENT opens the movement editor of that loop: which E4L effect, position,
 --     automatic rotation (azimuth LFO), up and down (elevation LFO), stereo width and its
 --     "breathing" (spread LFO), and quick presets. No need to open the plugins.
 --   * room view (seen from above) with every loop: drag a dot to move that loop
---   * toolbar: + LOOP, + AUDIO (pre-recorded file, looped in sync), + ENTRADA (another input
---     of the interface), GUARDAR / CARGAR TEMPLATE (set-ups saved as templates), NUEVO TEMPLATE
+--   * toolbar: + LOOP, + AUDIO (pre-recorded file, looped in sync), + INPUT (another input
+--     of the interface), SAVE / LOAD TEMPLATE (set-ups saved as templates), NEW TEMPLATE
 --
 -- Keys: Space = play / stop, 1-9 = record on loop 1-9, 0 = stop all loops, Esc = close editor.
 -- Right-click the header to dock / undock the panel inside REAPER.
@@ -44,16 +44,16 @@ local function setp(tr, fx, p, v) if fx >= 0 and p and p >= 0 then reaper.TrackF
 
 local LENGTHS = { 1, 2, 4, 8, 16, 32 }
 local SYNC_LABELS = { "1/4", "1/2", "1", "2", "3", "4", "6", "8", "16", "32", "64" }
-local STATE_NAME = { [0] = "VACÍO", "ESPERANDO", "GRABANDO", "SONANDO", "PARADO" }
+local STATE_NAME = { [0] = "EMPTY", "WAITING", "RECORDING", "PLAYING", "STOPPED" }
 
 -- E4L effects that can follow the looper
 local EFFECTS = {
   { key = "Mono",   file = "E4L Mono Panner.jsfx",   desc = "E4L Mono Panner (3rd order ambisonics)",
-    label = "Un punto (Mono Panner)" },
+    label = "One point (Mono Panner)" },
   { key = "Stereo", file = "E4L Stereo Panner.jsfx", desc = "E4L Stereo Panner (3rd order ambisonics)",
-    label = "Dos puntos, izq. y der. (Stereo Panner)" },
+    label = "Two points, left and right (Stereo Panner)" },
   { key = "Source", file = "E4L Source Panner.jsfx", desc = "E4L Source Panner (3rd order ambisonics)",
-    label = "Posición fija, sin animación (Source Panner)" },
+    label = "Fixed position, no animation (Source Panner)" },
 }
 
 local function effect_of(name)
@@ -65,6 +65,7 @@ end
 -- scan the project for loopers (cached, refreshed twice a second)
 local loops, last_scan = {}, -1
 n_inputs = 1
+inputs = {}
 
 local function scan()
   local list = {}
@@ -82,7 +83,7 @@ local function scan()
       local pn = param_names(tr, pfx)
       local _, bars = reaper.GetSetMediaTrackInfo_String(tr, "P_EXT:E4L_bars", "", false)
       list[#list + 1] = {
-        kind = "audio", tr = tr, name = tname ~= "" and tname or ("Pista " .. (t + 1)), lfx = -1, pfx = pfx,
+        kind = "audio", tr = tr, name = tname ~= "" and tname or ("Track " .. (t + 1)), lfx = -1, pfx = pfx,
         effect = effect_of(pname), pn = pn, bars = tonumber(bars) or 0,
         p = { az = pn["Azimuth"] or -1, cur_az = pn["Current Azimuth"] or -1 },
       }
@@ -91,9 +92,10 @@ local function scan()
       local _, tname = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
       local ln = param_names(tr, lfx)
       local pn = pfx >= 0 and param_names(tr, pfx) or {}
+      E4L.migrate_loop_input(tr)
       list[#list + 1] = {
         kind = "loop", input = E4L.loop_input(tr),
-        tr = tr, name = tname ~= "" and tname or ("Pista " .. (t + 1)), lfx = lfx, pfx = pfx,
+        tr = tr, name = tname ~= "" and tname or ("Track " .. (t + 1)), lfx = lfx, pfx = pfx,
         effect = pfx >= 0 and effect_of(pname) or 0, pn = pn,
         p = {
           len = find_prefix(ln, "Length"), rec = ln["Record"], play = ln["Play"],
@@ -106,7 +108,8 @@ local function scan()
     end
   end
   loops = list
-  n_inputs = #E4L.synth_inputs()
+  inputs = E4L.synth_inputs()
+  n_inputs = #inputs
 end
 
 ---------------------------------------------------------------------------------------
@@ -175,25 +178,26 @@ end
 local function az_text(a)
   a = ((a + 180) % 360) - 180
   local r = math.floor(a + 0.5)
-  if math.abs(r) <= 2 then return "0°  frente" end
-  if math.abs(r) >= 178 then return "180°  atrás" end
-  return string.format("%d°  %s", math.abs(r), r > 0 and "derecha" or "izquierda")
+  if math.abs(r) <= 2 then return "0°  front" end
+  if math.abs(r) >= 178 then return "180°  back" end
+  return string.format("%d°  %s", math.abs(r), r > 0 and "right" or "left")
 end
 
 local function el_text(e)
   local r = math.floor(e + 0.5)
-  if r == 0 then return "0°  a la altura del oído" end
-  return string.format("%d°  %s", math.abs(r), r > 0 and "arriba" or "abajo")
+  if r == 0 then return "0°  ear level" end
+  return string.format("%d°  %s", math.abs(r), r > 0 and "up" or "down")
 end
 
 local function dist_text(radius, range)
   local d = radius * range
   local db = d < 1 and 0 or -1.5 * (d - 1)
-  if d < 1 then return string.format("%.2f  (muy cerca, volumen pleno)", d) end
+  if d < 0.999 then return string.format("%.2f  (very close, full level)", d) end
+  if d < 1.05 then return string.format("%.1f  (full level)", d) end
   return string.format("%.1f  (%.1f dB)", d, db)
 end
 
-local function speed_text(hz) if hz <= 0 then return "-" end return string.format("1 vuelta cada %.1f s", 1 / hz) end
+local function speed_text(hz) if hz <= 0 then return "-" end return string.format("1 turn every %.1f s", 1 / hz) end
 
 ---------------------------------------------------------------------------------------
 -- changing the E4L effect of a loop: replace the panner, keep the shared settings
@@ -219,23 +223,23 @@ local function set_effect(L, idx)
     if keep["Azimuth Spread"] and names["Azimuth-Spread"] then setp(L.tr, fx, names["Azimuth-Spread"], keep["Azimuth Spread"]) end
     if names["Coordinate Mode"] then setp(L.tr, fx, names["Coordinate Mode"], 1) end   -- polar
   end
-  reaper.Undo_EndBlock("E4L: efecto espacial de " .. L.name, -1)
+  reaper.Undo_EndBlock("E4L: spatial effect of " .. L.name, -1)
   last_scan = -1
 end
 
 -- quick movement presets (Mono / Stereo panners)
 local PRESETS = {
-  { "Quieto", { ["Azimuth LFO On/Off"] = 0, ["Elevation LFO On/Off"] = 0, ["Azimuth Spread LFO On/Off"] = 0 } },
-  { "Giro lento", { ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 0, ["Azimuth LFO Time Mode"] = 0,
+  { "Still", { ["Azimuth LFO On/Off"] = 0, ["Elevation LFO On/Off"] = 0, ["Azimuth Spread LFO On/Off"] = 0 } },
+  { "Slow turn", { ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 0, ["Azimuth LFO Time Mode"] = 0,
                     ["Azimuth LFO Frequency (Hz)"] = 0.1, ["Azimuth LFO Rate"] = 1 } },
-  { "Giro 4 compases", { ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 0, ["Azimuth LFO Time Mode"] = 1,
+  { "4-bar turn", { ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 0, ["Azimuth LFO Time Mode"] = 1,
                          ["Azimuth LFO Sync (bars)"] = 5, ["Azimuth LFO Direction"] = 0 } },
-  { "Remolino", { ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 0, ["Azimuth LFO Time Mode"] = 0,
+  { "Whirl", { ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 0, ["Azimuth LFO Time Mode"] = 0,
                   ["Azimuth LFO Frequency (Hz)"] = 1, ["Azimuth LFO Rate"] = 1 } },
-  { "Vaivén adelante", { ["Azimuth"] = 0, ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 1,
+  { "Front swing", { ["Azimuth"] = 0, ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 1,
                          ["Azimuth LFO Time Mode"] = 0, ["Azimuth LFO Frequency (Hz)"] = 0.25,
                          ["Azimuth LFO Rate"] = 1, ["Azimuth LFO Depth"] = 45 } },
-  { "Vaivén derecha", { ["Azimuth"] = 90, ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 1,
+  { "Right swing", { ["Azimuth"] = 90, ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 1,
                         ["Azimuth LFO Time Mode"] = 0, ["Azimuth LFO Frequency (Hz)"] = 0.25,
                         ["Azimuth LFO Rate"] = 1, ["Azimuth LFO Depth"] = 45 } },
 }
@@ -260,7 +264,7 @@ end
 ---------------------------------------------------------------------------------------
 local editing = nil   -- index of the loop whose movement editor is open
 
--- audio tracks: SONAR / SILENCIO switch on the next bar, like the loops
+-- audio tracks: PLAY / MUTE switch on the next bar, like the loops
 local pend_mute, last_bar = {}, nil
 local function apply_pending(tp)
   if (not tp.playing) or (last_bar and tp.bar ~= last_bar) then
@@ -284,48 +288,48 @@ local function act_add_loop()
   local tr = E4L.add_loop(E4L.cfg_get("stereo_pan", 0) == 1, E4L.cfg_get("lat_ms", E4L.latency_ms()))
   reaper.Undo_EndBlock("E4L: + loop", -1)
   last_scan = -1
-  status(E4L.track_name(tr) .. " agregado.")
+  status(E4L.track_name(tr) .. " added.")
 end
 
 local function act_add_audio()
-  local ok, file = reaper.GetUserFileNameForRead("", "Elige un audio pregrabado", "wav;aif;aiff;mp3;flac;ogg")
+  local ok, file = reaper.GetUserFileNameForRead("", "Choose a pre-recorded audio file", "wav;aif;aiff;mp3;flac;ogg")
   if not ok or file == "" then return end
   reaper.Undo_BeginBlock()
   local tr, bars = E4L.add_audio(file, true)
   reaper.Undo_EndBlock("E4L: + audio", -1)
   last_scan = -1
-  status(E4L.track_name(tr) .. (bars > 0 and (": " .. bars .. " compases, ajustado al tempo") or
-         ": no dura compases enteros, suena a su velocidad") .. ". Pulsa SONAR para que entre.")
+  status(E4L.track_name(tr) .. (bars > 0 and (": " .. bars .. " bars, fitted to the tempo") or
+         ": not a whole number of bars, plays at its own speed") .. ". Press PLAY to bring it in.")
 end
 
 local function act_add_input()
   local ins = E4L.synth_inputs()
-  local ok, csv = reaper.GetUserInputs("Nueva entrada", 2,
-    "Entrada de la interfaz (canal),1 mono 2 estéreo", tostring(#ins + 1) .. ",1")
+  local ok, csv = reaper.GetUserInputs("New input", 2,
+    "Interface input (channel),1 mono 2 stereo", tostring(#ins + 1) .. ",1")
   if not ok then return end
   local ch, st = csv:match("^%s*(%d+)%s*,%s*(%d+)")
   if not ch then return end
   reaper.Undo_BeginBlock()
   local tr = E4L.add_input(tonumber(ch), tonumber(st) == 2, E4L.cfg_get("cue_ch", 7))
-  reaper.Undo_EndBlock("E4L: + entrada", -1)
+  reaper.Undo_EndBlock("E4L: + input", -1)
   last_scan = -1
-  status(E4L.track_name(tr) .. " (entrada " .. ch .. ") agregada. Elige en cada loop su entrada con el botón ENT.")
+  status(E4L.track_name(tr) .. " (input " .. ch .. ") added. Loops set to ALL record it; IN n = one input only.")
 end
 
 local function act_save_song()
   local _, dir = E4L.list_songs()
   local cur = reaper.GetProjectName(0, ""):gsub("%.[Rr][Pp][Pp]$", "")
-  local ok, name = reaper.GetUserInputs("Guardar template", 1, "Nombre del template,extrawidth=150",
+  local ok, name = reaper.GetUserInputs("Save template", 1, "Template name,extrawidth=150",
                                         cur ~= "" and cur or "Template 1")
   if not ok or name == "" then return end
   name = name:gsub("[/\\:%*%?\"<>|]", "-")
   reaper.Main_SaveProjectEx(0, dir .. "/" .. name .. ".RPP", 0)
-  status("Template «" .. name .. "» guardado (pistas, posiciones, movimientos y tempo).")
+  status("Template \"" .. name .. "\" saved (tracks, positions, movements and tempo).")
 end
 
 local function act_load_song()
   local songs, dir = E4L.list_songs()
-  if #songs == 0 then status("Todavía no hay templates guardados.") return end
+  if #songs == 0 then status("No saved templates yet.") return end
   local items = {}
   for i, f in ipairs(songs) do items[i] = f:gsub("%.[Rr][Pp][Pp]$", "") end
   gfx.x, gfx.y = gfx.mouse_x, gfx.mouse_y
@@ -333,7 +337,7 @@ local function act_load_song()
   if m > 0 then
     reaper.Main_openProject(dir .. "/" .. songs[m])
     editing = nil; last_scan = -1
-    status("Template «" .. items[m] .. "» cargado. Los loops empiezan vacíos.")
+    status("Template \"" .. items[m] .. "\" loaded. Loops start empty.")
   end
 end
 
@@ -347,9 +351,9 @@ end
 local function draw_toolbar(W)
   local y, h = 80, 28
   local items = {
-    { "+ LOOP", 80, act_add_loop }, { "+ AUDIO", 84, act_add_audio }, { "+ ENTRADA", 96, act_add_input },
-    { "GUARDAR TEMPLATE", 166, act_save_song }, { "CARGAR TEMPLATE", 156, act_load_song },
-    { "NUEVO TEMPLATE", 148, act_new_song },
+    { "+ LOOP", 80, act_add_loop }, { "+ AUDIO", 84, act_add_audio }, { "+ INPUT", 84, act_add_input },
+    { "SAVE TEMPLATE", 140, act_save_song }, { "LOAD TEMPLATE", 140, act_load_song },
+    { "NEW TEMPLATE", 130, act_new_song },
   }
   local x = 8
   for _, it in ipairs(items) do
@@ -367,7 +371,7 @@ local function draw_header(tp, W)
   rgb(tp.playing and 0.35 or 0.7, tp.playing and 0.95 or 0.7, tp.playing and 0.5 or 0.75)
   text(string.format("%d . %d", tp.bar, tp.beat), 14, 6)
   gfx.setfont(1)
-  rgb(0.6, 0.6, 0.65); text("compás . tiempo", 16, 54)
+  rgb(0.6, 0.6, 0.65); text("bar . beat", 16, 54)
 
   local bx, bw, gap = 200, 26, 5
   for i = 1, tp.bpb do
@@ -382,15 +386,30 @@ local function draw_header(tp, W)
     if i == phrase then rgb(0.5, 0.75, 1) else rgb(0.25, 0.25, 0.3) end
     rect(bx + (i - 1) * 30, 44, 26, 8)
   end
-  rgb(0.6, 0.6, 0.65); text("frase de 4 compases", bx + 128, 41)
+  rgb(0.6, 0.6, 0.65); text("4-bar phrase", bx + 128, 41)
+
+  -- input level meters: is the synth reaching REAPER?
+  local mx = bx + 250
+  for k, tr in ipairs(inputs) do
+    local x = mx + (k - 1) * 104
+    if x + 96 > W - 360 then break end
+    local pk = math.max(reaper.Track_GetPeakInfo(tr, 0), reaper.Track_GetPeakInfo(tr, 1))
+    local db = pk > 0 and 20 * math.log(pk, 10) or -90
+    local f = math.max(0, math.min(1, (db + 60) / 60))
+    rgb(0.6, 0.6, 0.65); text("IN " .. k, x, 14)
+    rgb(0.2, 0.2, 0.24); rect(x + 34, 17, 60, 10)
+    if db > -3 then rgb(1, 0.3, 0.3) elseif db > -12 then rgb(1, 0.8, 0.3) else rgb(0.35, 0.95, 0.5) end
+    rect(x + 34, 17, 60 * f, 10)
+  end
+  if n_inputs > 0 then rgb(0.5, 0.5, 0.55); text("inputs", mx, 30) end
 
   local rx = math.max(bx + tp.bpb * (bw + gap) + 20, W - 350)
   rgb(0.85, 0.85, 0.9)
   text(string.format("%.1f BPM   %d/%d", tp.bpm, tp.num, tp.denom), rx, 12)
-  if button(tp.playing and "DETENER" or "INICIAR", rx, 36, 96, 28, tp.playing, 0.35, 0.95, 0.5) then
+  if button(tp.playing and "STOP" or "PLAY", rx, 36, 96, 28, tp.playing, 0.35, 0.95, 0.5) then
     reaper.Main_OnCommand(40044, 0)              -- Transport: Play/stop
   end
-  if button("PARAR TODOS LOS LOOPS", rx + 104, 36, 200, 28, false) then
+  if button("STOP ALL LOOPS", rx + 104, 36, 200, 28, false) then
     for _, L in ipairs(loops) do
       if L.kind == "loop" then setp(L.tr, L.lfx, L.p.play, 0) else pend_mute[L.tr] = 1 end
     end
@@ -402,7 +421,7 @@ local function draw_rows(tp, x0, y0, W, H)
   gfx.setfont(1)
   if #loops == 0 then
     rgb(0.7, 0.7, 0.75)
-    text("No hay loops todavía. Pulsa «NUEVO TEMPLATE» o «+ LOOP».", x0, y0 + 10)
+    text("No loops yet. Press NEW TEMPLATE or + LOOP.", x0, y0 + 10)
     return
   end
   local col = { [0] = { 0.4, 0.4, 0.45 }, { 1, 0.6, 0.2 }, { 1, 0.3, 0.3 }, { 0.35, 0.95, 0.5 }, { 0.55, 0.7, 0.9 } }
@@ -426,34 +445,35 @@ local function draw_rows(tp, x0, y0, W, H)
       rgb(c[1], c[2], c[3], blink and 0.45 or 1); rect(x0 + 110, y + 6, 96, bh)
       rgb(0.05, 0.05, 0.05)
       local label = STATE_NAME[st] or "?"
-      if pend == 1 then label = "→ SONAR" elseif pend == 2 then label = "→ PARAR" end
+      if pend == 1 then label = "→ PLAY" elseif pend == 2 then label = "→ STOP" end
       text(label, x0 + 110, y + 6, 96, bh, 1)
 
       local li = math.floor(getp(L.tr, L.lfx, L.p.len) + 0.5)
       local nl = LENGTHS[li + 1] or 4
-      if button(nl .. (nl == 1 and " compás" or " comp."), x0 + 212, y + 6, 74, bh, false) then
+      if button(nl .. (nl == 1 and " bar" or " bars"), x0 + 212, y + 6, 74, bh, false) then
         setp(L.tr, L.lfx, L.p.len, (li + 1) % #LENGTHS)
       end
       -- input of the interface that feeds this loop (click to change)
-      if button("ENT " .. (L.input > 0 and L.input or "-"), x0 + 290, y + 6, 50, bh, false) and n_inputs > 0 then
-        local k = L.input % n_inputs + 1
+      -- ALL = records every input of the interface; IN n = only that input (click to change)
+      if button(L.input == 0 and "ALL" or ("IN " .. L.input), x0 + 290, y + 6, 50, bh, false) then
+        local k = (L.input + 1) % (n_inputs + 1)
         E4L.set_loop_input(L.tr, k); L.input = k
       end
 
       local bx = x0 + 344
-      if button("GRABAR", bx, y + 6, 66, bh, st == 1 or st == 2, 1, 0.3, 0.3) then
+      if button("REC", bx, y + 6, 60, bh, st == 1 or st == 2, 1, 0.3, 0.3) then
         setp(L.tr, L.lfx, L.p.rec, getp(L.tr, L.lfx, L.p.rec) > 0.5 and 0 or 1)
       end
       local play_on = getp(L.tr, L.lfx, L.p.play) > 0.5
-      if button("SONAR", bx + 70, y + 6, 60, bh, play_on, 0.35, 0.95, 0.5) then
+      if button("PLAY", bx + 64, y + 6, 56, bh, play_on, 0.35, 0.95, 0.5) then
         setp(L.tr, L.lfx, L.p.play, play_on and 0 or 1)
       end
       local od = getp(L.tr, L.lfx, L.p.odub) > 0.5
-      if button("CAPA", bx + 134, y + 6, 50, bh, od, 1, 0.75, 0.2) then
+      if button("OVERDUB", bx + 124, y + 6, 78, bh, od, 1, 0.75, 0.2) then
         setp(L.tr, L.lfx, L.p.odub, od and 0 or 1)
       end
-      if button("BORRAR", bx + 188, y + 6, 64, bh, false) then setp(L.tr, L.lfx, L.p.clear, 1) end
-      if button("MOVIMIENTO", bx + 256, y + 6, 100, bh, editing == i, 0.45, 0.75, 1) then
+      if button("CLEAR", bx + 206, y + 6, 50, bh, false) then setp(L.tr, L.lfx, L.p.clear, 1) end
+      if button("MOVEMENT", bx + 260, y + 6, 96, bh, editing == i, 0.45, 0.75, 1) then
         editing = (editing == i) and nil or i
       end
       if pw > 30 then
@@ -469,23 +489,23 @@ local function draw_rows(tp, x0, y0, W, H)
         for k = 1, nb - 1 do gfx.line(px + pw * k / nb, y + 10, px + pw * k / nb, y + rowh - 15) end
       end
     else
-      -- pre-recorded audio: SONAR / SILENCIO on the next bar
+      -- pre-recorded audio: PLAY / MUTE on the next bar
       local muted = reaper.GetMediaTrackInfo_Value(L.tr, "B_MUTE") > 0.5
       local pm = pend_mute[L.tr]
       local c = muted and col[0] or col[3]
       rgb(c[1], c[2], c[3], (pm ~= nil and blink_on) and 0.45 or 1); rect(x0 + 110, y + 6, 96, bh)
       rgb(0.05, 0.05, 0.05)
-      local label = muted and "SILENCIO" or "SONANDO"
-      if pm == 0 then label = "→ SONAR" elseif pm == 1 then label = "→ SILENCIO" end
+      local label = muted and "MUTED" or "PLAYING"
+      if pm == 0 then label = "→ PLAY" elseif pm == 1 then label = "→ MUTE" end
       text(label, x0 + 110, y + 6, 96, bh, 1)
       rgb(0.7, 0.7, 0.75)
-      text(L.bars > 0 and ("audio · " .. L.bars .. " comp.") or "audio", x0 + 212, y + 6, 128, bh)
+      text(L.bars > 0 and ("audio · " .. L.bars .. " bars") or "audio", x0 + 212, y + 6, 128, bh)
       local bx = x0 + 344
       local want_on = (pm ~= nil) and (pm == 0) or (pm == nil and not muted)
-      if button("SONAR", bx + 70, y + 6, 60, bh, want_on, 0.35, 0.95, 0.5) then
+      if button("PLAY", bx + 64, y + 6, 56, bh, want_on, 0.35, 0.95, 0.5) then
         pend_mute[L.tr] = want_on and 1 or 0
       end
-      if button("MOVIMIENTO", bx + 256, y + 6, 100, bh, editing == i, 0.45, 0.75, 1) then
+      if button("MOVEMENT", bx + 260, y + 6, 96, bh, editing == i, 0.45, 0.75, 1) then
         editing = (editing == i) and nil or i
       end
       if pw > 30 then
@@ -513,14 +533,14 @@ local function draw_editor(x0, y0, W, H)
 
   rgb(0.12, 0.12, 0.15); rect(x0, y0, W, H)
   gfx.setfont(3)
-  rgb(0.9, 0.9, 0.95); text("Movimiento · " .. L.name, x0 + 10, y0 + 8)
+  rgb(0.9, 0.9, 0.95); text("Movement · " .. L.name, x0 + 10, y0 + 8)
   gfx.setfont(1)
-  if button("← VOLVER A LOS LOOPS", x0 + W - 190, y0 + 8, 180, 26, false) then editing = nil return end
+  if button("← BACK TO THE LOOPS", x0 + W - 190, y0 + 8, 180, 26, false) then editing = nil return end
 
   -- effect selector
-  rgb(0.85, 0.85, 0.9); text("Efecto E4L:", x0 + 10, y0 + 46)
+  rgb(0.85, 0.85, 0.9); text("E4L effect:", x0 + 10, y0 + 46)
   local cur = EFFECTS[L.effect]
-  if button((cur and cur.label or "(ninguno)") .. "  ▾", x0 + 100, y0 + 42, 340, 24, false) then
+  if button((cur and cur.label or "(none)") .. "  ▾", x0 + 100, y0 + 42, 340, 24, false) then
     gfx.x, gfx.y = x0 + 100, y0 + 66
     local items = {}
     for i, e in ipairs(EFFECTS) do items[#items + 1] = (i == L.effect and "!" or "") .. e.label end
@@ -528,7 +548,7 @@ local function draw_editor(x0, y0, W, H)
     if m > 0 then set_effect(L, m) end
   end
   if fx < 0 then
-    rgb(1, 0.7, 0.3); text("Esta pista no tiene un panner E4L: elige un efecto arriba.", x0 + 10, y0 + 90)
+    rgb(1, 0.7, 0.3); text("This track has no E4L panner: choose an effect above.", x0 + 10, y0 + 90)
     return
   end
 
@@ -537,48 +557,48 @@ local function draw_editor(x0, y0, W, H)
   local y = y0 + 84
 
   -- ---------------- POSITION ----------------
-  section("POSICIÓN", c1, y, colw)
-  rgb(0.55, 0.55, 0.6); text("(la altura no se oye en cuadrafonía)", c1, y, colw, nil, 2)
+  section("POSITION", c1, y, colw)
+  rgb(0.55, 0.55, 0.6); text("(height is not heard in quad)", c1, y, colw, nil, 2)
   y = y + 42
-  local v = hslider("az", c1, y, colw, 12, g("Azimuth"), -180, 180, "Dirección", az_text(g("Azimuth")))
+  local v = hslider("az", c1, y, colw, 12, g("Azimuth"), -180, 180, "Direction", az_text(g("Azimuth")))
   if v then s("Azimuth", math.floor(v + 0.5)) end
   y = y + 40
-  v = hslider("el", c1, y, colw, 12, g("Elevation"), -90, 90, "Altura", el_text(g("Elevation")))
+  v = hslider("el", c1, y, colw, 12, g("Elevation"), -90, 90, "Height", el_text(g("Elevation")))
   if v then s("Elevation", math.floor(v + 0.5)) end
   y = y + 40
   local range = has("Range") and g("Range") or 10
-  v = hslider("rad", c1, y, colw, 12, g("Radius"), 0, 1, "Distancia", dist_text(g("Radius"), range))
+  v = hslider("rad", c1, y, colw, 12, g("Radius"), 0, 1, "Distance", dist_text(g("Radius"), range))
   if v then s("Radius", math.floor(v * 1000 + 0.5) / 1000) end
   y = y + 30
 
   if not has("Azimuth LFO On/Off") then
-    rgb(0.7, 0.7, 0.75); text("Este efecto no tiene animaciones. Elige «Un punto» o «Dos puntos».", c1, y + 10)
+    rgb(0.7, 0.7, 0.75); text("This effect has no animations. Choose One point or Two points.", c1, y + 10)
     return
   end
 
   -- ---------------- AUTOMATIC ROTATION (azimuth LFO) ----------------
-  section("GIRO AUTOMÁTICO", c1, y, colw); y = y + 26
+  section("AUTOMATIC ROTATION", c1, y, colw); y = y + 26
   local on = g("Azimuth LFO On/Off") > 0.5
-  if button(on and "ACTIVADO" or "APAGADO", c1, y, 110, 24, on, 0.35, 0.95, 0.5) then s("Azimuth LFO On/Off", on and 0 or 1) end
-  local k = segmented({ "Vuelta completa", "Vaivén" }, math.floor(g("Azimuth LFO Mode") + 0.5) + 1, c1 + 118, y, colw - 118, 24)
+  if button(on and "ON" or "OFF", c1, y, 110, 24, on, 0.35, 0.95, 0.5) then s("Azimuth LFO On/Off", on and 0 or 1) end
+  local k = segmented({ "Full turn", "Swing" }, math.floor(g("Azimuth LFO Mode") + 0.5) + 1, c1 + 118, y, colw - 118, 24)
   if k then s("Azimuth LFO Mode", k - 1) end
   y = y + 30
   local sync = g("Azimuth LFO Time Mode") > 0.5
-  k = segmented({ "Velocidad libre", "Al tempo" }, sync and 2 or 1, c1, y, colw, 24)
+  k = segmented({ "Free speed", "Tempo sync" }, sync and 2 or 1, c1, y, colw, 24)
   if k then s("Azimuth LFO Time Mode", k - 1) end
   y = y + 46
   if sync then
     local si = math.floor(g("Azimuth LFO Sync (bars)") + 0.5)
-    v = hslider("async", c1, y, colw, 12, si, 0, 10, "Una vuelta cada", SYNC_LABELS[si + 1] .. " compás(es)")
+    v = hslider("async", c1, y, colw, 12, si, 0, 10, "One turn every", SYNC_LABELS[si + 1] .. " bar(s)")
     if v then s("Azimuth LFO Sync (bars)", math.floor(v + 0.5)) end
     y = y + 22
-    k = segmented({ "Horario", "Antihorario" }, math.floor(g("Azimuth LFO Direction") + 0.5) + 1, c1, y, colw, 24)
+    k = segmented({ "Clockwise", "Counter-clockwise" }, math.floor(g("Azimuth LFO Direction") + 0.5) + 1, c1, y, colw, 24)
     if k then s("Azimuth LFO Direction", k - 1) end
   else
     local hz = g("Azimuth LFO Frequency (Hz)") * math.abs(g("Azimuth LFO Rate"))
     -- speed slider on a log scale, 0.02 .. 4 Hz
     local lv = math.log(math.max(hz, 0.02) / 0.02) / math.log(200)
-    v = hslider("aspd", c1, y, colw, 12, lv, 0, 1, "Velocidad", speed_text(hz))
+    v = hslider("aspd", c1, y, colw, 12, lv, 0, 1, "Speed", speed_text(hz))
     if v then
       local nhz = 0.02 * 200 ^ v
       local sign = g("Azimuth LFO Rate") < 0 and -1 or 1
@@ -587,45 +607,45 @@ local function draw_editor(x0, y0, W, H)
     end
     y = y + 22
     local ccw = g("Azimuth LFO Rate") < 0
-    k = segmented({ "Horario", "Antihorario" }, ccw and 2 or 1, c1, y, colw, 24)
+    k = segmented({ "Clockwise", "Counter-clockwise" }, ccw and 2 or 1, c1, y, colw, 24)
     if k then s("Azimuth LFO Rate", (k == 2 and -1 or 1) * math.abs(g("Azimuth LFO Rate"))) end
   end
   y = y + 46
   if g("Azimuth LFO Mode") > 0.5 then
-    v = hslider("adep", c1, y, colw, 12, g("Azimuth LFO Depth"), 0, 180, "Amplitud del vaivén", string.format("± %d°", math.floor(g("Azimuth LFO Depth") + 0.5)))
+    v = hslider("adep", c1, y, colw, 12, g("Azimuth LFO Depth"), 0, 180, "Swing depth", string.format("± %d°", math.floor(g("Azimuth LFO Depth") + 0.5)))
     if v then s("Azimuth LFO Depth", math.floor(v + 0.5)) end
   end
 
   -- ---------------- COLUMN 2: UP AND DOWN, WIDTH, PRESETS ----------------
   y = y0 + 84
-  section("SUBE Y BAJA (altura)", c2, y, colw); y = y + 26
+  section("UP AND DOWN (height)", c2, y, colw); y = y + 26
   on = g("Elevation LFO On/Off") > 0.5
-  if button(on and "ACTIVADO" or "APAGADO", c2, y, 110, 24, on, 0.35, 0.95, 0.5) then s("Elevation LFO On/Off", on and 0 or 1) end
-  k = segmented({ "Solo sube", "Sube y baja" }, math.floor(g("Elevation LFO Polarity") + 0.5) + 1, c2 + 118, y, colw - 118, 24)
+  if button(on and "ON" or "OFF", c2, y, 110, 24, on, 0.35, 0.95, 0.5) then s("Elevation LFO On/Off", on and 0 or 1) end
+  k = segmented({ "Up only", "Up and down" }, math.floor(g("Elevation LFO Polarity") + 0.5) + 1, c2 + 118, y, colw - 118, 24)
   if k then s("Elevation LFO Polarity", k - 1) end
   y = y + 46
   local ehz = g("Elevation LFO Frequency (Hz)")
-  v = hslider("espd", c2, y, colw, 12, ehz, 0.1, 4, "Velocidad", speed_text(ehz))
+  v = hslider("espd", c2, y, colw, 12, ehz, 0.1, 4, "Speed", speed_text(ehz))
   if v then s("Elevation LFO Frequency (Hz)", math.floor(v * 100 + 0.5) / 100) end
   y = y + 40
-  v = hslider("edep", c2, y, colw, 12, g("Elevation LFO Depth"), 0, 90, "Amplitud", string.format("%d°", math.floor(g("Elevation LFO Depth") + 0.5)))
+  v = hslider("edep", c2, y, colw, 12, g("Elevation LFO Depth"), 0, 90, "Depth", string.format("%d°", math.floor(g("Elevation LFO Depth") + 0.5)))
   if v then s("Elevation LFO Depth", math.floor(v + 0.5)) end
   y = y + 26
 
   if has("Azimuth Spread LFO On/Off") then
-    section("APERTURA ESTÉREO", c2, y, colw); y = y + 42
-    v = hslider("sp", c2, y, colw, 12, g("Azimuth Spread"), 0, 180, "Separación izq. / der.", string.format("± %d°", math.floor(g("Azimuth Spread") + 0.5)))
+    section("STEREO WIDTH", c2, y, colw); y = y + 42
+    v = hslider("sp", c2, y, colw, 12, g("Azimuth Spread"), 0, 180, "Left / right spread", string.format("± %d°", math.floor(g("Azimuth Spread") + 0.5)))
     if v then s("Azimuth Spread", math.floor(v + 0.5)) end
     y = y + 22
     on = g("Azimuth Spread LFO On/Off") > 0.5
-    if button(on and "RESPIRA" or "NO RESPIRA", c2, y, 110, 24, on, 0.35, 0.95, 0.5) then s("Azimuth Spread LFO On/Off", on and 0 or 1) end
+    if button(on and "BREATHING" or "NO BREATHING", c2, y, 110, 24, on, 0.35, 0.95, 0.5) then s("Azimuth Spread LFO On/Off", on and 0 or 1) end
     local shz = g("Azimuth Spread LFO Frequency (Hz)")
     v = hslider("sspd", c2 + 118, y + 6, colw - 118, 12, shz, 0.01, 4, "", speed_text(shz))
     if v then s("Azimuth Spread LFO Frequency (Hz)", math.floor(v * 100 + 0.5) / 100) end
     y = y + 34
   end
 
-  section("MOVIMIENTOS RÁPIDOS", c2, y, colw); y = y + 26
+  section("QUICK MOVEMENTS", c2, y, colw); y = y + 26
   local bw = (colw - 6) / 3
   for i, pr in ipairs(PRESETS) do
     local bx = c2 + ((i - 1) % 3) * (bw + 3)
@@ -651,7 +671,7 @@ local function draw_room(x, y, size)
     rgb(0.1, 0.1, 0.1); text(tostring(k), sx - 7, sy - 7, 14, 14, 1)
   end
   rgb(0.6, 0.6, 0.65); gfx.circle(cx, cy, 6, 0, 1); gfx.line(cx, cy - 6, cx, cy - 11)
-  rgb(0.5, 0.5, 0.55); text("frente", cx - 16, y + 2)
+  rgb(0.5, 0.5, 0.55); text("front", cx - 16, y + 2)
 
   for i, L in ipairs(loops) do
     if L.pfx >= 0 and L.p.az >= 0 then
@@ -677,7 +697,7 @@ local function draw_room(x, y, size)
     end
   elseif not mouse_down then drag = nil end
   rgb(0.5, 0.5, 0.55)
-  text("arrastra un punto para mover el loop", x + 6, y + size - 16)
+  text("drag a dot to move that loop", x + 6, y + size - 16)
 end
 
 ---------------------------------------------------------------------------------------
@@ -726,7 +746,7 @@ local function main()
     RCLICK = true
     gfx.x, gfx.y = gfx.mouse_x, gfx.mouse_y
     local docked = gfx.dock(-1) & 1 == 1
-    local m = gfx.showmenu(docked and "Desacoplar" or "Acoplar dentro de REAPER (dock)")
+    local m = gfx.showmenu(docked and "Undock" or "Dock inside REAPER")
     if m == 1 then gfx.dock(docked and 0 or 1) end
   elseif gfx.mouse_cap & 2 == 0 then RCLICK = false end
 

@@ -14,7 +14,7 @@ headphone monitoring and a one-click updater.
 
 ![E4L Live Panel](docs/live_panel_preview.png)
 
-> The Live Panel and the user guide (`docs/Guia_E4L_REAPER_Cuadrafonia.pdf`) are in Spanish.
+> User guide (PDF): [`docs/E4L_REAPER_Guide.pdf`](docs/E4L_REAPER_Guide.pdf).
 
 ---
 
@@ -139,12 +139,12 @@ plug-ins are loaded.
    | Loop panner: 1 Mono 2 Stereo | 1 | |
    | Sub output (0 = none) | 5 | |
 
-   It creates `SYNTH IN`, `LOOP 1-8`, `E4L Master` (quad) and `CUE (auriculares)`, configures the
+   It creates `SYNTH IN`, `LOOP 1-8`, `E4L Master` (quad) and `CUE (headphones)`, configures the
    master (outputs 1-2, 3-4 and the sub on 5), measures the recording latency compensation and
    opens the Live Panel.
 3. Set the **tempo and time signature** (double-click them in the transport bar).
 4. Press **play** (space bar). The running project is the "global loop": every loop follows its bars.
-5. Play the synth (headphones only), then press **GRABAR** on a loop: it waits for the next bar,
+5. Play the synth (headphones only), then press **REC** on a loop: it waits for the next bar,
    records the chosen number of bars and starts playing it, spatialised, on the speakers.
 
 **Headphones on an Avid Mbox Pro (3rd gen):** each headphone output has its own mix. In the Mbox
@@ -160,22 +160,22 @@ control panel, set *Headphones A* to the computer's outputs 7-8.
 One window, dockable in REAPER (right-click the top area), to play the whole set-up without
 opening any plug-in.
 
-- **Header:** big bar . beat counter, beats of the bar, a 4-bar phrase indicator, tempo,
-  play/stop, stop all loops.
+- **Header:** big bar . beat counter, beats of the bar, a 4-bar phrase indicator, **IN** level
+  meters for every interface input, tempo, play/stop, stop all loops.
 - **Toolbar:**
   - **+ LOOP** – another loop track.
   - **+ AUDIO** – a pre-recorded file on a new `AUDIO n` track, looped from bar 1. If it is close
     to a whole number of bars it is fitted to the tempo (pitch preserved). It starts muted and
-    enters on the next bar with **SONAR**.
-  - **+ ENTRADA** – another interface input (`SYNTH IN 2`…); each loop's **ENT** button picks
-    which input it records.
-  - **GUARDAR / CARGAR TEMPLATE** – save / load the set-up (tracks, inputs, audio files,
+    enters on the next bar with **PLAY**.
+  - **+ INPUT** – another interface input (`SYNTH IN 2`…). Loops record **ALL** inputs by
+    default; each loop's input button switches between **ALL**, **IN 1**, **IN 2**…
+  - **SAVE / LOAD TEMPLATE** – save / load the set-up (tracks, inputs, audio files,
     positions, movements, tempo) in `E4L_Templates` inside the resource folder, to move from one
     piece to the next.
-  - **NUEVO TEMPLATE** – a new live project from scratch.
+  - **NEW TEMPLATE** – a new live project from scratch.
 - **One row per loop:** state (empty, waiting, recording, playing, stopped), length (1-32 bars),
-  input, **GRABAR** (record), **SONAR** (play), **CAPA** (overdub), **BORRAR** (clear),
-  **MOVIMIENTO** (movement editor) and the position inside the loop. Record, play and stop are
+  input (**ALL** / **IN n**), **REC**, **PLAY**, **OVERDUB**, **CLEAR**, **MOVEMENT** (movement
+  editor) and the position inside the loop. Record, play and stop are
   quantised to the next bar.
 - **Room view**, seen from above: the four speakers and one dot per loop, moving live with its
   animations. Drag a dot to move that loop.
@@ -185,7 +185,7 @@ opening any plug-in.
 
 ![Movement editor](docs/live_panel_editor.png)
 
-The **MOVIMIENTO** button of each loop opens all its spatial controls in the same window:
+The **MOVEMENT** button of each loop opens all its spatial controls in the same window:
 
 - **E4L effect menu:** one point (Mono Panner), two points (Stereo Panner) or fixed position
   (Source Panner). Switching keeps the position and animations.
@@ -275,7 +275,7 @@ actions. The live template, the panel and the updater keep their settings in the
 Effects/E4L/    JSFX plug-ins (+ e4l_ambix.jsfx-inc, e4l_gfx.jsfx-inc)
 Data/E4L/hrtf/  binaural filters (44.1, 48, 88.2, 96 kHz)
 Scripts/E4L/    ReaScripts
-docs/           Spanish user guide (PDF), its generator, panel previews
+docs/           user guide (PDF), its generator, panel previews
 tools/          binaural filter generator, panel preview renderer
 tests/          automated tests
 ```
