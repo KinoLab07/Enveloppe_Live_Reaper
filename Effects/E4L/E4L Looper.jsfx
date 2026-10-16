@@ -12,8 +12,9 @@ desc: E4L Looper (bar-synced live looper)
 //   REC      : waits for the next bar, records "Length" bars, then plays the loop.
 //              On a track that already has a loop, REC records a new one.
 //   PLAY     : starts the loop from its beginning on the next bar (or stops it on the next bar).
-//   PAUSE    : pauses the loop now; PAUSE again continues it on the next bar, from the bar of
-//              the loop where it was paused.
+//   PAUSE    : pauses the loop now; PAUSE again continues it at once from the exact point
+//              where it was paused (like a tape: it moves relative to the bars by the time it
+//              was paused). PLAY puts it back on the bars, from its beginning.
 //   OVERDUB  : while playing, adds what comes in on top of the loop.
 //   CLEAR    : erases the loop.
 //
@@ -152,7 +153,7 @@ play_btn && !p_play && has_loop && (state == ST_STOP || state == ST_PAUSE) ? (
 play_btn && !p_play && state == ST_PLAY ? pend_stop = 0;
 !play_btn && p_play && state == ST_PLAY ? ( pend_stop = 1; pend_play = 0; );
 !play_btn && p_play && (state == ST_STOP || state == ST_PAUSE) ? pend_play = 0;
-// PAUSE: now (with the fade); PAUSE off: continue on the next bar from where it was
+// PAUSE: now (with the fade); PAUSE off: continue at once from the exact point
 pause_btn && !p_pause ? (
   state == ST_PLAY && loop_qn > 0 ? (
     paused_qn = (beat_position - start_qn) - floor((beat_position - start_qn) / loop_qn) * loop_qn;
@@ -160,8 +161,11 @@ pause_btn && !p_pause ? (
     play_btn ? ( set_slider(3, 0); p_play = 0; );
   ) : ( set_slider(16, 0); );               // nothing playing: nothing to pause
 );
-!pause_btn && p_pause && state == ST_PAUSE ? pend_resume = 1;
-pause_btn && p_pause && state == ST_PAUSE ? pend_resume = 0;
+!pause_btn && p_pause && state == ST_PAUSE ? (
+  start_qn = beat_position - paused_qn;
+  state = ST_PLAY;
+  play_btn == 0 ? ( set_slider(3, 1); p_play = 1; );
+);
 p_rec = rec_btn; p_play = play_btn; p_clear = clear_btn; p_pause = pause_btn;
 
 // ---------- publish the status for the Live Panel (only when it changes) ----------

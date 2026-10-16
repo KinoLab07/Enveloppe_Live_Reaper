@@ -648,8 +648,9 @@ def build(path):
         ["<b>REC</b>", "Records on the next bar. On a loop that already has audio it records a new "
          "one; the old one keeps playing until the new recording starts."],
         ["<b>PLAY</b>", "Starts the loop from its beginning on the next bar, or stops it on the next bar."],
-        ["<b>PAUSE</b>", "Silences the loop at once. Press it again: the loop continues on the next bar, "
-                         "from the bar where it was paused. PLAY while paused starts it from the beginning."],
+        ["<b>PAUSE</b>", "Silences the loop at once. Press it again: it continues at once from the exact "
+                         "point where it was paused, like a tape (it moves against the bars by the time it "
+                         "was paused). PLAY puts it back on the bars, from its beginning."],
         ["<b>OVERDUB</b>", "While on, what you play is added on top of the loop."],
         ["<b>CLEAR</b>", "Erases the loop."],
         ["<b>ALL / IN n</b>", "Which interface input the loop records: <b>ALL</b> (every input, the "

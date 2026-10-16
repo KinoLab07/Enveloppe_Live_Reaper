@@ -208,7 +208,7 @@ check("audio row: ... and unmutes on the next bar", lua.eval("MOCK.T[%d].vals.B_
 click(BX + 112 + 10, row_y(1, n))
 check("loop row: PAUSE presses the looper's Pause", param(tr_index("LOOP 1"), 1, "Pause") == 1)
 click(BX + 112 + 10, row_y(1, n))
-check("loop row: PAUSE again releases it (the loop continues on the next bar)", param(tr_index("LOOP 1"), 1, "Pause") == 0)
+check("loop row: PAUSE again releases it (the loop continues at once)", param(tr_index("LOOP 1"), 1, "Pause") == 0)
 # audio PAUSE / RESUME (AUDIO 1: 4 bars = 8 s at 120 BPM, playing)
 lua.execute("E4LT = dofile([[%s]])" % os.path.join(SCRIPTS, "e4l_lib.lua").replace("\\", "/"))
 apos = lua.eval("function(i, t) return E4LT.audio_pos(MOCK.T[i], t) end")

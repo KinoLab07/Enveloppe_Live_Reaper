@@ -180,9 +180,10 @@ opening any plug-in.
   (1-32 bars), input (**ALL** / **IN n**), **REC**, **PLAY**, **PAUSE**, **OVERDUB**, **CLEAR**,
   **MOVEMENT** (movement editor) and the position inside the loop. Record, play and stop are
   quantised to the next bar. **PLAY** starts the loop from its beginning; **PAUSE** silences it at
-  once and, pressed again, continues it on the next bar from the bar where it was paused.
-  Audio rows have the same **PLAY** / **PAUSE** (the file is moved only while it is silent) and
-  **DELETE**. The movement (LFOs) freezes while REAPER is paused and continues from there.
+  once and, pressed again, continues it at once from the exact point where it was paused (like a
+  tape: it shifts against the bars by the paused time; PLAY puts it back on the bars).
+  Audio rows have **PLAY** / **PAUSE** too (resuming on the next bar from the bar where they were
+  paused; the file is moved only while it is silent) and **DELETE**. The movement (LFOs) freezes while REAPER is paused and continues from there.
 - **Room view**, seen from above: the four speakers and one dot per loop, moving live with its
   animations. Drag a dot to move that loop.
 - **Keys:** space = play/stop, 1-9 = record on loop 1-9, 0 = stop all loops, Esc = close the editor.

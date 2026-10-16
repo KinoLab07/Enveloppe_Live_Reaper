@@ -193,17 +193,18 @@ check("looper: after STOP, PLAY (here from bar 2) starts the loop from its begin
 o = run(LP, ramp, *EXACT, "s1=1", "s2=1", "ps@300032=2", "ps@340000=1")
 check("looper: after PAUSE, PLAY continues where it was",
       np.allclose(o[343000:380000, 0], ramp[111000:148000, 0], atol=1e-4))
-# per-loop PAUSE (2-bar loop playing from bar 3 = sample 192000): paused at 250000 (inside
-# loop bar 1), PAUSE off at 300000 -> continues at the next bar (384000) from loop bar 1
+# per-loop PAUSE (2-bar loop recorded in bars 1-2, playing from 192000): paused at 250112,
+# 58112 samples into the loop; PAUSE off at 300032 -> continues at once from that exact point
 o = run(LP, ramp, *EXACT, "s1=1", "s2=1", "s16@250112=1", "s16@300032=0")
 check("looper: PAUSE silences the loop at once",
-      np.abs(o[250500:384000]).max() == 0)
-check("looper: PAUSE off continues on the next bar from the bar where it was paused",
-      np.allclose(o[384000 + 1000:384000 + 90000, 0], ramp[1000:90000, 0]))
+      np.abs(o[250500:300032]).max() == 0)
+check("looper: PAUSE off continues at once from the exact point where it was paused",
+      np.allclose(o[300032 + 500:300032 + 90000, 0], ramp[58112 + 500:58112 + 90000, 0]))
 ramp14 = np.stack([np.arange(14 * SR) * 1e-6, -np.arange(14 * SR) * 1e-6], 1)
 o = run(LP, ramp14, *EXACT, "s1=1", "s2=1", "s16@300032=1", "s16@400128=0")
-check("looper: paused in loop bar 2 -> continues from loop bar 2",
-      np.allclose(o[480000 + 1000:480000 + 90000, 0], ramp14[96000 + 1000:96000 + 90000, 0]))
+check("looper: ... also from the second bar of the loop (108032 samples in), then it wraps",
+      np.allclose(o[400128 + 500:400128 + 80000, 0], ramp14[108032 + 500:108032 + 80000, 0])
+      and np.allclose(o[400128 + 83968 + 500:400128 + 83968 + 50000, 0], ramp14[500:50000, 0]))
 o = run(LP, ramp14, *EXACT, "s1=1", "s2=1", "s16@300032=1", "s3@400128=1")
 check("looper: PLAY while paused starts the loop from its beginning on the next bar",
       np.allclose(o[480000 + 1000:480000 + 90000, 0], ramp14[1000:90000, 0]))
