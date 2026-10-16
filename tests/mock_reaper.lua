@@ -124,6 +124,8 @@ function reaper.GetSetMediaItemTakeInfo_String(take, k, v) take.vals[k] = v retu
 function reaper.UpdateItemInProject() end
 MOCK_PLAYBTN = 0
 function reaper.OnPlayButton() MOCK_PLAYBTN = MOCK_PLAYBTN + 1; MOCK_PLAY = 1 end
+function reaper.OnStopButton() MOCK_PLAY = 0 end
+function reaper.OnPauseButton() MOCK_PLAY = MOCK_PLAY == 2 and 1 or 2 end
 function reaper.CountTrackMediaItems(tr) return tr.items and #tr.items or 0 end
 function reaper.GetTrackMediaItem(tr, i) return tr.items[i + 1] end
 function reaper.GetActiveTake(item) return item.take end

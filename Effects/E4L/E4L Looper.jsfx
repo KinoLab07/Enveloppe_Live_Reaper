@@ -32,6 +32,9 @@ slider10:pend_out=0<0,2,1>-Pending (1 play 2 stop)
 slider11:bars_out=0<0,64,1>-Loop Bars
 slider12:start_out=0<-1000000,100000000,0.0001>-Loop Start (QN)
 slider13:qn_out=0<0,1000,0.0001>-Loop Length (QN)
+// smoothing: longer = smoother with steady, unmodulated tones (bass, drones)
+slider14:xf_ms=50<1,170,1>Loop Seam Crossfade (ms)
+slider15:fade_ms=30<1,200,1>Start / Stop Fade (ms)
 
 in_pin:Input L
 in_pin:Input R
@@ -45,7 +48,7 @@ ext_tail_size = -1;
 ext_noinit = 1;      // keep the recorded loop when playback stops / restarts
 
 BUF = 0;
-XF_MAX = 4096;                            // max crossfade frames (the seam of the loop)
+XF_MAX = 8192;                            // max crossfade frames (the seam of the loop)
 MAXSAMP = floor((32000000 - 4 * XF_MAX - 1024) / 2);   // stereo frames available
 RING = 2 * MAXSAMP + 512;                 // the last XF_MAX input frames, always
 SNAP = RING + 2 * XF_MAX;                 // the input just before the recording started
@@ -99,7 +102,7 @@ function snap_preroll() local(j, r)
 // so when playback wraps from the last frame to the first the waveform is continuous
 function seam_xfade() local(n, i, g, k, s)
 (
-  n = min(min(floor(srate * 0.01), XF_MAX), floor(loop_len / 4));
+  n = min(min(floor(srate * xf_ms / 1000), XF_MAX), floor(loop_len / 4));
   i = 0;
   loop(n,
     g = 0.5 - 0.5 * cos($pi * (i + 1) / n);
@@ -143,8 +146,14 @@ bar_qn = ts_num * 4 / max(ts_denom, 1);
 lat_qn = lat_ms / 1000 * tempo / 60;
 playing_now = play_state & 1;
 b = beat_position;
+// like Ableton: after STOP, PLAY starts the loops from their beginning on the current bar;
+// after PAUSE (play_state 2 or 6) they continue where they were
+playing_now && !(prev_ps & 1) && prev_ps != 2 && prev_ps != 6 && has_loop && state != ST_REC ? (
+  start_qn = floor(b / bar_qn + 0.0000001) * bar_qn;
+);
+prev_ps = play_state;
 !playing_now ? ( last_bar = -1; env = 0; );
-env_step = 1 / max(1, srate * 0.005);       // 5 ms
+env_step = 1 / max(1, srate * fade_ms / 1000);
 
 @sample
 inL = spl0; inR = spl1;
@@ -201,7 +210,7 @@ playing_now ? (
   );
 
   // ---------- playback / overdub ----------
-  // (after STOP it keeps reading for the 5 ms of the fade-out)
+  // (after STOP it keeps reading during the fade-out)
   env = has_loop && state == ST_PLAY ? min(1, env + env_step) : max(0, env - env_step);
   !has_loop ? env = 0;
   has_loop && env > 0 ? (
@@ -297,3 +306,5 @@ gfx_setfont(1, "Arial", 12);
 gfx_set(0.55, 0.55, 0.6, 1);
 gfx_x = 8; gfx_y = 172;
 gfx_printf("Loop volume %.1f dB   Thru %s   Latency comp. %.1f ms", vol_db, thru ? "On" : "Off", lat_ms);
+gfx_x = 8; gfx_y = 188;
+gfx_printf("Seam crossfade %d ms   Start/stop fade %d ms", xf_ms, fade_ms);

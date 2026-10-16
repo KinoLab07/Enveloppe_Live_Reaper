@@ -627,8 +627,11 @@ def build(path):
         st.append(Spacer(1, 4))
     st += bullets([
         "<b>Top:</b> the <b>bar . beat</b> counter, the beats of the bar (the first one in orange), "
-        "a <b>4-bar phrase</b> indicator, the <b>IN</b> input meters, the tempo, PLAY/STOP and "
+        "a <b>4-bar phrase</b> indicator, the <b>IN</b> input meters, the tempo, PLAY/STOP, PAUSE and "
         "<b>STOP ALL LOOPS</b>.",
+        "<b>STOP</b> (or the space bar) stops and goes back to bar 1: on PLAY every loop and audio "
+        "file starts again from its beginning, like Ableton. <b>PAUSE</b> keeps the position: PLAY "
+        "continues exactly where it was.",
         "<b>Toolbar:</b> <b>+ LOOP</b>, <b>+ AUDIO</b>, <b>+ INPUT</b>, <b>SAVE TEMPLATE</b>, "
         "<b>LOAD TEMPLATE</b>, <b>NEW TEMPLATE</b> (see below).",
         "<b>One row per loop:</b> state (EMPTY, WAITING, RECORDING, PLAYING, STOPPED; it blinks while "
@@ -721,6 +724,11 @@ def build(path):
         "monitoring</b> and turn the SYNTH IN track down.",
         "• If a loop is slightly early or late, adjust <b>Recording Latency Compensation</b> in its "
         "E4L Looper (more ms if it sounds late).",
+        "• Steady, unmodulated tones (drones, bass): a wave whose cycles do not fit the loop exactly "
+        "always has a jump in phase at the seam. The looper hides it with a crossfade (<b>Loop Seam "
+        "Crossfade</b>, 50 ms): instead of a click you may hear, at most, a very short softening of "
+        "the tone. Raise it (up to 170 ms) for very low notes. Keep the note sounding a moment before "
+        "REC starts: the crossfade uses that sound.",
     ], kind="warn", title="Good to know"))
 
     # 9
@@ -795,6 +803,8 @@ def build(path):
         ["Loop Volume (dB)", "−60 to +12"],
         ["Input Thru", "Off / On"],
         ["Recording Latency Compensation (ms)", "0 to 500 (set automatically)"],
+        ["Loop Seam Crossfade (ms)", "1 to 170 (50)"],
+        ["Start / Stop Fade (ms)", "1 to 200 (30)"],
     ], [60, 110]))
     st.append(Spacer(1, 8))
     st.append(P("Envelop for Live © Envelop (envelop.us), Mark C. Slee and contributors. REAPER port "

@@ -130,34 +130,53 @@ check("elevation folds over the pole", angle_close(az[SR // 4], 180) and abs(el[
 ramp = np.stack([np.arange(10 * SR) * 1e-6, -np.arange(10 * SR) * 1e-6], 1)
 j = np.arange(1000, 95000)
 LP = "E4L Looper.jsfx"
-o = run(LP, ramp, "s1=0", "s2=1")
+EXACT = ("s14=1", "s15=1")   # 1 ms fades: compare the loop sample by sample
+o = run(LP, ramp, *EXACT, "s1=0", "s2=1")
 check("looper: records bar 1, plays it in sync from bar 2 and loops",
       np.abs(o[:96000]).max() == 0 and np.allclose(o[96000 + j], ramp[j]) and np.allclose(o[192000 + j], ramp[j]))
-o = run(LP, ramp, "s1=0", "s2@30000=1")
+o = run(LP, ramp, *EXACT, "s1=0", "s2@30000=1")
 check("looper: REC pressed mid-bar waits for the next bar",
       np.abs(o[:192000]).max() == 0 and np.allclose(o[192000 + j], ramp[96000 + j]))
-o = run(LP, ramp, "s1=0", "s2=1", "s8=10")
+o = run(LP, ramp, *EXACT, "s1=0", "s2=1", "s8=10")
 check("looper: latency compensation 10 ms = 480 samples", np.allclose(o[96000 + j, 0], ramp[j + 480, 0]))
-o = run(LP, ramp, "s1=0", "s2=1", "s3@250000=0", "s3@300000=1")
+o = run(LP, ramp, *EXACT, "s1=0", "s2=1", "s3@250000=0", "s3@300000=1")
 check("looper: STOP and PLAY are quantised to the bar and stay in phase",
-      np.abs(o[288300:384000]).max() == 0 and np.allclose(o[385000:470000, 0], ramp[1000:86000, 0]))
+      np.abs(o[289500:384000]).max() == 0 and np.allclose(o[385000:470000, 0], ramp[1000:86000, 0]))
 # clicks: a sine that does not fit the loop (worst case for the seam)
 t = np.arange(10 * SR) / SR
 sine = np.stack([0.5 * np.sin(2 * np.pi * 220.3 * t)] * 2, 1)
 step = 2 * np.pi * 220.3 / SR * 0.5 * 1.5          # largest normal sample-to-sample change, + margin
 o = run(LP, sine, "s1=0", "s2=1", "s8=10", "s3@250000=0")   # 10 ms latency comp., as on a real interface
 d = np.abs(np.diff(o[:, 0]))
-check("looper: no click when the loop starts after recording (5 ms fade-in)",
+check("looper: no click when the loop starts after recording (fade-in)",
       d[95990:96300].max() < step and abs(o[96000, 0]) < step)
 check("looper: no click at the loop seam (end crossfades into the pre-roll)",
       d[191900:192100].max() < step)
-check("looper: no click on STOP (5 ms fade-out)", d[287900:288400].max() < step)
-o = run(LP, ramp, "s1=0", "s2=1", "s4@192000=1", "s4@288000=0")
+check("looper: no click on STOP (fade-out)", d[287900:290000].max() < step)
+# a steady, unmodulated bass tone (55.3 Hz, period 18 ms): the seam must not bend the wave
+bass = np.stack([0.5 * np.sin(2 * np.pi * 55.3 * t)] * 2, 1)
+# (REC pressed during bar 1 while the tone already sounds: records bar 2, seam at 288000)
+o = run(LP, bass, "s1=0", "s2@30000=1", "s8=10")
+d2 = np.abs(np.diff(o[:, 0], 2))
+check("looper: steady bass tone, the seam is as smooth as the wave itself (50 ms crossfade)",
+      d2[284000:288200].max() < 1.3 * d2[240000:270000].max())
+o = run(LP, bass, "s1=0", "s2@30000=1", "s8=10", "s14=10")
+d2 = np.abs(np.diff(o[:, 0], 2))
+check("looper: ... while a 10 ms crossfade (the old one) bends it (the click you heard)",
+      d2[284000:288200].max() > 1.6 * d2[240000:270000].max())
+# transport: STOP then PLAY starts the loops from their beginning; PAUSE continues
+o = run(LP, ramp, *EXACT, "s1=1", "s2=1", "ps@300000=0", "beat@310016=4", "ps@310016=1")
+check("looper: after STOP, PLAY (here from bar 2) starts the loop from its beginning",
+      np.allclose(o[310016 + 3000:310016 + 90000, 0], ramp[3000:90000, 0]))
+o = run(LP, ramp, *EXACT, "s1=1", "s2=1", "ps@300032=2", "ps@340000=1")
+check("looper: after PAUSE, PLAY continues where it was",
+      np.allclose(o[343000:380000, 0], ramp[111000:148000, 0], atol=1e-4))
+o = run(LP, ramp, *EXACT, "s1=0", "s2=1", "s4@192000=1", "s4@288000=0")
 check("looper: overdub adds a layer", np.allclose(o[288000 + j, 0], ramp[j, 0] + ramp[192000 + j, 0], atol=1e-5))
-o = run(LP, ramp, "s1=0", "s2=1", "s2@200000=1")
+o = run(LP, ramp, *EXACT, "s1=0", "s2=1", "s2@200000=1")
 check("looper: re-record keeps the old loop until the new one starts",
       np.allclose(o[200500:287000, 0], ramp[8500:95000, 0]) and np.allclose(o[385000:470000, 0], ramp[289000:374000, 0]))
-o = run(LP, ramp, "s1=0", "s2=1", "s5@250000=1")
+o = run(LP, ramp, *EXACT, "s1=0", "s2=1", "s5@250000=1")
 check("looper: clear", np.abs(o[250300:]).max() == 0)
 
 # --- decoders --------------------------------------------------------------

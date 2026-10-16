@@ -450,6 +450,17 @@ local function draw_toolbar(W)
   end
 end
 
+-- STOP goes back to bar 1: on PLAY loops and audio files start from their beginning (like
+-- Ableton). PAUSE keeps the position: PLAY continues where it was.
+local function play_stop()
+  if reaper.GetPlayState() % 2 == 1 then
+    reaper.OnStopButton()
+    reaper.SetEditCurPos(0, true, false)
+  else
+    reaper.OnPlayButton()
+  end
+end
+
 local function draw_header(tp, W)
   rgb(0.11, 0.11, 0.14); rect(0, 0, W, 74)
   gfx.setfont(2)
@@ -491,10 +502,10 @@ local function draw_header(tp, W)
   local rx = math.max(bx + tp.bpb * (bw + gap) + 20, W - 350)
   rgb(0.85, 0.85, 0.9)
   text(string.format("%.1f BPM   %d/%d", tp.bpm, tp.num, tp.denom), rx, 12)
-  if button(tp.playing and "STOP" or "PLAY", rx, 36, 96, 28, tp.playing, 0.35, 0.95, 0.5) then
-    reaper.Main_OnCommand(40044, 0)              -- Transport: Play/stop
-  end
-  if button("STOP ALL LOOPS", rx + 104, 36, 200, 28, false) then
+  if button(tp.playing and "STOP" or "PLAY", rx, 36, 96, 28, tp.playing, 0.35, 0.95, 0.5) then play_stop() end
+  local paused = reaper.GetPlayState() & 2 == 2
+  if button(paused and "PAUSED" or "PAUSE", rx + 102, 36, 80, 28, paused, 1, 0.8, 0.3) then reaper.OnPauseButton() end
+  if button("STOP ALL LOOPS", rx + 188, 36, 150, 28, false) then
     for _, L in ipairs(loops) do
       if L.kind == "loop" then setp(L.tr, L.lfx, L.p.play, 0) else pend_mute[L.tr] = 1 end
     end
@@ -815,7 +826,7 @@ end
 
 ---------------------------------------------------------------------------------------
 local function keyboard(c)
-  if c == 32 then reaper.Main_OnCommand(40044, 0) end                   -- space
+  if c == 32 then play_stop() end                                        -- space
   if c >= 49 and c <= 57 then                                            -- 1-9: record
     local L = loops[c - 48]
     if L and L.kind == "loop" then setp(L.tr, L.lfx, L.p.rec, getp(L.tr, L.lfx, L.p.rec) > 0.5 and 0 or 1)

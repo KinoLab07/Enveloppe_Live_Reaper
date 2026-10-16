@@ -125,7 +125,11 @@ check("panel: PLAY of row 2 toggles LOOP 2", param(3, 1, "Play") == 1)
 click(8 + 212 + 10, row_y(1, n))
 check("panel: length button cycles to the next length", param(2, 1, "Length (bars)") == 1)
 lua.execute("MOCK_KEY = 32"); frame()
-check("panel: space bar toggles REAPER play/stop", 40044 in list(lua.eval("MOCK_CMDS").values()))
+check("panel: space bar = STOP and back to bar 1 (loops and audio restart from their beginning)",
+      lua.eval("MOCK_PLAY") == 0 and lua.eval("MOCK_CURSOR") == 0)
+lua.execute("MOCK_CURSOR = 12")
+lua.execute("MOCK_KEY = 32"); frame()
+check("panel: space bar again = PLAY", lua.eval("MOCK_PLAY") == 1)
 lua.execute("MOCK_KEY = 50"); frame()
 check("panel: key 2 = record on loop 2", param(3, 1, "Record") == 1)
 
