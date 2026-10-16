@@ -194,5 +194,10 @@ check("toolbar: NUEVO TEMPLATE = new project with the live template (8 loops), p
       name_list().count("LOOP 8") == 1 and "LOOP 9" not in name_list() and "E4L Master" in name_list()
       and lua.eval("MOCK_DEFER") is not None)
 
+lua.execute('reaper.SetExtState("E4L_LivePanel", "quit", "1")')
+frame()
+check("panel: closes itself when the updater asks (quit flag)",
+      lua.eval("MOCK_DEFER") is None and lua.eval('reaper.GetExtState("E4L_LivePanel", "quit")') == "")
+
 print("\n%d failure(s)" % failures)
 sys.exit(1 if failures else 0)

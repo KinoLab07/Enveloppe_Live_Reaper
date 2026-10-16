@@ -697,6 +697,14 @@ local function main()
     reaper.SetExtState(EXT, "dock", tostring(gfx.dock(-1)), true)
     return
   end
+  -- "E4L - Update from GitHub" asks the running panel to close, then opens the new version
+  if reaper.GetExtState(EXT, "quit") == "1" then
+    reaper.SetExtState(EXT, "quit", "", false)
+    reaper.SetExtState(EXT, "dock", tostring(gfx.dock(-1)), true)
+    reaper.SetExtState(EXT, "alive", "", false)
+    gfx.quit()
+    return
+  end
   if c == 27 then
     if editing then editing = nil else gfx.quit() return end
   end

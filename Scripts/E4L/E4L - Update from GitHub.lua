@@ -89,13 +89,38 @@ else
   }, "\n") .. "\n")
 end
 
+local function reopen_project_and_panel(panel_was_open)
+  -- 1. plugins: they are reloaded when the project is opened again
+  local _, path = reaper.EnumProjects(-1, "")
+  if path and path ~= "" then
+    local r = reaper.ShowMessageBox(
+      "¿Volver a abrir el proyecto para cargar los plugins nuevos?\n\n" ..
+      "(Si tiene cambios sin guardar, REAPER te preguntará. Los loops grabados en memoria se pierden.)",
+      "E4L - Actualizar", 4)
+    if r == 6 then reaper.Main_openProject(path) end
+  end
+  -- 2. the panel: open the new version
+  if panel_was_open then
+    local f = res .. sep .. "Scripts" .. sep .. "E4L" .. sep .. "E4L - Live Panel.lua"
+    local t0 = reaper.time_precise()
+    local function wait()   -- give the old panel a moment to close
+      if reaper.time_precise() - t0 < 0.6 then reaper.defer(wait) return end
+      dofile(f)
+    end
+    wait()
+  end
+end
+
 if out and out:find("E4L_OK", 1, true) then
   if sha then reaper.SetExtState(EXT, "sha", sha, true) end
+  -- close the running Live Panel (it reopens with the new version)
+  local alive = tonumber(reaper.GetExtState("E4L_LivePanel", "alive")) or 0
+  local panel_open = reaper.time_precise() - alive < 1.5
+  if panel_open then reaper.SetExtState("E4L_LivePanel", "quit", "1", false) end
   msg("E4L actualizado" .. (sha and (" (versión " .. sha:sub(1, 7) .. ")") or "") .. ".\n\n" ..
-      "• Plugins: pulsa F5 en el navegador de FX. Los que ya están en un proyecto se\n" ..
-      "  actualizan al volver a abrir el proyecto.\n" ..
-      "• Si el E4L Live Panel está abierto, ciérralo y vuelve a lanzarlo.\n" ..
-      "• La guía en PDF quedó en: " .. res .. sep .. "Data" .. sep .. "E4L")
+      "• La guía en PDF quedó en: " .. res .. sep .. "Data" .. sep .. "E4L" ..
+      (panel_open and "\n• El Live Panel se vuelve a abrir con la versión nueva." or ""))
+  reopen_project_and_panel(panel_open)
 else
   msg("No se pudo actualizar.\n\nComprueba la conexión a internet y vuelve a intentarlo.\n\n" ..
       "Detalle:\n" .. tostring(out or "sin respuesta"):sub(1, 600))

@@ -371,9 +371,12 @@ def build(path):
         "que haya una versión nueva, ejecútalo: descarga la última versión de GitHub y reemplaza "
         "los plugins, los scripts, los filtros y esta guía en la carpeta de recursos. No toca "
         "tus otros plugins. Si ya estás al día, te lo avisa.",
-        "Después pulsa <b>F5</b> en el navegador de FX y vuelve a abrir el proyecto (y el Live "
-        "Panel, si estaba abierto). Tus proyectos guardados siguen funcionando con la versión "
-        "nueva. La guía actualizada queda en <b>Data/E4L</b> dentro de la carpeta de recursos."],
+        "Al terminar, <b>cierra y vuelve a abrir el Live Panel</b> por su cuenta y te ofrece "
+        "<b>volver a abrir el proyecto</b>, que es como se cargan los plugins nuevos (los loops "
+        "grabados en memoria se pierden). La guía actualizada queda en <b>Data/E4L</b> dentro de la "
+        "carpeta de recursos.",
+        "Solo si apareció un plugin <b>nuevo</b> y no lo ves en el navegador de FX: con esa "
+        "ventana activa pulsa <b>F5</b> (en un portátil Mac, <b>fn + F5</b>)."],
         title="Para actualizar (Mac y Windows)"))
     st.append(P("Cargar el script de configuración (una sola vez)", "h2"))
     st += steps([
