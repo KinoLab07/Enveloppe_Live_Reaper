@@ -54,9 +54,14 @@ ext_noinit = 1;      // keep the recorded loop when playback stops / restarts
 
 BUF = 0;
 XF_MAX = 8192;                            // max crossfade frames (the seam of the loop)
-MAXSAMP = floor((32000000 - 4 * XF_MAX - 1024) / 2);   // stereo frames available
+TAILMAX = 2048;                           // frames recorded after the loop (seam alignment)
+MAXSAMP = floor((32000000 - 8 * XF_MAX - 1024) / 2);   // stereo frames available
 RING = 2 * MAXSAMP + 512;                 // the last XF_MAX input frames, always
 SNAP = RING + 2 * XF_MAX;                 // the input just before the recording started
+XF1  = SNAP + 2 * XF_MAX;                 // seam of the first pass
+XF2  = XF1 + 2 * XF_MAX;                  // seam once aligned in phase
+cl = 0; nx = 0; xfb = XF1;                // content length, seam length, seam buffer in use
+pend_cl = 0; job = 0;
 ring_pos = 0;
 env = 0;                                  // output ramp: no click when a loop starts / stops
 
@@ -86,7 +91,7 @@ function set_slider(idx, val) local(m)
 
 function do_clear()
 (
-  state = ST_EMPTY; has_loop = 0; recording = 0; armed = 0;
+  state = ST_EMPTY; has_loop = 0; recording = 0; armed = 0; job = 0; pend_cl = 0; nx = 0;
   pend_play = pend_stop = pend_resume = 0; loop_len = 0;
   play_btn != 0 ? set_slider(3, 0);
   pause_btn != 0 ? ( set_slider(16, 0); p_pause = 0; );
@@ -105,22 +110,26 @@ function snap_preroll() local(j, r)
   );
 );
 
-// seamless seam: the end of the loop crossfades into the audio that preceded its start,
-// so when playback wraps from the last frame to the first the waveform is continuous
-// The two pieces are compared first: with a steady tone they are the same wave, out of phase,
-// and a plain crossfade partly cancels them (a short dip in level). The gains can be raised by
-// what that correlation would remove, so the level stays even. But the wave must still shift
-// its phase inside the crossfade, and at full level that shift is a pitch blip that grows
-// towards the bass (55% at 55 Hz, 2.5% above 1 kHz), while the dip hides it. So "Auto"
-// compensates high tones (no dip) and leaves low ones alone (no blip), judging the pitch by
-// the zero crossings of the crossfade region.
-function seam_xfade() local(n, i, g, k, s, pa, pb, c, ga, gb, p0, t0, gk, zc, prev, v, fz, amt)
+// THE SEAM. When playback wraps from the end of the loop to its start, the end crossfades into
+// the audio that came just before the recording (so the wave goes on into the first frame).
+// With a steady tone the end and that audio are the same wave but out of phase (the loop is
+// not a whole number of cycles), and any crossfade between them either dips in level or
+// bends the pitch. So, after recording, the looper looks for the shift `d` (at most half a
+// cycle) that brings the end in phase with the start, and from the second pass on reads the
+// loop as L + d frames long: a speed change of a few cents spread over the whole loop
+// instead of a jump at the seam. Non-periodic sounds (no clear match) keep d = 0.
+
+// crossfade BUF[aend - n .. aend) into the pre-roll, written to dst (n frames)
+// With a steady tone left out of phase the crossfade dips; the gains can make up for it, but
+// then the phase shift becomes a pitch blip at full level, worse towards the bass, so "Auto"
+// only compensates high tones. After the phase alignment both pieces match and it is a
+// plain crossfade anyway.
+function seam_into(dst, aend, n) local(i, g, k, s, pa, pb, c, ga, gb, p0, t0, gk, zc, prev, v, fz, amt)
 (
-  n = min(min(floor(srate * xf_ms / 1000), XF_MAX), floor(loop_len / 4));
   pa = pb = c = zc = prev = 0;
   i = 0;
   loop(n,
-    k = loop_len - n + i; s = XF_MAX - n + i;
+    k = aend - n + i; s = XF_MAX - n + i;
     pa += sqr(BUF[2*k]) + sqr(BUF[2*k+1]);
     pb += sqr(SNAP[2*s]) + sqr(SNAP[2*s+1]);
     c  += BUF[2*k] * SNAP[2*s] + BUF[2*k+1] * SNAP[2*s+1];
@@ -140,12 +149,78 @@ function seam_xfade() local(n, i, g, k, s, pa, pb, c, ga, gb, p0, t0, gk, zc, pr
     // smooth limit (about x2.6 at most, exactly 1 at both ends): no kink in the curve
     gk = t0 > 0.000000000001 ? sqrt(sqrt(t0 * t0 * 1.0225) / sqrt(p0 * p0 + 0.0225 * t0 * t0)) : 1;
     gk = gk ^ amt;
-    ga *= gk; gb *= gk;
-    k = loop_len - n + i; s = XF_MAX - n + i;
-    BUF[2*k]   = BUF[2*k]   * ga + SNAP[2*s]   * gb;
-    BUF[2*k+1] = BUF[2*k+1] * ga + SNAP[2*s+1] * gb;
+    k = aend - n + i; s = XF_MAX - n + i;
+    dst[2*i]   = BUF[2*k]   * ga * gk + SNAP[2*s]   * gb * gk;
+    dst[2*i+1] = BUF[2*k+1] * ga * gk + SNAP[2*s+1] * gb * gk;
     i += 1;
   );
+);
+
+// how alike (Pearson correlation, mono) the CM frames before loop_len + d are to the CM
+// frames before the start of the recording; st = step through the frames
+function seam_corr(d, st) local(j, ka, kb, a, q, n, sa, sb, sab, saa, sbb, va, vb)
+(
+  sa = sb = sab = saa = sbb = n = 0;
+  j = 0;
+  while (j < CM) (
+    ka = loop_len + d - CM + j; kb = XF_MAX - CM + j;
+    a = BUF[2*ka] + BUF[2*ka+1]; q = SNAP[2*kb] + SNAP[2*kb+1];
+    sa += a; sb += q; sab += a * q; saa += a * a; sbb += q * q; n += 1;
+    j += st;
+  );
+  va = saa - sa * sa / n; vb = sbb - sb * sb / n;
+  va > 0.0000000001 && vb > 0.0000000001 ? (sab - sa * sb / n) / sqrt(va * vb) : 0;
+);
+
+// the search, a few lags per audio block (it must never cause a dropout)
+function seam_job_step() local(cnt, r, sc, d)
+(
+  job == 1 ? (                                  // coarse: every 2nd lag, every 4th frame
+    cnt = 0;
+    while (cnt < 32 && jd <= tail_n) (
+      r = seam_corr(jd, 4);
+      sc = r - 0.15 * abs(jd) / max(tail_n, 1);
+      sc > best_sc ? ( best_sc = sc; best_d = jd; );
+      jd += 2; cnt += 1;
+    );
+    jd > tail_n ? ( job = 2; jd = max(-tail_n, best_d - 2); best_sc = -10; );
+  ) : job == 2 ? (                              // fine: around the best one, every frame
+    d = jd;
+    loop(5,
+      d <= tail_n ? (
+        r = seam_corr(d, 1);
+        sc = r - 0.15 * abs(d) / max(tail_n, 1);
+        sc > best_sc ? ( best_sc = sc; best_d = d; best_r = r; );
+      );
+      d += 1;
+    );
+    job = 0;
+    // only a clearly periodic sound, and at most about 10 cents of speed change
+    best_r > 0.9 && best_d != 0 && abs(best_d) <= 0.006 * loop_len ? (
+      seam_into(XF2, loop_len + best_d, nx);
+      pend_cl = loop_len + best_d;
+    );
+  );
+);
+
+// one frame of the loop content (the seam region comes from the seam buffer)
+function rd(i) local(j)
+(
+  i < 0 ? i += cl : i >= cl ? i -= cl;
+  i >= cl - nx ? ( j = i - (cl - nx); rL = xfb[2*j]; rR = xfb[2*j+1]; )
+               : ( rL = BUF[2*i]; rR = BUF[2*i+1]; );
+);
+
+// 4-point cubic (Hermite) interpolation at content position p
+function rd_interp(p) local(i, f, l0, l1, l2, l3, r0, r1, r2, r3)
+(
+  i = floor(p); f = p - i;
+  rd(i - 1); l0 = rL; r0 = rR;
+  rd(i);     l1 = rL; r1 = rR;
+  rd(i + 1); l2 = rL; r2 = rR;
+  rd(i + 2); l3 = rL; r3 = rR;
+  oL = l1 + 0.5 * f * (l2 - l0 + f * (2 * l0 - 5 * l1 + 4 * l2 - l3 + f * (3 * (l1 - l2) + l3 - l0)));
+  oR = r1 + 0.5 * f * (r2 - r0 + f * (2 * r0 - 5 * r1 + 4 * r2 - r3 + f * (3 * (r1 - r2) + r3 - r0)));
 );
 
 @slider
@@ -191,6 +266,7 @@ v != start_out ? ( start_out = v; sliderchange(2 ^ 11); );
 v = state == ST_REC ? bars_from_sel(len_sel) * bar_qn : loop_qn;
 v != qn_out ? ( qn_out = v; sliderchange(2 ^ 12); );
 
+job ? seam_job_step();
 gain = 10 ^ (vol_db / 20);
 qn_per_spl = tempo / 60 / srate;
 bar_qn = ts_num * 4 / max(ts_denom, 1);
@@ -230,6 +306,8 @@ playing_now ? (
         state = ST_REC; recording = 1; rec_count = 0;
         rec_start_qn = new_start;
         has_loop = 0;            // the previous loop is replaced
+        job = 0; pend_cl = 0; nx = 0;
+        tail_n = min(TAILMAX, MAXSAMP - loop_len);
       );
     );
     pend_play ? (                     // from the beginning of the loop
@@ -248,13 +326,19 @@ playing_now ? (
     rb = b - lat_qn;
     rb >= rec_start_qn - 0.5 * qn_per_spl ? (
       rec_count == 0 ? snap_preroll();
-      rec_count < loop_len ? (
+      rec_count < loop_len + tail_n ? (
         BUF[2*rec_count] = inL; BUF[2*rec_count+1] = inR;
         rec_count += 1;
+        rec_count == loop_len ? (           // the loop is complete: seam of the first pass
+          n_new = min(min(floor(srate * xf_ms / 1000), XF_MAX), floor(loop_len / 4));
+          seam_into(XF1, loop_len, n_new);
+          xfb = XF1; nx = n_new;
+        );
       );
-      rec_count >= loop_len ? (
+      rec_count >= loop_len + tail_n ? (    // and a little more: look for the phase match
         recording = 0;
-        seam_xfade();
+        CM = min(2048, min(XF_MAX, floor(loop_len / 4)));
+        job = 1; jd = -tail_n; best_sc = -10; best_d = 0; best_r = 0;
       );
     );
   );
@@ -262,6 +346,7 @@ playing_now ? (
   // compensation is still writing its last few milliseconds
   state == ST_REC && b >= rec_start_qn + loop_qn ? (
     start_qn = rec_start_qn; has_loop = 1;
+    cl = loop_len; prev_ph = 0;
     state = ST_PLAY;
     set_slider(2, 0); p_rec = 0;
     play_btn == 0 ? ( set_slider(3, 1); p_play = 1; );
@@ -273,17 +358,31 @@ playing_now ? (
   !has_loop ? env = 0;
   has_loop && env > 0 ? (
     ph = (b - start_qn) / loop_qn; ph -= floor(ph);
-    pos = ph * loop_len;
-    i0 = floor(pos); fr = pos - i0;
-    i1 = i0 + 1; i1 >= loop_len ? i1 = 0;
-    i0 >= loop_len ? i0 = loop_len - 1;
-    outL = (BUF[2*i0]   + (BUF[2*i1]   - BUF[2*i0])   * fr) * env;
-    outR = (BUF[2*i0+1] + (BUF[2*i1+1] - BUF[2*i0+1]) * fr) * env;
+    wrapped = ph < prev_ph - 0.5;
+    wrapped || abs(ph - prev_ph) > 0.01 ? warp = 0;     // new pass, or a jump (resume...)
+    // the phase-aligned length takes over: at once if silent or at the wrap; in the middle
+    // of a pass, the rest of the pass is read a hair faster / slower so it ends exactly at
+    // the new length (so even the first seam is aligned)
+    pend_cl > 0 ? (
+      env < env_step || wrapped ? (
+        cl = pend_cl; xfb = XF2; pend_cl = 0; warp = 0;
+      ) : ph < 0.85 ? (
+        wph = ph; wpos = ph * cl;
+        cl = pend_cl; xfb = XF2; pend_cl = 0; warp = 1;
+      );
+    );
+    prev_ph = ph;
+    pos = warp ? wpos + (ph - wph) * (cl - wpos) / (1 - wph) : ph * cl;
+    pos >= cl ? pos -= cl;
+    rd_interp(pos);
+    outL = oL * env;
+    outR = oR * env;
 
     odub_btn && state == ST_PLAY ? (
       ph2 = (b - lat_qn - start_qn) / loop_qn; ph2 -= floor(ph2);
-      k = floor(ph2 * loop_len + 0.5); k >= loop_len ? k -= loop_len;
+      k = floor(ph2 * cl + 0.5); k >= cl ? k -= cl;
       BUF[2*k] += inL; BUF[2*k+1] += inR;
+      k >= cl - nx ? ( k -= cl - nx; xfb[2*k] += inL; xfb[2*k+1] += inR; );
     );
   );
 

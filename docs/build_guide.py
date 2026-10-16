@@ -730,11 +730,10 @@ def build(path):
         "• If a loop is slightly early or late, adjust <b>Recording Latency Compensation</b> in its "
         "E4L Looper (more ms if it sounds late).",
         "• Steady, unmodulated tones (drones, bass): a wave whose cycles do not fit the loop exactly "
-        "always has a jump in phase at the seam. The looper hides it with a crossfade (<b>Loop Seam "
-        "Crossfade</b>, 50 ms): instead of a click you may hear, at most, a very short softening of "
-        "the tone. Raise it (up to 170 ms) for very low notes. <b>Seam Level Compensation</b> on Auto keeps "
-        "the level of high tones even through the seam and leaves low tones alone (on them it would "
-        "cause a small pitch blip). Keep the note sounding a moment before "
+        "would jump in phase at the seam. Right after recording, the looper finds the shift (at most "
+        "half a cycle) that puts the end in phase with the start and reads the loop that much longer "
+        "or shorter: a few cents, spread over the whole loop, and a seam without dip or click. Sounds "
+        "that are not periodic keep their exact speed. Keep the note sounding a moment before "
         "REC starts: the crossfade uses that sound.",
     ], kind="warn", title="Good to know"))
 

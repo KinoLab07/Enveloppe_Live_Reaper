@@ -172,32 +172,43 @@ def click_db(y, at):        # energy above 2 kHz around `at`, relative to the to
 o = run(LP, bass, "s1=0", "s2@30000=1", "s8=10")[:, 0]
 check("looper: steady bass tone, no click at the seam (50 ms crossfade)",
       click_db(o, 288000) < click_db(o, 250000) + 15)
-o = run(LP, bass, "s1=0", "s2@30000=1", "s8=10", "s14=10")[:, 0]
-check("looper: ... while a 10 ms crossfade (the old one) bends it (the click you heard)",
-      click_db(o, 288000) > click_db(o, 250000) + 15)
 
-# higher steady tone: a plain crossfade would dip ~10 dB at the seam (the "tris")
+# higher steady tone (440 Hz)
 def seam_dip(o, f, at):
     w = int(SR / f)
     lv = [np.abs(o[i:i + w, 0]).max() for i in range(at - 3000, at + 500, w // 4)]
     return 20 * np.log10(min(lv) / np.abs(o[at - 20000:at - 10000, 0]).max())
 mid = np.stack([0.5 * np.sin(2 * np.pi * 440.7 * t)] * 2, 1)
+# Steady tones: the looper finds the shift (at most half a cycle) that puts the end of the
+# loop in phase with its start and reads the loop that much longer / shorter, so neither seam
+# dips (2-bar loop recorded in bars 2-3, seams at 288000 and 384000).
+def analytic(y):
+    N = len(y); X = np.fft.fft(y); h = np.zeros(N); h[0] = 1; h[1:N // 2] = 2; h[N // 2] = 1
+    return np.fft.ifft(X * h)
+def seam_level(o, at, amp):
+    z = analytic(o[at - 6000:at + 3000, 0])[1000:-1000]
+    return 20 * np.log10(np.abs(z).min() / amp)
+def pitch(o, a, b):
+    z = analytic(o[a:b, 0]); f = np.diff(np.unwrap(np.angle(z))) * SR / (2 * np.pi)
+    return np.median(f[500:-500])
+for f in (55.3, 98.37, 220.3, 440.7, 1500.9):
+    o = run(LP, np.stack([0.5 * np.sin(2 * np.pi * f * t)] * 2, 1), "s1=0", "s2@30000=1", "s8=10")
+    d1, d2 = seam_level(o, 288000, 0.5), seam_level(o, 384000, 0.5)
+    cents = 1200 * np.log2(pitch(o, 330000, 370000) / f)
+    check("looper: steady %.0f Hz tone, both seams even (%.1f / %.1f dB), speed %+.1f cents"
+          % (f, d1, d2, cents), d1 > -0.6 and d2 > -0.6 and abs(cents) < 11)
+saw = sum(np.sin(2 * np.pi * k * 110.3 * t) / k for k in range(1, 40))
+saw = np.stack([0.5 * saw / np.abs(saw).max()] * 2, 1)
+o = run(LP, saw, "s1=0", "s2@30000=1", "s8=10")[:, 0]
+check("looper: steady sawtooth (110 Hz, many harmonics), no click at either seam",
+      click_db(o, 288000) < click_db(o, 250000) + 6 and click_db(o, 384000) < click_db(o, 250000) + 6)
+noise = np.random.default_rng(1).normal(size=(10 * SR, 2)) * 0.2
+o = run(LP, noise, "s1=0", "s2@30000=1", "s8=10")
+check("looper: a non-periodic sound keeps its exact speed (no shift)",
+      np.allclose(o[300000:380000], o[204000:284000], atol=1e-6))
 o = run(LP, mid, "s1=0", "s2@30000=1", "s8=10", "s17=2")
-check("looper: compensation Full, 440 Hz: the level stays even through the seam (dip %.1f dB)" % seam_dip(o, 440.7, 288000),
+check("looper: compensation Full still works (440 Hz, dip %.1f dB)" % seam_dip(o, 440.7, 288000),
       seam_dip(o, 440.7, 288000) > -3)
-# Auto: low tones without compensation (no pitch blip), high tones with it (no dip)
-def tone(f):
-    return np.stack([0.5 * np.sin(2 * np.pi * f * t)] * 2, 1)
-seam_rng = slice(284000, 288100)
-o_auto = run(LP, tone(220.3), "s1=0", "s2@30000=1", "s8=10")[seam_rng]
-o_off = run(LP, tone(220.3), "s1=0", "s2@30000=1", "s8=10", "s17=1")[seam_rng]
-o_full = run(LP, tone(220.3), "s1=0", "s2@30000=1", "s8=10", "s17=2")[seam_rng]
-check("looper: Auto, 220 Hz tone -> no compensation (as before: no pitch blip)",
-      np.allclose(o_auto, o_off, atol=1e-6) and not np.allclose(o_auto, o_full, atol=1e-3))
-o_auto = run(LP, tone(1500.9), "s1=0", "s2@30000=1", "s8=10")
-o_full = run(LP, tone(1500.9), "s1=0", "s2@30000=1", "s8=10", "s17=2")
-check("looper: Auto, 1500 Hz tone -> full compensation (no dip: %.1f dB)" % seam_dip(o_auto, 1500.9, 288000),
-      np.allclose(o_auto[seam_rng], o_full[seam_rng], atol=1e-6) and seam_dip(o_auto, 1500.9, 288000) > -3)
 
 # transport: STOP then PLAY starts the loops from their beginning; PAUSE continues
 o = run(LP, ramp, *EXACT, "s1=1", "s2=1", "ps@300000=0", "beat@310016=4", "ps@310016=1")

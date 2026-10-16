@@ -230,8 +230,11 @@ can also be automated with envelopes or REAPER's parameter modulation.
 **E4L Looper:** Length (1-32 bars), Record, Play, Overdub, Clear, Loop Volume, Input Thru,
 Recording Latency Compensation (set automatically from the interface latency), Loop Seam
 Crossfade (default 50 ms; the end of the loop crossfades into the sound that preceded the
-recording, so steady tones loop without a click), Seam Level Compensation (Auto: high tones keep
-their level through the seam, low ones are left alone so they do not get a pitch blip; Off; Full)
+recording). With steady tones the looper also finds the shift, at most half a cycle, that puts
+the end of the loop in phase with its start, and reads the loop that much longer or shorter (a
+few cents, spread over the whole loop), so the seam has no dip, blip or click. Non-periodic
+sounds keep their exact speed. Seam Level Compensation (Auto / Off / Full) only matters when no
+phase match is found,
 and Start / Stop Fade (default 30 ms). REAPER
 must be playing. After STOP, PLAY starts the loops from their beginning on the current bar; after
 PAUSE they continue where they were. In the Live Panel, STOP (or the space bar) also goes back to
