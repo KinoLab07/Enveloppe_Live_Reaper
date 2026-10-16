@@ -1,4 +1,4 @@
--- E4L - Nuevo proyecto en vivo.lua
+-- E4L - New live project.lua
 -- Envelop for REAPER: one click to start playing.
 --   1. new project (REAPER asks to save the current one if it has changes)
 --   2. "E4L - Live Looper template": SYNTH IN, LOOP tracks, E4L Master (quad), CUE, sub

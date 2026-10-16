@@ -338,7 +338,7 @@ local function act_load_song()
 end
 
 local function act_new_song()
-  local f = DIR .. "E4L - Nuevo proyecto en vivo.lua"
+  local f = DIR .. "E4L - New live project.lua"
   local ok, err = pcall(dofile, f)
   if not ok then status("Error: " .. tostring(err)) end
   editing = nil; last_scan = -1

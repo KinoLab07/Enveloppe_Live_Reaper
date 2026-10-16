@@ -1,180 +1,299 @@
 # Enveloppe Live Reaper
 
-Port de **[Envelop for Live (E4L)](https://github.com/EnvelopSound/EnvelopForLive)**, el kit de mezcla
-espacial en ambisonics de Envelop para Ableton Live, a **REAPER**.
+A port of **[Envelop for Live (E4L)](https://github.com/EnvelopSound/EnvelopForLive)**, Envelop's
+spatial audio (ambisonics) toolkit for Ableton Live, to **REAPER**, plus a live looping set-up
+for performing with a synth in **quadraphony**.
 
-Los dispositivos Max for Live (`.amxd`) de E4L solo funcionan dentro de Ableton, así que aquí se
-reescriben como **JSFX**, el formato de plugin nativo de REAPER. No hay que compilar nada, funcionan
-en Windows, macOS y Linux, y todos sus parámetros se pueden automatizar con envolventes de REAPER.
+E4L's Max for Live devices (`.amxd`) only run inside Ableton Live. Here they are rewritten as
+**JSFX**, REAPER's native plug-in format: nothing to compile, they run on macOS, Windows and
+Linux, and every parameter can be automated with REAPER envelopes.
 
-Formato interno: **ambisonics de 3.er orden, 16 canales, ambiX (ACN / SN3D)**, el mismo que usa E4L
-y compatible con el IEM Plugin Suite, SPARTA y otros.
+On top of the port there is a **live performance set-up**: an Ableton-style bar-synced looper,
+a one-window **Live Panel** to play and move every loop, a subwoofer output, binaural
+headphone monitoring and a one-click updater.
 
-## Estado del port
+![E4L Live Panel](docs/live_panel_preview.png)
 
-| Dispositivo E4L | REAPER | Estado |
+> The Live Panel and the user guide (`docs/Guia_E4L_REAPER_Cuadrafonia.pdf`) are in Spanish.
+
+---
+
+## Contents
+
+- [What is included](#what-is-included)
+- [How it works](#how-it-works)
+- [Installation](#installation)
+- [Quick start: a live project](#quick-start-a-live-project)
+- [The Live Panel](#the-live-panel)
+- [Movement (the E4L LFOs)](#movement-the-e4l-lfos)
+- [Plug-in reference](#plug-in-reference)
+- [Scripts](#scripts)
+- [Conventions](#conventions)
+- [Differences from E4L](#differences-from-e4l)
+- [Repository layout and tests](#repository-layout-and-tests)
+- [License and credits](#license-and-credits)
+
+---
+
+## What is included
+
+### Plug-ins (`Effects/E4L`)
+
+| Plug-in | Port of | What it does |
 |---|---|---|
-| E4L Source Panner | `E4L Source Panner.jsfx` | ✅ Mono/Estéreo, Polar/XYZ, apertura, distancia |
-| E4L Mono Panner | `E4L Mono Panner.jsfx` | ✅ con LFO de azimut y elevación |
-| E4L Stereo Panner | `E4L Stereo Panner.jsfx` | ✅ con LFO de azimut, elevación y apertura |
-| E4L Quad Panner | `E4L Quad Panner.jsfx` | ✅ 4 entradas, modos de apertura LR / X / W, 4 LFO |
-| E4L Multi-Panner | `E4L Multi-Panner.jsfx` | ✅ 16 entradas con posición propia, LFO de azimut, elevación y escala |
-| E4L Master Bus (decodificadores) | `E4L Master Bus.jsfx` | ✅ Binaural 3.er orden, Estéreo, Quad, Octo, 5.1, 7.1, 5.1.2, 7.1.4, AmbiX |
-| — (nuevo) | `E4L Looper.jsfx` | ✅ Looper en vivo sincronizado al compás, estilo Ableton |
-| — (nuevo) | `E4L Sub Out.jsfx` | ✅ Va en el master de REAPER: manda la suma de todo a la salida del sub |
-| Spinner, HOA Transform, Multi-Delay, Spatial Slicer, Brownian Delay… | | ⏳ pendientes |
+| **E4L Source Panner** | E4L Source Panner | Mono/stereo source, polar or XYZ position, spread, distance |
+| **E4L Mono Panner** | E4L Mono Panner | One point, with azimuth and elevation LFOs |
+| **E4L Stereo Panner** | E4L Stereo Panner | Left/right points, with azimuth, elevation and spread LFOs |
+| **E4L Quad Panner** | E4L Quad Panner | Four inputs, LR / X / W spread modes, four LFOs |
+| **E4L Multi-Panner** | E4L Multi-Panner | Up to 16 inputs with their own offsets, plus azimuth/elevation and scale LFOs |
+| **E4L Master Bus** | E4L Master Bus (decoders) | Binaural (3rd order, IRCAM HRIRs), stereo, quad, octo, 5.1, 7.1, 5.1.2, 7.1.4, ambiX pass-through, optional sub output |
+| **E4L Looper** | *(new)* | Bar-synced live looper: record / play / overdub / clear, quantised to the bar |
+| **E4L Sub Out** | *(new)* | On REAPER's master: sends the sum of everything to a subwoofer output |
 
-Lo que no se porta porque REAPER ya lo hace: el ruteo automático entre pistas (se usan envíos de
-16 canales; el script de abajo los crea), la grabación y exportación (render de REAPER) y los
-medidores (los de REAPER muestran los 16 canales).
+All of them work in **3rd order ambisonics, 16 channels, ambiX (ACN / SN3D)**, the same format
+as E4L and compatible with the IEM Plug-in Suite, SPARTA and others.
 
-## Instalación
+### Scripts (`Scripts/E4L`)
 
-1. En REAPER: **Options › Show REAPER resource path in explorer/finder**.
-2. Copia las carpetas de este repositorio dentro de esa carpeta de recursos, combinándolas con
-   las que ya existen:
-   - `Effects/E4L` → `<recursos>/Effects/E4L` (los plugins)
-   - `Data/E4L` → `<recursos>/Data/E4L` (los filtros HRTF del decodificador binaural)
-   - `Scripts/E4L` → `<recursos>/Scripts/E4L` (opcional, script de configuración)
-3. En REAPER: abre el navegador de FX y pulsa **F5** para refrescar. Aparecerán como `JS: E4L …`.
-
-### Actualizar
-
-Ejecuta `Scripts/E4L/E4L - Update from GitHub.lua` (en Mac usa curl y unzip; en Windows, PowerShell).
-Descarga la última versión de `main` y reemplaza solo las carpetas `Effects/E4L`, `Data/E4L` y
-`Scripts/E4L` de la carpeta de recursos de REAPER.
-
-## Uso rápido
-
-**Automático:** en **Actions › Show action list › New action › Load ReaScript…**, carga
-`Scripts/E4L/E4L - Setup session.lua`. Selecciona las pistas que quieras espacializar y ejecútalo:
-
-- crea (o reutiliza) la pista **"E4L Master"** de 16 canales con `E4L Master Bus`;
-- pone cada pista seleccionada a 16 canales, le añade el paneador, desactiva su envío al master
-  y crea un envío de 16 canales hacia "E4L Master".
-
-**Manual** (lo mismo que hace E4L en Live):
-
-1. **Pista "E4L Master":** botón *Route* → *Track channels: 16*. Añade `E4L Master Bus`.
-   Para auriculares, deja *Decoder = Binaural (3rd-order)*.
-2. **Cada fuente:** *Track channels: 16*, añade `E4L Stereo Panner` (o Mono/Source), **desactiva
-   "Master send"** y añade un envío a "E4L Master" con *Audio: 1-16 → 1-16*.
-
-## Looper en vivo (estilo Ableton)
-
-Para componer en vivo con un sinte (por ejemplo, uno analógico): lo escuchas solo en los auriculares,
-grabas loops de N compases que entran justo en el siguiente compás y cada loop suena espacializado
-en la cuadrafonía.
-
-1. Ejecuta `Scripts/E4L/E4L - Nuevo proyecto en vivo.lua` (proyecto nuevo + plantilla + panel), o a mano
-   `Scripts/E4L/E4L - Live Looper template.lua`. Crea:
-   - **SYNTH IN:** la entrada del sinte, monitoreada y enviada solo a los auriculares (por defecto, salidas 5-6);
-   - **LOOP 1…N:** `E4L Looper` + paneador E4L en cada pista;
-   - **E4L Master:** decodifica en Quad hacia las salidas 1-4;
-   - **CUE (auriculares):** copia binaural de los loops para los auriculares.
-2. Pulsa PLAY en REAPER. En el `E4L Looper` de una pista, elige *Length* y pulsa **REC**: graba en
-   el siguiente compás y al terminar pasa solo a **PLAY**. También tiene **OVERDUB** y **CLEAR**,
-   y todo se puede asignar a MIDI (*Param › Learn*).
-3. Sub: el script pone `E4L Sub Out` en el master de REAPER, así que todo lo que llega al master
-   también sale por la salida del sub (por defecto, la 5). Para un proyecto existente, usa
-   `Scripts/E4L/E4L - Add sub to master.lua`.
-4. **Panel en vivo:** `Scripts/E4L/E4L - Live Panel.lua` abre una sola ventana, acoplable a
-   REAPER, con el compás y el tiempo en grande y todos los loops (GRABAR / SONAR / CAPA / BORRAR,
-   largo y posición). También muestra la sala con un punto por loop, que se arrastra para moverlo.
-   Barra de herramientas: **+ LOOP**, **+ AUDIO** (audio pregrabado en bucle, ajustado al tempo, que
-   entra con SONAR en el siguiente compás), **+ ENTRADA** (otra entrada de la interfaz; el botón ENT
-   de cada loop elige cuál graba), **GUARDAR / CARGAR TEMPLATE** (en `E4L_Templates`) y
-   **NUEVO TEMPLATE**.
-   El botón **MOVIMIENTO** de cada loop abre su editor: el menú del efecto E4L, la posición, el giro
-   automático (libre o al tempo), sube y baja, la apertura estéreo y movimientos rápidos.
-   Teclas: Espacio = iniciar/detener, 1-9 = grabar, 0 = parar todos, Esc = cerrar el editor.
-
-   ![E4L Live Panel](docs/live_panel_preview.png)
-   ![Editor de movimiento](docs/live_panel_editor.png)
-5. Scripts de control: `E4L - Loop REC (selected tracks)`, `E4L - Loop PLAY-STOP (selected tracks)`
-   y `E4L - Loops STOP all`.
-
-Los loops viven en la memoria del plugin y no se guardan con el proyecto. Para conservar una
-sesión, expórtala con *Render*. La guía completa está en `docs/Guia_E4L_REAPER_Cuadrafonia.pdf`.
-
-## Automatismos (LFO de E4L)
-
-Los paneadores Mono, Stereo, Quad y Multi incluyen los LFO de E4L con los mismos parámetros:
-
-| Parámetro | Qué hace |
+| Script | What it does |
 |---|---|
-| **Azimuth LFO Mode** | *Cycle*: giro completo de 360° · *Sin*: oscila ± *Depth* |
-| **Elevation LFO Polarity** | *Unipolar*: de 0 a *Depth* hacia arriba · *Bipolar*: ± *Depth* |
-| **Time Mode** | *Freq*: Hz × *Rate* (Rate negativo = sentido contrario) · *Sync*: sincronizado al tempo |
-| **Sync (bars)** | 1/4, 1/2, 1, 2, 3, 4, 6, 8, 16, 32, 64 compases por ciclo |
-| **Direction** | Clockwise / Counter (en modo Sync) |
-| **Azimuth/Elevation Spread LFO** | (Stereo y Quad) abre y cierra la imagen |
-| **Azimuth/Elevation Scale LFO** | (Multi-Panner) expande y contrae todo el grupo de entradas; *Depth* de −1 a 1 |
+| **E4L - New live project** | New project + live template + Live Panel, in one click |
+| **E4L - Live Looper template** | Builds the live set-up (synth input, loops, quad master, headphone cue, sub) |
+| **E4L - Live Panel** | One dockable window to play everything (see below) |
+| **E4L - Update from GitHub** | Downloads the latest version from this repository and installs it |
+| E4L - Setup session | Spatialises the selected tracks (no looper): 16 channels, panner, send to the master bus |
+| E4L - Add sub to master | Adds the subwoofer output to an existing project |
+| E4L - Loop REC / PLAY-STOP (selected tracks), E4L - Loops STOP all | Actions for keyboard shortcuts or MIDI |
 
-### Quad Panner
+### Not ported (yet)
 
-Entradas: 1 delantera izq., 2 delantera der., 3 trasera izq., 4 trasera der. (canales 1-4 de la pista).
-*Azimuth Spread Mode*, igual que en E4L:
+Spinner, HOA Transform, Multi-Delay, Spatial Slicer, Brownian Delay, Delay Boids, AuraVerb,
+B-Format convolution reverb, the LED / OSC devices. Things REAPER already does (routing between
+tracks, recording, export, metering) are done with REAPER itself.
 
-- **LR:** cuadrado, con el par delantero a azimut ∓ apertura/2 y el trasero a azimut+180 ± apertura/2.
-- **X:** como LR, pero con el par trasero cruzado (diagonales).
-- **W:** abanico centrado en el azimut. Con apertura 90 queda un cuadrado; con 180, todo atrás; con 0, todo al frente.
+---
 
-### Multi-Panner
-
-Paneo de hasta 16 canales de la pista (por ejemplo, un multipista o un sinte multisalida). Cada
-entrada tiene *Active*, *Azimuth*, *Elevation* y *Radius* propios, relativos al grupo:
+## How it works
 
 ```
-azimut(n)    = Azimuth   + Input n Azimuth   × Azimuth Scale
-elevación(n) = Elevation + Input n Elevation × Elevation Scale
-radio(n)     = máx(0, Radius + Input n Radius × Radius Scale)
+Analog synth ─► SYNTH IN ──────────────────────────────────────► headphones (outputs 7-8)
+                   │                                                    ▲
+                   ▼                                                    │
+              LOOP 1..n  (E4L Looper + E4L Panner) ─┐                  │
+              AUDIO 1..n (looped file + E4L Panner) ─┴─► E4L Master ───┴── CUE (binaural)
+                                                         (Master Bus = Quad)
+                                                              │
+                                                              ▼
+                                                        REAPER master ─► outputs 1-4 (speakers)
+                                                        + E4L Sub Out ─► output 5 (subwoofer)
 ```
 
-Por defecto todas las entradas están en el centro (0°), como en E4L. Distribúyelas con el
-*Azimuth* de cada entrada y usa *Azimuth Scale* (y su LFO) para abrir o cerrar el conjunto.
+- Every source track carries an **E4L panner** that encodes it into 16 ambisonics channels
+  (where the sound comes from). All of them are sent to the **E4L Master** track.
+- **E4L Master Bus** decodes the ambisonics mix to the speakers. Changing one option (quad,
+  binaural, 5.1, 7.1.4…) changes the whole output; panners and automation stay the same.
+- **CUE** decodes the same mix to binaural for the headphones, so you hear the loops in 3D while
+  you play. The synth input goes to the headphones only, never to the speakers, until you record it.
+- **E4L Sub Out** on REAPER's master sends everything that reaches the master to the sub.
 
-En modo *Sync*, mientras REAPER reproduce, la fase del LFO se engancha a la posición del proyecto
-(como `phasor~ @lock 1` en E4L). Así, el movimiento es idéntico en cada reproducción y en el render.
-Además, cualquier parámetro se puede automatizar con envolventes o con la **Parameter
-Modulation** de REAPER (LFO, seguidor de envolvente, enlace entre parámetros).
+Quad speaker order (as in E4L, clockwise): **1** front-left (−45°), **2** front-right (+45°),
+**3** rear-right (+135°), **4** rear-left (−135°).
 
-## Convenciones (igual que E4L)
+---
 
-- **Azimut:** 0 = frente, +90 = derecha, −90 = izquierda, ±180 = detrás.
-- **Elevación:** 0 = horizonte, +90 = arriba.
-- **Distancia:** `distancia = Radius × Range`. Dentro de 1 unidad la fuente se vuelve omnidireccional;
-  fuera, se atenúa 1,5 dB por unidad. Con los valores por defecto de E4L (Radius 1, Range 10)
-  la fuente suena 13,5 dB más baja; para el nivel completo usa Radius = 1/Range.
-- **XYZ** (Source Panner): X = derecha, Y = frente, Z = arriba.
-- **Apertura estéreo** (como en E4L): izquierda = azimut − apertura y elevación + apertura de elevación;
-  derecha, al revés.
+## Installation
 
-## Diferencias conocidas con E4L
+1. Download this repository (**Code › Download ZIP**) and unzip it.
+2. In REAPER open the resource folder: action list (`?`), search **resource path**, run
+   *Show REAPER resource path in explorer/finder*
+   (macOS: `~/Library/Application Support/REAPER`, Windows: `%APPDATA%\REAPER`).
+3. Copy the folders **`Effects`**, **`Data`** and **`Scripts`** into it, **merging** with the
+   existing folders:
+   - `Effects/E4L` – the plug-ins
+   - `Data/E4L` – HRTF filters for the binaural decoder
+   - `Scripts/E4L` – the scripts
+4. In REAPER's FX browser press **F5** (Mac laptops: **fn + F5**). The plug-ins show up as `JS: E4L …`.
+5. Load the scripts once: *Actions › Show action list › New action › Load ReaScript…*
+   (at least **E4L - New live project**, **E4L - Live Panel** and **E4L - Update from GitHub**).
 
-- E4L usa los objetos ICST Ambisonics, cuyo código no está disponible. Este port implementa la misma
-  matemática (codificación SN3D/ACN y decodificación por muestreo con ponderación por orden), pero los
-  niveles absolutos de los decodificadores están normalizados por energía y pueden diferir algo de E4L.
-- *Order Weighting*: E4L usa `ambidecode~ @type 2`. Aquí es "In-phase (E4L)" por defecto, y además
-  puedes elegir *max-rE* (más preciso) o *Basic*.
-- Binaural: las mismas 25 HRTF de IRCAM Listen (sujeto 1052) que E4L, en sus direcciones exactas.
-  Se precalculan como 16 filtros FIR estéreo (`tools/make_binaural_filters.py`) y tienen 512 muestras de
-  latencia (1024 a 88,2/96 kHz), que REAPER compensa automáticamente (PDC).
-- Los LFO se calculan cada 32 muestras con interpolación lineal (E4L lo hace cada 10 ms).
-- No se incluyen OSC ni el control de luces LED de Envelop.
+### Updating
 
-## Pruebas
+Run **E4L - Update from GitHub**. It downloads the latest `main` (curl + unzip on macOS/Linux,
+PowerShell on Windows), replaces only `Effects/E4L`, `Data/E4L` and `Scripts/E4L`, tells you when
+you are already up to date, restarts the Live Panel and offers to reopen the project so the new
+plug-ins are loaded.
 
-`tests/run_tests.sh` compila [ysfx](https://github.com/jpcima/ysfx), un intérprete libre de JSFX, y
-comprueba los plugins sin necesidad de REAPER: codificación, LFO, sincronización al tempo y
-decodificadores.
+---
 
-## Licencia y créditos
+## Quick start: a live project
 
-**GNU GPL v2 o posterior** (ver `LICENSE`), la misma que Envelop for Live, porque este proyecto es
-una obra derivada de E4L.
+1. Set up the audio interface (*Settings › Audio › Device*) with outputs 1-4 for the speakers.
+2. Run **E4L - New live project**. In the dialog:
 
-- Envelop for Live © Envelop (envelop.us), Mark C. Slee y colaboradores. Si E4L te es útil,
-  considera [apoyar a Envelop](https://envelop.us/memberships).
-- HRTF: base de datos IRCAM Listen (sujeto 1052), redistribuida en E4L.
-- Codificación y decodificación inspiradas en las herramientas ICST Ambisonics (ZHdK).
+   | Field | Default | Notes |
+   |---|---|---|
+   | Loop tracks to add | 8 | |
+   | Synth input (first channel) | 1 | interface input of the synth |
+   | Synth input: 1 mono 2 stereo | 1 | |
+   | Headphones output (first channel) | 7 | outputs 7-8; set the interface's headphone source to them |
+   | Loop panner: 1 Mono 2 Stereo | 1 | |
+   | Sub output (0 = none) | 5 | |
+
+   It creates `SYNTH IN`, `LOOP 1-8`, `E4L Master` (quad) and `CUE (auriculares)`, configures the
+   master (outputs 1-2, 3-4 and the sub on 5), measures the recording latency compensation and
+   opens the Live Panel.
+3. Set the **tempo and time signature** (double-click them in the transport bar).
+4. Press **play** (space bar). The running project is the "global loop": every loop follows its bars.
+5. Play the synth (headphones only), then press **GRABAR** on a loop: it waits for the next bar,
+   records the chosen number of bars and starts playing it, spatialised, on the speakers.
+
+**Headphones on an Avid Mbox Pro (3rd gen):** each headphone output has its own mix. In the Mbox
+control panel, set *Headphones A* to the computer's outputs 7-8.
+
+**Note:** recorded loops live in the plug-in's memory. They are **not saved** with the project
+(set-ups, positions and movements are). Render the project to keep a performance.
+
+---
+
+## The Live Panel
+
+One window, dockable in REAPER (right-click the top area), to play the whole set-up without
+opening any plug-in.
+
+- **Header:** big bar . beat counter, beats of the bar, a 4-bar phrase indicator, tempo,
+  play/stop, stop all loops.
+- **Toolbar:**
+  - **+ LOOP** – another loop track.
+  - **+ AUDIO** – a pre-recorded file on a new `AUDIO n` track, looped from bar 1. If it is close
+    to a whole number of bars it is fitted to the tempo (pitch preserved). It starts muted and
+    enters on the next bar with **SONAR**.
+  - **+ ENTRADA** – another interface input (`SYNTH IN 2`…); each loop's **ENT** button picks
+    which input it records.
+  - **GUARDAR / CARGAR TEMPLATE** – save / load the set-up (tracks, inputs, audio files,
+    positions, movements, tempo) in `E4L_Templates` inside the resource folder, to move from one
+    piece to the next.
+  - **NUEVO TEMPLATE** – a new live project from scratch.
+- **One row per loop:** state (empty, waiting, recording, playing, stopped), length (1-32 bars),
+  input, **GRABAR** (record), **SONAR** (play), **CAPA** (overdub), **BORRAR** (clear),
+  **MOVIMIENTO** (movement editor) and the position inside the loop. Record, play and stop are
+  quantised to the next bar.
+- **Room view**, seen from above: the four speakers and one dot per loop, moving live with its
+  animations. Drag a dot to move that loop.
+- **Keys:** space = play/stop, 1-9 = record on loop 1-9, 0 = stop all loops, Esc = close the editor.
+
+### Movement editor
+
+![Movement editor](docs/live_panel_editor.png)
+
+The **MOVIMIENTO** button of each loop opens all its spatial controls in the same window:
+
+- **E4L effect menu:** one point (Mono Panner), two points (Stereo Panner) or fixed position
+  (Source Panner). Switching keeps the position and animations.
+- **Position:** direction ("45° right"), height and distance (shown as dB of attenuation).
+- **Automatic rotation:** full turn or swing, free speed ("1 turn every 10 s") or synced to the
+  tempo ("1 turn every 4 bars"), clockwise / counter-clockwise, swing depth.
+- **Up and down:** the elevation LFO (barely audible in quad: there are no speakers above).
+- **Stereo width:** spread and "breathing" (spread LFO).
+- **Quick movements:** still, slow turn, 4-bar turn, whirl, front swing, right swing.
+
+---
+
+## Movement (the E4L LFOs)
+
+The Mono, Stereo, Quad and Multi panners keep E4L's LFOs and parameters:
+
+| Parameter | Meaning |
+|---|---|
+| Azimuth LFO Mode | *Cycle*: full 360° turns · *Sin*: swing ± *Depth* around *Azimuth* |
+| Elevation LFO Polarity | *Unipolar*: 0 to *Depth* upwards · *Bipolar*: ± *Depth* |
+| Time Mode | *Freq*: Hz × *Rate* (negative rate = other direction) · *Sync*: tempo synced |
+| Sync (bars) | 1/4, 1/2, 1, 2, 3, 4, 6, 8, 16, 32, 64 bars per cycle |
+| Direction | Clockwise / Counter (Sync mode) |
+| Spread LFOs | (Stereo, Quad) open and close the image |
+| Scale LFOs | (Multi-Panner) expand and contract the whole group; depth −1 to 1 |
+
+In *Sync* mode, while REAPER plays, the LFO phase is locked to the project position (like E4L's
+`phasor~ @lock 1`): the movement is identical on every playback and in the render. Any parameter
+can also be automated with envelopes or REAPER's parameter modulation.
+
+---
+
+## Plug-in reference
+
+**E4L Looper:** Length (1-32 bars), Record, Play, Overdub, Clear, Loop Volume, Input Thru,
+Recording Latency Compensation (set automatically from the interface latency). REAPER must be
+playing. Maximum loop length about 5 minutes at 48 kHz. Hidden read-only parameters publish its
+state for the Live Panel.
+
+**E4L Master Bus:** Decoder, Order Weighting (*In-phase (E4L)* by default, recommended for quad;
+*max-rE*; *Basic*), Ambisonics Order, input/output gain, optional Sub Output channel, level and
+low-pass. Binaural uses the 25 IRCAM Listen HRIRs shipped with E4L, folded into 16 FIR filters
+(`tools/make_binaural_filters.py`); latency 512 samples (1024 at 88.2/96 kHz), compensated by REAPER.
+
+**E4L Sub Out** (on the master): sub output channel, which master channels to sum (1-4 quad, 1-2,
+1-6), level, optional 24 dB/oct low-pass, mute.
+
+**Quad Panner spread modes** (as in E4L): *LR* square, *X* rear pair crossed, *W* fan
+(E4L's non-linear W1/W2 curves).
+
+---
+
+## Scripts
+
+All scripts are Lua ReaScripts; `e4l_lib.lua` and `e4l_looper_common.lua` are shared code, not
+actions. The live template, the panel and the updater keep their settings in the project
+(`E4L` project ext-state) and in REAPER's ext-state (`E4L_LivePanel`, `E4L_Update`).
+
+---
+
+## Conventions
+
+- **Azimuth** (as in E4L): 0 = front, +90 = right, −90 = left, ±180 = back (clockwise).
+- **Elevation:** 0 = ear level, +90 = above.
+- **Distance:** `distance = Radius × Range`. Inside 1 unit the source becomes omnidirectional;
+  beyond it, −1.5 dB per unit. With E4L's defaults (Radius 1, Range 10) a source is 13.5 dB down;
+  use Radius = 1/Range (0.1) for full level (the live template does).
+- **XYZ** (Source Panner): X = right, Y = front, Z = up.
+- **Stereo spread** (as in E4L): left = azimuth − spread and elevation + elevation spread; right
+  the opposite.
+
+---
+
+## Differences from E4L
+
+- E4L uses the ICST Ambisonics externals, whose source is not available. The same maths is
+  implemented (SN3D/ACN encoding, sampling decoders with order weighting), but decoder levels are
+  energy-normalised and may differ slightly from E4L.
+- LFOs are computed every 32 samples with linear interpolation (E4L: every 10 ms).
+- OSC and Envelop's LED control are not included.
+
+---
+
+## Repository layout and tests
+
+```
+Effects/E4L/    JSFX plug-ins (+ e4l_ambix.jsfx-inc, e4l_gfx.jsfx-inc)
+Data/E4L/hrtf/  binaural filters (44.1, 48, 88.2, 96 kHz)
+Scripts/E4L/    ReaScripts
+docs/           Spanish user guide (PDF), its generator, panel previews
+tools/          binaural filter generator, panel preview renderer
+tests/          automated tests
+```
+
+`tests/run_tests.sh` builds [ysfx](https://github.com/jpcima/ysfx) (an open-source JSFX runtime)
+and tests the plug-ins without REAPER: encoding, LFOs, tempo sync, decoders, sub output, and the
+looper's timing (bar quantisation, latency compensation, overdub, re-record).
+`tests/test_scripts.py` runs the Lua scripts (template, panel, toolbar, movement editor, updater
+hand-off) against a mocked REAPER API (requires `pip install lupa`).
+
+---
+
+## License and credits
+
+**GNU GPL v2 or later** (see `LICENSE`), the same license as Envelop for Live, since this is a
+derivative work of E4L.
+
+- Envelop for Live © Envelop (envelop.us), Mark C. Slee and contributors. If E4L is useful to you,
+  consider [supporting Envelop](https://envelop.us/memberships).
+- HRTFs: IRCAM Listen database (subject 1052), as shipped with E4L.
+- Encoding and decoding modelled on the ICST Ambisonics tools (ZHdK).

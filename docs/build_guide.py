@@ -635,7 +635,7 @@ def build(path):
     st += steps([
         "Copia de nuevo las carpetas <b>Effects</b> y <b>Scripts</b> en la carpeta de recursos "
         "de REAPER (sección 3), para tener el <b>E4L Looper</b> y los scripts nuevos.",
-        "Carga el script <b>E4L - Nuevo proyecto en vivo</b> (<b>Actions › New action › Load "
+        "Carga el script <b>E4L - New live project</b> (<b>Actions › New action › Load "
         "ReaScript…</b>, como en la sección 3) y ejecútalo. Crea un proyecto nuevo, arma la "
         "plantilla y abre el <b>Live Panel</b>, todo de una vez. Hace lo mismo que ejecutar a mano "
         "<b>E4L - Live Looper template</b> y después <b>E4L - Live Panel</b>.",
