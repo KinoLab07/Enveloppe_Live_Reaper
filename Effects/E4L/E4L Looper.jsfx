@@ -45,7 +45,12 @@ ext_tail_size = -1;
 ext_noinit = 1;      // keep the recorded loop when playback stops / restarts
 
 BUF = 0;
-MAXSAMP = floor((32000000 - 1024) / 2);   // stereo frames available
+XF_MAX = 4096;                            // max crossfade frames (the seam of the loop)
+MAXSAMP = floor((32000000 - 4 * XF_MAX - 1024) / 2);   // stereo frames available
+RING = 2 * MAXSAMP + 512;                 // the last XF_MAX input frames, always
+SNAP = RING + 2 * XF_MAX;                 // the input just before the recording started
+ring_pos = 0;
+env = 0;                                  // output ramp: no click when a loop starts / stops
 
 // states (armed = waiting for the next bar to start recording)
 ST_EMPTY = 0; ST_REC = 2; ST_PLAY = 3; ST_STOP = 4;
@@ -79,15 +84,29 @@ function do_clear()
   odub_btn != 0 ? set_slider(4, 0);
 );
 
-// fade the first / last frames of the loop so the seam does not click
-function fade_edges() local(n, i, g)
+// copy the input that came just before the first recorded frame (from the ring buffer)
+function snap_preroll() local(j, r)
 (
-  n = min(floor(srate * 0.003), floor(loop_len / 4));
+  j = 0;
+  loop(XF_MAX,
+    r = ring_pos - XF_MAX + j; r < 0 ? r += XF_MAX;
+    SNAP[2*j] = RING[2*r]; SNAP[2*j+1] = RING[2*r+1];
+    j += 1;
+  );
+);
+
+// seamless seam: the end of the loop crossfades into the audio that preceded its start,
+// so when playback wraps from the last frame to the first the waveform is continuous
+function seam_xfade() local(n, i, g, k, s)
+(
+  n = min(min(floor(srate * 0.01), XF_MAX), floor(loop_len / 4));
   i = 0;
   loop(n,
-    g = i / n;
-    BUF[2*i] *= g; BUF[2*i+1] *= g;
-    BUF[2*(loop_len-1-i)] *= g; BUF[2*(loop_len-1-i)+1] *= g;
+    g = 0.5 - 0.5 * cos($pi * (i + 1) / n);
+    k = loop_len - n + i;
+    s = XF_MAX - n + i;
+    BUF[2*k]   = BUF[2*k]   * (1 - g) + SNAP[2*s]   * g;
+    BUF[2*k+1] = BUF[2*k+1] * (1 - g) + SNAP[2*s+1] * g;
     i += 1;
   );
 );
@@ -124,7 +143,8 @@ bar_qn = ts_num * 4 / max(ts_denom, 1);
 lat_qn = lat_ms / 1000 * tempo / 60;
 playing_now = play_state & 1;
 b = beat_position;
-!playing_now ? ( last_bar = -1; );
+!playing_now ? ( last_bar = -1; env = 0; );
+env_step = 1 / max(1, srate * 0.005);       // 5 ms
 
 @sample
 inL = spl0; inR = spl1;
@@ -160,13 +180,14 @@ playing_now ? (
   recording ? (
     rb = b - lat_qn;
     rb >= rec_start_qn - 0.5 * qn_per_spl ? (
+      rec_count == 0 ? snap_preroll();
       rec_count < loop_len ? (
         BUF[2*rec_count] = inL; BUF[2*rec_count+1] = inR;
         rec_count += 1;
       );
       rec_count >= loop_len ? (
         recording = 0;
-        fade_edges();
+        seam_xfade();
       );
     );
   );
@@ -180,16 +201,19 @@ playing_now ? (
   );
 
   // ---------- playback / overdub ----------
-  has_loop && state == ST_PLAY ? (
+  // (after STOP it keeps reading for the 5 ms of the fade-out)
+  env = has_loop && state == ST_PLAY ? min(1, env + env_step) : max(0, env - env_step);
+  !has_loop ? env = 0;
+  has_loop && env > 0 ? (
     ph = (b - start_qn) / loop_qn; ph -= floor(ph);
     pos = ph * loop_len;
     i0 = floor(pos); fr = pos - i0;
     i1 = i0 + 1; i1 >= loop_len ? i1 = 0;
     i0 >= loop_len ? i0 = loop_len - 1;
-    outL = BUF[2*i0]   + (BUF[2*i1]   - BUF[2*i0])   * fr;
-    outR = BUF[2*i0+1] + (BUF[2*i1+1] - BUF[2*i0+1]) * fr;
+    outL = (BUF[2*i0]   + (BUF[2*i1]   - BUF[2*i0])   * fr) * env;
+    outR = (BUF[2*i0+1] + (BUF[2*i1+1] - BUF[2*i0+1]) * fr) * env;
 
-    odub_btn ? (
+    odub_btn && state == ST_PLAY ? (
       ph2 = (b - lat_qn - start_qn) / loop_qn; ph2 -= floor(ph2);
       k = floor(ph2 * loop_len + 0.5); k >= loop_len ? k -= loop_len;
       BUF[2*k] += inL; BUF[2*k+1] += inR;
@@ -198,6 +222,10 @@ playing_now ? (
 
   b += qn_per_spl;
 );
+
+// remember the last input frames (for the seam of the next recording)
+RING[2*ring_pos] = inL; RING[2*ring_pos+1] = inR;
+ring_pos += 1; ring_pos >= XF_MAX ? ring_pos = 0;
 
 spl0 = outL * gain + (thru ? inL : 0);
 spl1 = outR * gain + (thru ? inR : 0);

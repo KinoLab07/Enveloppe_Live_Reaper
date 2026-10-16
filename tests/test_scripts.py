@@ -212,6 +212,15 @@ click(xs[1], TB)
 check("+ AUDIO: an unreadable file is reported, transport untouched, panel still running",
       "could not read" in lua.eval("status_text_for_test()") and lua.eval("MOCK_PLAYBTN") == 0
       and lua.eval("MOCK_DEFER") is not None)
+lua.execute("""MOCK_DROP = {'/sounds/drums.aif', '/docs/notes.txt'}
+function gfx.getdropfile(i) if i < 0 then MOCK_DROP = {} return 0 end
+  if MOCK_DROP[i + 1] then return 1, MOCK_DROP[i + 1] end return 0 end
+MOCK_TEXT = {}""")
+frame(); frame()
+check("drag & drop: an audio file dropped on the panel becomes an AUDIO track (no file window)",
+      "AUDIO 4" in name_list() and lua.eval("#MOCK_DROP") == 0
+      and "Not an audio file: notes.txt" in lua.eval("status_text_for_test()"))
+lua.execute("gfx.getdropfile = nil")
 lua.execute("MOCK_TEXT = {}; function reaper.GetUserFileNameForRead() error('boom') end")
 click(xs[1], TB)
 check("toolbar: an error inside an action does not kill the panel",

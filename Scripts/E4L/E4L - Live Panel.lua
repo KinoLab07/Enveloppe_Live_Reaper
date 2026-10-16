@@ -291,19 +291,36 @@ local function act_add_loop()
   status(E4L.track_name(tr) .. " added.")
 end
 
-local function act_add_audio()
-  local ok, file = reaper.GetUserFileNameForRead("", "Choose a pre-recorded audio file", "wav;aif;aiff;mp3;flac;ogg")
-  if not ok or file == "" then return end
+local function is_stopped() return reaper.GetPlayState() % 2 == 0 end
+
+-- adds an AUDIO track for `file`. `why` = what already stopped the transport (diagnostics)
+local function add_audio_file(file, why)
+  local was_playing = not is_stopped()
   reaper.Undo_BeginBlock()
   local tr, bars = E4L.add_audio(file, true)
   reaper.Undo_EndBlock("E4L: + audio", -1)
   last_scan = -1
+  if was_playing and is_stopped() then why = "while adding the track" end
+  local note = why and ("  [REAPER's play stopped " .. why .. " - restarted]") or ""
   if reaper.CountTrackMediaItems(tr) == 0 then
-    status(E4L.track_name(tr) .. ": REAPER could not read that file.") return
+    status(E4L.track_name(tr) .. ": REAPER could not read that file." .. note) return
   end
   status(E4L.track_name(tr) .. (bars > 0 and (": " .. bars .. " bars, fitted to the tempo") or
-         ": not a whole number of bars, plays at its own speed") .. ". MUTED: press its PLAY to bring it in.")
+         ": not a whole number of bars, plays at its own speed") .. ". MUTED: press its PLAY." .. note)
 end
+
+local function act_add_audio()
+  local was_playing = not is_stopped()
+  local ok, file = reaper.GetUserFileNameForRead("", "Choose a pre-recorded audio file", "wav;aif;aiff;mp3;flac;ogg")
+  local why = (was_playing and is_stopped()) and "while the file window was open" or nil
+  if not ok or file == "" then
+    if why then status("REAPER's play stopped " .. why .. " - restarted. Tip: drag files onto the panel.") end
+    return
+  end
+  add_audio_file(file, why)
+end
+
+local AUDIO_EXT = { wav = true, aif = true, aiff = true, mp3 = true, flac = true, ogg = true, m4a = true }
 
 local function act_add_input()
   local ins = E4L.synth_inputs()
@@ -353,6 +370,7 @@ end
 
 -- runs a toolbar action without ever killing the panel; with keep_playing the transport is
 -- restarted if something stopped it (the loops only sound while REAPER is playing)
+local restart_check = nil   -- time at which we verify that REAPER really plays again
 local function run_action(fn, keep_playing)
   local was_playing = reaper.GetPlayState() % 2 == 1
   local t0, pos = reaper.time_precise(), reaper.GetPlayPosition()
@@ -363,6 +381,35 @@ local function run_action(fn, keep_playing)
     reaper.SetEditCurPos(pos + reaper.time_precise() - t0, false, false)
     reaper.OnPlayButton()
     reaper.SetEditCurPos(cur, false, false)
+    restart_check = reaper.time_precise() + 1
+  end
+end
+
+local function check_restart()
+  if restart_check and reaper.time_precise() > restart_check then
+    restart_check = nil
+    if reaper.GetPlayState() % 2 == 0 then
+      status("REAPER does not play again: the audio interface may have stopped. " ..
+             "Options > Preferences > Audio > Device > Apply, then PLAY.")
+    end
+  end
+end
+
+-- audio files dragged from the Finder onto the panel: no file window during the set
+local function check_dropped_files()
+  if not gfx.getdropfile then return end
+  local files, i = {}, 0
+  while true do
+    local r, f = gfx.getdropfile(i)
+    if not r or r == 0 then break end
+    files[#files + 1] = f; i = i + 1
+  end
+  if #files == 0 then return end
+  gfx.getdropfile(-1)
+  for _, f in ipairs(files) do
+    local ext = (f:match("%.([%w]+)$") or ""):lower()
+    if AUDIO_EXT[ext] then run_action(function() add_audio_file(f) end, true)
+    else status("Not an audio file: " .. (f:match("([^/\\]+)$") or f)) end
   end
 end
 
@@ -770,6 +817,8 @@ local function main()
   elseif gfx.mouse_cap & 2 == 0 then RCLICK = false end
 
   draw_toolbar(W)
+  check_dropped_files()
+  check_restart()
   apply_pending(tp)
   local room = math.max(0, math.min(H - TOP - 6, math.floor(W * 0.32)))
   if W < 900 then room = 0 end

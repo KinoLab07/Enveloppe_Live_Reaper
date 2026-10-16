@@ -126,7 +126,18 @@ o = run(LP, ramp, "s1=0", "s2=1", "s8=10")
 check("looper: latency compensation 10 ms = 480 samples", np.allclose(o[96000 + j, 0], ramp[j + 480, 0]))
 o = run(LP, ramp, "s1=0", "s2=1", "s3@250000=0", "s3@300000=1")
 check("looper: STOP and PLAY are quantised to the bar and stay in phase",
-      np.abs(o[288100:384000]).max() == 0 and np.allclose(o[385000:470000, 0], ramp[1000:86000, 0]))
+      np.abs(o[288300:384000]).max() == 0 and np.allclose(o[385000:470000, 0], ramp[1000:86000, 0]))
+# clicks: a sine that does not fit the loop (worst case for the seam)
+t = np.arange(10 * SR) / SR
+sine = np.stack([0.5 * np.sin(2 * np.pi * 220.3 * t)] * 2, 1)
+step = 2 * np.pi * 220.3 / SR * 0.5 * 1.5          # largest normal sample-to-sample change, + margin
+o = run(LP, sine, "s1=0", "s2=1", "s8=10", "s3@250000=0")   # 10 ms latency comp., as on a real interface
+d = np.abs(np.diff(o[:, 0]))
+check("looper: no click when the loop starts after recording (5 ms fade-in)",
+      d[95990:96300].max() < step and abs(o[96000, 0]) < step)
+check("looper: no click at the loop seam (end crossfades into the pre-roll)",
+      d[191900:192100].max() < step)
+check("looper: no click on STOP (5 ms fade-out)", d[287900:288400].max() < step)
 o = run(LP, ramp, "s1=0", "s2=1", "s4@192000=1", "s4@288000=0")
 check("looper: overdub adds a layer", np.allclose(o[288000 + j, 0], ramp[j, 0] + ramp[192000 + j, 0], atol=1e-5))
 o = run(LP, ramp, "s1=0", "s2=1", "s2@200000=1")
