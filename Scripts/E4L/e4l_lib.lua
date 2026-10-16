@@ -248,7 +248,7 @@ end
 ---------------------------------------------------------------------------------------
 -- songs: saved set-ups (tracks, positions, animations, tempo; not the recorded loops)
 function E.songs_dir()
-  local d = reaper.GetResourcePath() .. "/E4L_Canciones"
+  local d = reaper.GetResourcePath() .. "/E4L_Templates"
   reaper.RecursiveCreateDirectory(d, 0)
   return d
 end

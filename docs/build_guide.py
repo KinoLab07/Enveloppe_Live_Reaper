@@ -713,8 +713,8 @@ def build(path):
         "en naranja), una <b>frase de 4 compases</b>, el tempo, INICIAR/DETENER y "
         "<b>PARAR TODOS LOS LOOPS</b>.",
         "<b>Barra de herramientas:</b> <b>+ LOOP</b> (otra pista de loop), <b>+ AUDIO</b> (un audio "
-        "pregrabado), <b>+ ENTRADA</b> (otra entrada de la interfaz), <b>GUARDAR CANCIÓN</b>, "
-        "<b>CARGAR CANCIÓN</b> y <b>NUEVA CANCIÓN</b> (ver más abajo).",
+        "pregrabado), <b>+ ENTRADA</b> (otra entrada de la interfaz), <b>GUARDAR TEMPLATE</b>, "
+        "<b>CARGAR TEMPLATE</b> y <b>NUEVO TEMPLATE</b> (ver más abajo).",
         "<b>Una fila por loop:</b> estado (VACÍO, ESPERANDO, GRABANDO, SONANDO, PARADO; parpadea "
         "mientras espera el compás), largo (clic para cambiarlo), <b>ENT</b> (de qué entrada graba; clic para cambiarla), "
         "<b>GRABAR</b>, <b>SONAR</b>, "
@@ -739,17 +739,17 @@ def build(path):
         "<b>ENT</b> elige de qué entrada graba.",
         "<b>+ LOOP</b>: agrega otra pista de loop al final, lista para grabar.",
     ])
-    st.append(P("Canciones: guardar, cargar y pasar a la siguiente", "h2"))
+    st.append(P("Templates: guardar, cargar y pasar al siguiente", "h2"))
     st += bullets([
-        "<b>GUARDAR CANCIÓN</b>: le pones un nombre y se guarda en la carpeta <b>E4L_Canciones</b> "
+        "<b>GUARDAR TEMPLATE</b>: le pones un nombre y se guarda en la carpeta <b>E4L_Templates</b> "
         "(dentro de la carpeta de recursos de REAPER) con sus pistas, entradas, audios, posiciones, "
         "movimientos y tempo. Los audios pregrabados quedan enlazados a sus archivos.",
-        "<b>CARGAR CANCIÓN</b>: muestra la lista de canciones guardadas y abre la que elijas. "
+        "<b>CARGAR TEMPLATE</b>: muestra la lista de templates guardados y abre el que elijas. "
         "Si la actual tiene cambios sin guardar, REAPER te pregunta antes.",
-        "<b>NUEVA CANCIÓN</b>: proyecto nuevo con la plantilla en vivo, desde cero.",
-        "Para un concierto: prepara cada canción y guárdala. En vivo, al terminar una, pulsa "
-        "<b>CARGAR CANCIÓN</b> y elige la siguiente. El cambio produce un corte breve de audio, "
-        "y <b>los loops grabados en vivo no se guardan</b>: cada canción empieza con los loops vacíos.",
+        "<b>NUEVO TEMPLATE</b>: proyecto nuevo con la plantilla en vivo, desde cero.",
+        "Para un concierto: prepara un template por tema y guárdalo. En vivo, al terminar uno, pulsa "
+        "<b>CARGAR TEMPLATE</b> y elige el siguiente. El cambio produce un corte breve de audio, "
+        "y <b>los loops grabados en vivo no se guardan</b>: cada template empieza con los loops vacíos.",
     ])
     st.append(P("El editor de movimiento", "h2"))
     st.append(P("El botón <b>MOVIMIENTO</b> de cada loop abre, en el mismo panel, todos los "

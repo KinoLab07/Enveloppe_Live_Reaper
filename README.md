@@ -83,8 +83,8 @@ en la cuadrafonía.
    largo y posición). También muestra la sala con un punto por loop, que se arrastra para moverlo.
    Barra de herramientas: **+ LOOP**, **+ AUDIO** (audio pregrabado en bucle, ajustado al tempo, que
    entra con SONAR en el siguiente compás), **+ ENTRADA** (otra entrada de la interfaz; el botón ENT
-   de cada loop elige cuál graba), **GUARDAR / CARGAR CANCIÓN** (en `E4L_Canciones`) y
-   **NUEVA CANCIÓN**.
+   de cada loop elige cuál graba), **GUARDAR / CARGAR TEMPLATE** (en `E4L_Templates`) y
+   **NUEVO TEMPLATE**.
    El botón **MOVIMIENTO** de cada loop abre su editor: el menú del efecto E4L, la posición, el giro
    automático (libre o al tempo), sube y baja, la apertura estéreo y movimientos rápidos.
    Teclas: Espacio = iniciar/detener, 1-9 = grabar, 0 = parar todos, Esc = cerrar el editor.

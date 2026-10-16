@@ -149,7 +149,7 @@ names = lua.eval("function() local t = {} for i, tr in ipairs(MOCK.T) do t[i] = 
 name_list = lambda: list(names().values())
 TB = 80 + 10
 xs, x = [], 8
-for w in (80, 84, 96, 150, 140, 130):
+for w in (80, 84, 96, 166, 156, 148):
     xs.append(x + 10); x += w + 6
 click(xs[0], TB)
 check("toolbar: + LOOP adds LOOP 13 before E4L Master",
@@ -181,16 +181,16 @@ lua.execute("MOCK_POS = MOCK_POS + 2.0"); frame()   # next bar (2 s per bar at 1
 check("audio row: ... and unmutes on the next bar", lua.eval("MOCK.T[%d].vals.B_MUTE" % a1) == 0)
 lua.execute("function reaper.GetUserInputs() return true, 'Tema 1' end")
 click(xs[3], TB)
-check("toolbar: GUARDAR CANCIÓN saves E4L_Canciones/Tema 1.RPP",
-      list(lua.eval("MOCK_SAVED").values()) == ["/res/E4L_Canciones/Tema 1.RPP"])
+check("toolbar: GUARDAR TEMPLATE saves E4L_Templates/Tema 1.RPP",
+      list(lua.eval("MOCK_SAVED").values()) == ["/res/E4L_Templates/Tema 1.RPP"])
 lua.execute("MOCK_FILES = {'Tema 1.RPP', 'Tema 2.RPP'}; function gfx.showmenu() return 2 end")
 click(xs[4], TB)
 lua.execute("function gfx.showmenu() return 0 end")
-check("toolbar: CARGAR CANCIÓN opens the chosen song",
-      list(lua.eval("MOCK_OPENED").values()) == ["/res/E4L_Canciones/Tema 2.RPP"])
+check("toolbar: CARGAR TEMPLATE opens the chosen song",
+      list(lua.eval("MOCK_OPENED").values()) == ["/res/E4L_Templates/Tema 2.RPP"])
 lua.execute("MOCK_INPUT = nil; function reaper.GetUserInputs(t, n, cap, def) return true, def end")
 click(xs[5], TB)
-check("toolbar: NUEVA CANCIÓN = new project with the live template (8 loops), panel not duplicated",
+check("toolbar: NUEVO TEMPLATE = new project with the live template (8 loops), panel not duplicated",
       name_list().count("LOOP 8") == 1 and "LOOP 9" not in name_list() and "E4L Master" in name_list()
       and lua.eval("MOCK_DEFER") is not None)
 

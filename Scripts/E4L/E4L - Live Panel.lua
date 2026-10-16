@@ -9,7 +9,7 @@
 --     "breathing" (spread LFO), and quick presets. No need to open the plugins.
 --   * room view (seen from above) with every loop: drag a dot to move that loop
 --   * toolbar: + LOOP, + AUDIO (pre-recorded file, looped in sync), + ENTRADA (another input
---     of the interface), GUARDAR / CARGAR CANCIÓN (song set-ups), NUEVA CANCIÓN
+--     of the interface), GUARDAR / CARGAR TEMPLATE (set-ups saved as templates), NUEVO TEMPLATE
 --
 -- Keys: Space = play / stop, 1-9 = record on loop 1-9, 0 = stop all loops, Esc = close editor.
 -- Right-click the header to dock / undock the panel inside REAPER.
@@ -315,17 +315,17 @@ end
 local function act_save_song()
   local _, dir = E4L.list_songs()
   local cur = reaper.GetProjectName(0, ""):gsub("%.[Rr][Pp][Pp]$", "")
-  local ok, name = reaper.GetUserInputs("Guardar canción", 1, "Nombre de la canción,extrawidth=150",
-                                        cur ~= "" and cur or "Cancion 1")
+  local ok, name = reaper.GetUserInputs("Guardar template", 1, "Nombre del template,extrawidth=150",
+                                        cur ~= "" and cur or "Template 1")
   if not ok or name == "" then return end
   name = name:gsub("[/\\:%*%?\"<>|]", "-")
   reaper.Main_SaveProjectEx(0, dir .. "/" .. name .. ".RPP", 0)
-  status("Canción «" .. name .. "» guardada (pistas, posiciones, movimientos y tempo).")
+  status("Template «" .. name .. "» guardado (pistas, posiciones, movimientos y tempo).")
 end
 
 local function act_load_song()
   local songs, dir = E4L.list_songs()
-  if #songs == 0 then status("Todavía no hay canciones guardadas.") return end
+  if #songs == 0 then status("Todavía no hay templates guardados.") return end
   local items = {}
   for i, f in ipairs(songs) do items[i] = f:gsub("%.[Rr][Pp][Pp]$", "") end
   gfx.x, gfx.y = gfx.mouse_x, gfx.mouse_y
@@ -333,7 +333,7 @@ local function act_load_song()
   if m > 0 then
     reaper.Main_openProject(dir .. "/" .. songs[m])
     editing = nil; last_scan = -1
-    status("Canción «" .. items[m] .. "» cargada. Los loops empiezan vacíos.")
+    status("Template «" .. items[m] .. "» cargado. Los loops empiezan vacíos.")
   end
 end
 
@@ -348,8 +348,8 @@ local function draw_toolbar(W)
   local y, h = 80, 28
   local items = {
     { "+ LOOP", 80, act_add_loop }, { "+ AUDIO", 84, act_add_audio }, { "+ ENTRADA", 96, act_add_input },
-    { "GUARDAR CANCIÓN", 150, act_save_song }, { "CARGAR CANCIÓN", 140, act_load_song },
-    { "NUEVA CANCIÓN", 130, act_new_song },
+    { "GUARDAR TEMPLATE", 166, act_save_song }, { "CARGAR TEMPLATE", 156, act_load_song },
+    { "NUEVO TEMPLATE", 148, act_new_song },
   }
   local x = 8
   for _, it in ipairs(items) do
@@ -402,7 +402,7 @@ local function draw_rows(tp, x0, y0, W, H)
   gfx.setfont(1)
   if #loops == 0 then
     rgb(0.7, 0.7, 0.75)
-    text("No hay loops todavía. Pulsa «NUEVA CANCIÓN» o «+ LOOP».", x0, y0 + 10)
+    text("No hay loops todavía. Pulsa «NUEVO TEMPLATE» o «+ LOOP».", x0, y0 + 10)
     return
   end
   local col = { [0] = { 0.4, 0.4, 0.45 }, { 1, 0.6, 0.2 }, { 1, 0.3, 0.3 }, { 0.35, 0.95, 0.5 }, { 0.55, 0.7, 0.9 } }
