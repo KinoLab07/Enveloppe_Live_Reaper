@@ -200,6 +200,22 @@ click(BX + 70 + 10, row_y(14, n))                # PLAY on the audio row (quanti
 check("audio row: PLAY waits for the next bar", lua.eval("MOCK.T[%d].vals.B_MUTE" % a1) == 1)
 lua.execute("MOCK_POS = MOCK_POS + 2.0"); frame()   # next bar (2 s per bar at 120 BPM)
 check("audio row: ... and unmutes on the next bar", lua.eval("MOCK.T[%d].vals.B_MUTE" % a1) == 0)
+check("+ AUDIO builds the item directly (no InsertMedia, which can stop the transport)",
+      lua.eval("MOCK_INSERTMEDIA_USED") is False and lua.eval("MOCK.T[%d].items[1].file" % a1) == "/sounds/pad.wav")
+# something stops the transport while the file dialog is open -> the panel restarts it
+lua.execute("MOCK_PLAYBTN = 0; function reaper.GetUserFileNameForRead() MOCK_PLAY = 0; return true, '/sounds/b.wav' end")
+click(xs[1], TB)
+check("+ AUDIO: if the transport stopped meanwhile, it is restarted (loops keep sounding)",
+      lua.eval("MOCK_PLAYBTN") == 1 and lua.eval("MOCK_PLAY") == 1 and "AUDIO 2" in name_list())
+lua.execute("MOCK_PLAYBTN = 0; MOCK_TEXT = {}; function reaper.GetUserFileNameForRead() return true, '/sounds/broken.wav' end")
+click(xs[1], TB)
+check("+ AUDIO: an unreadable file is reported, transport untouched, panel still running",
+      "could not read" in lua.eval("status_text_for_test()") and lua.eval("MOCK_PLAYBTN") == 0
+      and lua.eval("MOCK_DEFER") is not None)
+lua.execute("MOCK_TEXT = {}; function reaper.GetUserFileNameForRead() error('boom') end")
+click(xs[1], TB)
+check("toolbar: an error inside an action does not kill the panel",
+      "boom" in lua.eval("status_text_for_test()") and lua.eval("MOCK_DEFER") is not None)
 lua.execute("function reaper.GetUserInputs() return true, 'Piece 1' end")
 click(xs[3], TB)
 check("toolbar: SAVE TEMPLATE saves E4L_Templates/Piece 1.RPP",

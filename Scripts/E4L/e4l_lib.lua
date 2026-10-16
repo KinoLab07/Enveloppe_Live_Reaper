@@ -220,17 +220,17 @@ function E.add_audio(file, stereo_pan)
   local m = E.find_track("E4L Master")
   if m then E.add_send(tr, m, E.NCH, 0) end
 
-  -- the file, at bar 1, looping
-  reaper.SetOnlyTrackSelected(tr)
-  local cur = reaper.GetCursorPosition()
-  reaper.SetEditCurPos(0, false, false)
-  reaper.InsertMedia(file, 0)
-  reaper.SetEditCurPos(cur, false, false)
-  local n = reaper.CountTrackMediaItems(tr)
-  if n == 0 then return tr, 0 end
-  local item = reaper.GetTrackMediaItem(tr, n - 1)
-  local take = reaper.GetActiveTake(item)
-  local len = reaper.GetMediaSourceLength(reaper.GetMediaItemTake_Source(take))
+  -- the file, at bar 1, looping. The item is built directly (not with InsertMedia, which is
+  -- REAPER's "Insert media file" action: it moves the cursor and can show import dialogs
+  -- and stop the transport in the middle of a live set)
+  local src = reaper.PCM_Source_CreateFromFile(file)
+  if not src then return tr, 0 end
+  local len, is_qn = reaper.GetMediaSourceLength(src)
+  if is_qn or not len or len <= 0 then reaper.PCM_Source_Destroy(src); return tr, 0 end
+  local item = reaper.AddMediaItemToTrack(tr)
+  local take = reaper.AddTakeToMediaItem(item)
+  reaper.SetMediaItemTake_Source(take, src)
+  reaper.GetSetMediaItemTakeInfo_String(take, "P_NAME", file:match("([^/\\]+)$") or file, true)
   local bar = E.bar_seconds(0)
   local bars = math.max(1, math.floor(len / bar + 0.5))
   local loop_len = len
@@ -247,6 +247,7 @@ function E.add_audio(file, stereo_pan)
   reaper.SetMediaItemInfo_Value(item, "B_LOOPSRC", 1)
   local cover = 256 * bar                            -- repeat it for 256 bars
   reaper.SetMediaItemInfo_Value(item, "D_LENGTH", loop_len * math.max(1, math.ceil(cover / loop_len)))
+  reaper.UpdateItemInProject(item)
   reaper.GetSetMediaTrackInfo_String(tr, "P_EXT:E4L_bars", tostring(bars), true)
   return tr, bars
 end

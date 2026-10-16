@@ -73,7 +73,9 @@ function gfx.line() end
 function gfx.circle() end
 function gfx.setfont() end
 function gfx.measurestr(s) return #s * 7, 14 end
-function gfx.drawstr() end
+MOCK_TEXT = {}
+function gfx.drawstr(s) MOCK_TEXT[#MOCK_TEXT + 1] = tostring(s) end
+function status_text_for_test() local t = table.concat(MOCK_TEXT, '\n'); MOCK_TEXT = {}; return t end
 function gfx.update() end
 function gfx.quit() end
 function gfx.dock() return 0 end
@@ -94,6 +96,29 @@ function reaper.InsertMedia(file)
   table.insert(tr.items, item)
   return 1
 end
+MOCK_INSERTMEDIA_USED = false
+local _insert = reaper.InsertMedia
+function reaper.InsertMedia(...) MOCK_INSERTMEDIA_USED = true; return _insert(...) end
+function reaper.PCM_Source_CreateFromFile(file)
+  if file:match("broken") then return nil end
+  return { file = file }
+end
+function reaper.PCM_Source_Destroy() end
+function reaper.AddMediaItemToTrack(tr)
+  tr.items = tr.items or {}
+  local item = { vals = { D_POSITION = 0, D_LENGTH = 0 } }
+  table.insert(tr.items, item)
+  return item
+end
+function reaper.AddTakeToMediaItem(item)
+  item.take = { vals = { D_PLAYRATE = 1 }, item = item }
+  return item.take
+end
+function reaper.SetMediaItemTake_Source(take, src) take.item.file = src.file; take.src = src end
+function reaper.GetSetMediaItemTakeInfo_String(take, k, v) take.vals[k] = v return true, v end
+function reaper.UpdateItemInProject() end
+MOCK_PLAYBTN = 0
+function reaper.OnPlayButton() MOCK_PLAYBTN = MOCK_PLAYBTN + 1; MOCK_PLAY = 1 end
 function reaper.CountTrackMediaItems(tr) return tr.items and #tr.items or 0 end
 function reaper.GetTrackMediaItem(tr, i) return tr.items[i + 1] end
 function reaper.GetActiveTake(item) return item.take end

@@ -298,8 +298,11 @@ local function act_add_audio()
   local tr, bars = E4L.add_audio(file, true)
   reaper.Undo_EndBlock("E4L: + audio", -1)
   last_scan = -1
+  if reaper.CountTrackMediaItems(tr) == 0 then
+    status(E4L.track_name(tr) .. ": REAPER could not read that file.") return
+  end
   status(E4L.track_name(tr) .. (bars > 0 and (": " .. bars .. " bars, fitted to the tempo") or
-         ": not a whole number of bars, plays at its own speed") .. ". Press PLAY to bring it in.")
+         ": not a whole number of bars, plays at its own speed") .. ". MUTED: press its PLAY to bring it in.")
 end
 
 local function act_add_input()
@@ -348,16 +351,32 @@ local function act_new_song()
   editing = nil; last_scan = -1
 end
 
+-- runs a toolbar action without ever killing the panel; with keep_playing the transport is
+-- restarted if something stopped it (the loops only sound while REAPER is playing)
+local function run_action(fn, keep_playing)
+  local was_playing = reaper.GetPlayState() % 2 == 1
+  local t0, pos = reaper.time_precise(), reaper.GetPlayPosition()
+  local ok, err = pcall(fn)
+  if not ok then status("Error: " .. tostring(err)) end
+  if keep_playing and was_playing and reaper.GetPlayState() % 2 == 0 then
+    local cur = reaper.GetCursorPosition()
+    reaper.SetEditCurPos(pos + reaper.time_precise() - t0, false, false)
+    reaper.OnPlayButton()
+    reaper.SetEditCurPos(cur, false, false)
+  end
+end
+
 local function draw_toolbar(W)
   local y, h = 80, 28
   local items = {
-    { "+ LOOP", 80, act_add_loop }, { "+ AUDIO", 84, act_add_audio }, { "+ INPUT", 84, act_add_input },
+    { "+ LOOP", 80, act_add_loop, true }, { "+ AUDIO", 84, act_add_audio, true },
+    { "+ INPUT", 84, act_add_input, true },
     { "SAVE TEMPLATE", 140, act_save_song }, { "LOAD TEMPLATE", 140, act_load_song },
     { "NEW TEMPLATE", 130, act_new_song },
   }
   local x = 8
   for _, it in ipairs(items) do
-    if button(it[1], x, y, it[2], h, false) then it[3]() end
+    if button(it[1], x, y, it[2], h, false) then run_action(it[3], it[4]) end
     x = x + it[2] + 6
   end
   if status_text ~= "" and reaper.time_precise() - status_time < 8 then
