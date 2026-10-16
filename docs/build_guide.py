@@ -632,8 +632,10 @@ def build(path):
     st += steps([
         "Copia de nuevo las carpetas <b>Effects</b> y <b>Scripts</b> en la carpeta de recursos "
         "de REAPER (sección 3), para tener el <b>E4L Looper</b> y los scripts nuevos.",
-        "En un proyecto nuevo, carga y ejecuta el script <b>E4L - Live Looper template</b> "
-        "(<b>Actions › New action › Load ReaScript…</b>, como en la sección 3).",
+        "Carga el script <b>E4L - Nuevo proyecto en vivo</b> (<b>Actions › New action › Load "
+        "ReaScript…</b>, como en la sección 3) y ejecútalo. Crea un proyecto nuevo, arma la "
+        "plantilla y abre el <b>Live Panel</b>, todo de una vez. Hace lo mismo que ejecutar a mano "
+        "<b>E4L - Live Looper template</b> y después <b>E4L - Live Panel</b>.",
         "Completa la ventana que aparece y pulsa <b>OK</b>:",
     ])
     st.append(table([
@@ -710,8 +712,12 @@ def build(path):
         "<b>Arriba:</b> el <b>compás y el tiempo</b> en grande, los tiempos del compás (el primero "
         "en naranja), una <b>frase de 4 compases</b>, el tempo, INICIAR/DETENER y "
         "<b>PARAR TODOS LOS LOOPS</b>.",
+        "<b>Barra de herramientas:</b> <b>+ LOOP</b> (otra pista de loop), <b>+ AUDIO</b> (un audio "
+        "pregrabado), <b>+ ENTRADA</b> (otra entrada de la interfaz), <b>GUARDAR CANCIÓN</b>, "
+        "<b>CARGAR CANCIÓN</b> y <b>NUEVA CANCIÓN</b> (ver más abajo).",
         "<b>Una fila por loop:</b> estado (VACÍO, ESPERANDO, GRABANDO, SONANDO, PARADO; parpadea "
-        "mientras espera el compás), largo (clic para cambiarlo), <b>GRABAR</b>, <b>SONAR</b>, "
+        "mientras espera el compás), largo (clic para cambiarlo), <b>ENT</b> (de qué entrada graba; clic para cambiarla), "
+        "<b>GRABAR</b>, <b>SONAR</b>, "
         "<b>CAPA</b> (sumar encima), <b>BORRAR</b>, <b>MOVIMIENTO</b> y la posición dentro del loop.",
         "<b>La sala, vista desde arriba:</b> los 4 altavoces numerados y un punto por loop "
         "(verde sonando, rojo grabando). Se mueven en vivo con las animaciones. <b>Arrastra un "
@@ -720,6 +726,30 @@ def build(path):
         "<b>0</b> = parar todos · <b>Esc</b> = cerrar el editor de movimiento.",
         "<b>Clic derecho</b> en la parte de arriba: <b>acoplar</b> el panel dentro de REAPER (dock), "
         "para tenerlo siempre a la vista.",
+    ])
+    st.append(P("Audios pregrabados, más entradas y más loops", "h2"))
+    st += bullets([
+        "<b>+ AUDIO</b>: eliges un archivo (wav, aif, mp3…) y se crea la pista <b>AUDIO n</b>, "
+        "espacializada como un loop. El archivo se coloca en el compás 1 y se repite. Si dura "
+        "casi un número entero de compases, se ajusta al tempo sin cambiar la afinación. Empieza "
+        "en <b>SILENCIO</b>: pulsa <b>SONAR</b> y entra en el siguiente compás (lo mismo para "
+        "quitarlo). Tiene su botón <b>MOVIMIENTO</b> como los loops.",
+        "<b>+ ENTRADA</b>: indica el canal de la interfaz y si es mono o estéreo. Se crea "
+        "<b>SYNTH IN 2</b> (luego 3…), que también va a los auriculares. En cada loop, el botón "
+        "<b>ENT</b> elige de qué entrada graba.",
+        "<b>+ LOOP</b>: agrega otra pista de loop al final, lista para grabar.",
+    ])
+    st.append(P("Canciones: guardar, cargar y pasar a la siguiente", "h2"))
+    st += bullets([
+        "<b>GUARDAR CANCIÓN</b>: le pones un nombre y se guarda en la carpeta <b>E4L_Canciones</b> "
+        "(dentro de la carpeta de recursos de REAPER) con sus pistas, entradas, audios, posiciones, "
+        "movimientos y tempo. Los audios pregrabados quedan enlazados a sus archivos.",
+        "<b>CARGAR CANCIÓN</b>: muestra la lista de canciones guardadas y abre la que elijas. "
+        "Si la actual tiene cambios sin guardar, REAPER te pregunta antes.",
+        "<b>NUEVA CANCIÓN</b>: proyecto nuevo con la plantilla en vivo, desde cero.",
+        "Para un concierto: prepara cada canción y guárdala. En vivo, al terminar una, pulsa "
+        "<b>CARGAR CANCIÓN</b> y elige la siguiente. El cambio produce un corte breve de audio, "
+        "y <b>los loops grabados en vivo no se guardan</b>: cada canción empieza con los loops vacíos.",
     ])
     st.append(P("El editor de movimiento", "h2"))
     st.append(P("El botón <b>MOVIMIENTO</b> de cada loop abre, en el mismo panel, todos los "

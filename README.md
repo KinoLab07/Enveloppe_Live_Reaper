@@ -66,7 +66,8 @@ Para componer en vivo con un sinte (por ejemplo, uno analógico): lo escuchas so
 grabas loops de N compases que entran justo en el siguiente compás y cada loop suena espacializado
 en la cuadrafonía.
 
-1. Ejecuta `Scripts/E4L/E4L - Live Looper template.lua`. Crea:
+1. Ejecuta `Scripts/E4L/E4L - Nuevo proyecto en vivo.lua` (proyecto nuevo + plantilla + panel), o a mano
+   `Scripts/E4L/E4L - Live Looper template.lua`. Crea:
    - **SYNTH IN:** la entrada del sinte, monitoreada y enviada solo a los auriculares (por defecto, salidas 5-6);
    - **LOOP 1…N:** `E4L Looper` + paneador E4L en cada pista;
    - **E4L Master:** decodifica en Quad hacia las salidas 1-4;
@@ -80,6 +81,10 @@ en la cuadrafonía.
 4. **Panel en vivo:** `Scripts/E4L/E4L - Live Panel.lua` abre una sola ventana, acoplable a
    REAPER, con el compás y el tiempo en grande y todos los loops (GRABAR / SONAR / CAPA / BORRAR,
    largo y posición). También muestra la sala con un punto por loop, que se arrastra para moverlo.
+   Barra de herramientas: **+ LOOP**, **+ AUDIO** (audio pregrabado en bucle, ajustado al tempo, que
+   entra con SONAR en el siguiente compás), **+ ENTRADA** (otra entrada de la interfaz; el botón ENT
+   de cada loop elige cuál graba), **GUARDAR / CARGAR CANCIÓN** (en `E4L_Canciones`) y
+   **NUEVA CANCIÓN**.
    El botón **MOVIMIENTO** de cada loop abre su editor: el menú del efecto E4L, la posición, el giro
    automático (libre o al tempo), sube y baja, la apertura estéreo y movimientos rápidos.
    Teclas: Espacio = iniciar/detener, 1-9 = grabar, 0 = parar todos, Esc = cerrar el editor.

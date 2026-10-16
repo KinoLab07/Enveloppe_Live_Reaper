@@ -16,20 +16,29 @@ from jsfx_params import lua_fxp  # noqa: E402
 lua = lupa.LuaRuntime()
 lua.execute(lua_fxp(os.path.join(ROOT, "Effects", "E4L")))
 lua.execute(open(os.path.join(ROOT, "tests", "mock_reaper.lua")).read())
-lua.execute('MOCK_INPUT = "6,1,1,7,1,5"')
+lua.execute('MOCK_INPUT = "5,1,1,7,1,5"')
 lua.execute("dofile([[%s]])" % os.path.join(ROOT, "Scripts", "E4L", "E4L - Live Looper template.lua"))
+lua.execute("""
+local E = dofile([[%s]])
+E.add_input(3, true, 7)
+E.set_loop_input(MOCK.T[4], 2)
+E.add_audio("/sounds/pad.wav", true)
+local a = MOCK.T[#MOCK.T - 2]
+a.vals.B_MUTE = 0
+a.fx[1].p["-Current Azimuth"] = 150
+""" % os.path.join(ROOT, "Scripts", "E4L", "e4l_lib.lua"))
 lua.execute('''
 local T = MOCK.T
 local ST, BARS, LQN = "-Status (0 empty 1 armed 2 rec 3 play 4 stop)", "-Loop Bars", "-Loop Length (QN)"
-local function L(i) return T[i+1].fx[1].p end
-local function P(i) return T[i+1].fx[2].p end
+local function L(i) return T[i+2].fx[1].p end
+local function P(i) return T[i+2].fx[2].p end
 L(1)[ST]=3; L(1)[BARS]=4; L(1)[LQN]=16; L(1)["Play"]=1; L(1)["Length (bars)"]=2
 L(2)[ST]=3; L(2)[BARS]=2; L(2)[LQN]=8;  L(2)["Play"]=1; L(2)["Length (bars)"]=1; L(2)["Overdub"]=1
 L(3)[ST]=2; L(3)[BARS]=8; L(3)[LQN]=32; L(3)["-Loop Start (QN)"]=16; L(3)["Length (bars)"]=3
 L(4)[ST]=1; L(4)["Length (bars)"]=2
 L(5)[ST]=4; L(5)[BARS]=4; L(5)[LQN]=16; L(5)["Length (bars)"]=2
 P(1)["-Current Azimuth"]=-60; P(2)["-Current Azimuth"]=40; P(3)["-Current Azimuth"]=135
-P(4)["-Current Azimuth"]=-135; P(5)["-Current Azimuth"]=0; P(6)["-Current Azimuth"]=90
+P(4)["-Current Azimuth"]=-135; P(5)["-Current Azimuth"]=0
 P(1)["Azimuth"]=-60; P(1)["Radius"]=0.1; P(1)["Range"]=10; P(1)["Azimuth LFO On/Off"]=1; P(1)["Azimuth LFO Time Mode"]=1
 P(1)["Azimuth LFO Sync (bars)"]=5; P(1)["Elevation LFO Frequency (Hz)"]=1; P(1)["Elevation LFO Depth"]=30
 MOCK_POS = 21.3
@@ -79,7 +88,7 @@ def render(out_name):
 
 render("live_panel_preview.png")
 # open the movement editor of loop 1 (click on its MOVIMIENTO button)
-lua.execute("gfx.mouse_x = 8 + 292 + 266; gfx.mouse_y = 84 + 15; gfx.mouse_cap = 1")
+lua.execute("gfx.mouse_x = 8 + 344 + 266; gfx.mouse_y = 116 + 15; gfx.mouse_cap = 1")
 lua.execute("local f = MOCK_DEFER; MOCK_DEFER = nil; f()")
 lua.execute("gfx.mouse_cap = 0")
 render("live_panel_editor.png")

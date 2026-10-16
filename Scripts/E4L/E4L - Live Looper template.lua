@@ -15,79 +15,12 @@
 -- Running it again on a project that already has the template adds more LOOP tracks.
 -- GPLv2 or later (same as Envelop for Live).
 
-local NCH = 16
-
-local function msg(s) reaper.ShowMessageBox(s, "E4L Live Looper", 0) end
-
-local function find_track(name)
-  for i = 0, reaper.CountTracks(0) - 1 do
-    local tr = reaper.GetTrack(0, i)
-    local _, n = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
-    if n == name then return tr end
-  end
-end
-
-local function new_track(name, at_end_index)
-  local idx = at_end_index or reaper.CountTracks(0)
-  reaper.InsertTrackAtIndex(idx, true)
-  local tr = reaper.GetTrack(0, idx)
-  reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", name, true)
-  return tr
-end
-
-local function add_fx(track, file, desc)
-  for _, name in ipairs({ "JS:E4L/" .. file, "E4L/" .. file, "JS: " .. desc }) do
-    local idx = reaper.TrackFX_AddByName(track, name, false, -1)
-    if idx >= 0 then return idx end
-  end
-  msg("Could not load " .. file .. "\nCopy the Effects/E4L folder into the REAPER resource folder.")
-  return -1
-end
-
-local function find_fx(track, pattern)
-  for i = 0, reaper.TrackFX_GetCount(track) - 1 do
-    local _, name = reaper.TrackFX_GetFXName(track, i, "")
-    if name:find(pattern, 1, true) then return i end
-  end
-  return -1
-end
-
--- set a JSFX slider by its name (value in the slider's own range)
-local function set_param(track, fx, pname, value)
-  if fx < 0 then return end
-  for p = 0, reaper.TrackFX_GetNumParams(track, fx) - 1 do
-    local _, n = reaper.TrackFX_GetParamName(track, fx, p, "")
-    if n == pname then reaper.TrackFX_SetParam(track, fx, p, value) return end
-  end
-end
-
-local function has_send_to(src, dst)
-  for i = 0, reaper.GetTrackNumSends(src, 0) - 1 do
-    if reaper.GetTrackSendInfo_Value(src, 0, i, "P_DESTTRACK") == dst then return true end
-  end
-  return false
-end
-
--- send of `nch` channels (2 or 16) from src to dst; mode 0 post-fader, 1 pre-FX, 3 pre-fader
-local function add_send(src, dst, nch, mode)
-  if has_send_to(src, dst) then return end
-  local s = reaper.CreateTrackSend(src, dst)
-  reaper.SetTrackSendInfo_Value(src, 0, s, "I_SRCCHAN", nch == 2 and 0 or ((nch // 2) << 10))
-  reaper.SetTrackSendInfo_Value(src, 0, s, "I_DSTCHAN", 0)
-  reaper.SetTrackSendInfo_Value(src, 0, s, "I_SENDMODE", mode)
-end
-
--- hardware output: track channels src_ch.. -> interface outputs dst_ch.. (0-based)
--- stereo pair by default, single channel when mono is true
-local function add_hw_out(tr, src_ch, dst_ch, mono)
-  for i = 0, reaper.GetTrackNumSends(tr, 1) - 1 do
-    if math.floor(reaper.GetTrackSendInfo_Value(tr, 1, i, "I_DSTCHAN")) & 1023 == dst_ch then return end
-  end
-  local flag = mono and 1024 or 0
-  local s = reaper.CreateTrackSend(tr, nil)
-  reaper.SetTrackSendInfo_Value(tr, 1, s, "I_SRCCHAN", src_ch | flag)
-  reaper.SetTrackSendInfo_Value(tr, 1, s, "I_DSTCHAN", dst_ch | flag)
-end
+local DIR = debug.getinfo(1, "S").source:match("@?(.*[/\\])") or ""
+local E4L = dofile(DIR .. "e4l_lib.lua")
+local NCH = E4L.NCH
+local function msg(s) E4L.msg(s, "E4L Live Looper") end
+local find_track, new_track, add_fx, find_fx = E4L.find_track, E4L.new_track, E4L.add_fx, E4L.find_fx
+local set_param, add_send, add_hw_out = E4L.set_param, E4L.add_send, E4L.add_hw_out
 
 ---------------------------------------------------------------------------------------
 local existing = find_track("SYNTH IN")
@@ -105,14 +38,9 @@ local cue_ch    = math.max(1, f[4] or 7)
 local stereo_pan = (f[5] or 1) == 2
 local sub_ch    = math.max(0, f[6] or 0)
 
--- recording latency compensation = audio input + output latency of the interface
-local lat_ms = 0
-do
-  local inl, outl = reaper.GetInputOutputLatency()
-  local okr, sr = reaper.GetAudioDeviceInfo("SRATE", "")
-  sr = tonumber(sr) or 0
-  if okr and sr > 0 then lat_ms = (inl + outl) / sr * 1000 end
-end
+local lat_ms = E4L.latency_ms()
+E4L.cfg_set("cue_ch", cue_ch); E4L.cfg_set("sub_ch", sub_ch)
+E4L.cfg_set("stereo_pan", stereo_pan and 1 or 0); E4L.cfg_set("lat_ms", lat_ms)
 
 reaper.Undo_BeginBlock()
 reaper.PreventUIRefresh(1)
@@ -147,48 +75,18 @@ end
 add_send(e4l, cue, NCH, 1)                    -- pre-FX: the ambisonics mix
 
 -- SYNTH IN: monitored input, to the headphones only
-local synth = existing
-if not synth then
-  synth = new_track("SYNTH IN", 0)
-  reaper.SetMediaTrackInfo_Value(synth, "I_RECINPUT", (in_stereo and 1024 or 0) + (in_ch - 1))
-  reaper.SetMediaTrackInfo_Value(synth, "I_RECMODE", 2)    -- no recording, input monitoring only
-  reaper.SetMediaTrackInfo_Value(synth, "I_RECARM", 1)
-  reaper.SetMediaTrackInfo_Value(synth, "I_RECMON", 1)
-  reaper.SetMediaTrackInfo_Value(synth, "B_MAINSEND", 0)
-  add_hw_out(synth, 0, cue_ch - 1)
-end
+if not existing then E4L.add_input(in_ch, in_stereo, cue_ch) end
 
 -- LOOP tracks, placed after the existing ones (before E4L Master)
-local count = 0
-for i = 0, reaper.CountTracks(0) - 1 do
-  local _, n = reaper.GetSetMediaTrackInfo_String(reaper.GetTrack(0, i), "P_NAME", "", false)
-  if n:match("^LOOP %d+$") then count = count + 1 end
-end
-local SPREAD = { -45, 45, 135, -135, 0, 90, 180, -90 }
-local insert_at = reaper.GetMediaTrackInfo_Value(e4l, "IP_TRACKNUMBER") - 1
-for k = 1, n_loops do
-  local num = count + k
-  local tr = new_track("LOOP " .. num, insert_at)
-  insert_at = insert_at + 1
-  reaper.SetMediaTrackInfo_Value(tr, "I_NCHAN", NCH)
-  reaper.SetMediaTrackInfo_Value(tr, "B_MAINSEND", 0)
-  local lfx = add_fx(tr, "E4L Looper.jsfx", "E4L Looper (bar-synced live looper)")
-  set_param(tr, lfx, "Recording Latency Compensation (ms)", lat_ms)
-  local pfx = stereo_pan and add_fx(tr, "E4L Stereo Panner.jsfx", "E4L Stereo Panner (3rd order ambisonics)")
-                          or add_fx(tr, "E4L Mono Panner.jsfx", "E4L Mono Panner (3rd order ambisonics)")
-  set_param(tr, pfx, "Azimuth", SPREAD[(num - 1) % #SPREAD + 1])
-  set_param(tr, pfx, "Radius", 0.1)            -- full level (distance 1)
-  add_send(synth, tr, 2, 3)                    -- synth -> looper input (pre-fader)
-  add_send(tr, e4l, NCH, 0)                    -- loop -> quad
-end
+for _ = 1, n_loops do E4L.add_loop(stereo_pan, lat_ms) end
 
 reaper.PreventUIRefresh(-1)
 reaper.TrackList_AdjustWindows(false)
 reaper.Undo_EndBlock("E4L: live looper template", -1)
 
 -- sub: everything that reaches the master also goes to the sub output
-if sub_ch > 0 then
-  local dir = debug.getinfo(1, "S").source:match("@?(.*[/\\])") or ""
+if sub_ch > 0 and not E4L_TEMPLATE_NO_SUB then
+  local dir = DIR
   local GetUserInputs = reaper.GetUserInputs
   reaper.GetUserInputs = function() return true, tostring(sub_ch) end
   E4L_SUB_QUIET = true
@@ -198,11 +96,11 @@ if sub_ch > 0 then
   if not okf then msg("Sub: " .. tostring(err)) end
 end
 
-msg(string.format(
+if not E4L_TEMPLATE_QUIET then msg(string.format(
   "Listo: %d pistas LOOP.\n\n" ..
   "Auriculares: salidas %d-%d (SYNTH IN + CUE binaural).\n" ..
   "Asigna esas salidas a los auriculares en el panel de control de la interfaz.\n" ..
   "Cuadrafonia: salidas 1-4.%s\n" ..
   "Compensacion de latencia de grabacion: %.1f ms.\n\n" ..
-  "Pulsa PLAY en REAPER y usa REC en el E4L Looper de cada pista.",
-  n_loops, cue_ch, cue_ch + 1, sub_ch > 0 and ("  Sub: salida " .. sub_ch .. ".") or "", lat_ms))
+  "Pulsa PLAY en REAPER y graba desde el E4L Live Panel.",
+  n_loops, cue_ch, cue_ch + 1, sub_ch > 0 and ("  Sub: salida " .. sub_ch .. ".") or "", lat_ms)) end

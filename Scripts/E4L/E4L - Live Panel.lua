@@ -8,6 +8,8 @@
 --     automatic rotation (azimuth LFO), up and down (elevation LFO), stereo width and its
 --     "breathing" (spread LFO), and quick presets. No need to open the plugins.
 --   * room view (seen from above) with every loop: drag a dot to move that loop
+--   * toolbar: + LOOP, + AUDIO (pre-recorded file, looped in sync), + ENTRADA (another input
+--     of the interface), GUARDAR / CARGAR CANCIÓN (song set-ups), NUEVA CANCIÓN
 --
 -- Keys: Space = play / stop, 1-9 = record on loop 1-9, 0 = stop all loops, Esc = close editor.
 -- Right-click the header to dock / undock the panel inside REAPER.
@@ -15,6 +17,9 @@
 
 local TITLE = "E4L Live Panel"
 local EXT = "E4L_LivePanel"
+local DIR = debug.getinfo(1, "S").source:match("@?(.*[/\\])") or ""
+local E4L = dofile(DIR .. "e4l_lib.lua")
+local TOP = 116          -- y where the rows / editor / room start (below the toolbar)
 
 ---------------------------------------------------------------------------------------
 -- parameters
@@ -59,6 +64,7 @@ end
 ---------------------------------------------------------------------------------------
 -- scan the project for loopers (cached, refreshed twice a second)
 local loops, last_scan = {}, -1
+n_inputs = 1
 
 local function scan()
   local list = {}
@@ -70,11 +76,23 @@ local function scan()
       if lfx < 0 and name:find("E4L Looper", 1, true) then lfx = i
       elseif pfx < 0 and name:find("E4L", 1, true) and name:find("Panner", 1, true) then pfx, pname = i, name end
     end
+    if lfx < 0 and pfx >= 0 then
+      -- a spatialised track without looper: pre-recorded audio
+      local _, tname = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
+      local pn = param_names(tr, pfx)
+      local _, bars = reaper.GetSetMediaTrackInfo_String(tr, "P_EXT:E4L_bars", "", false)
+      list[#list + 1] = {
+        kind = "audio", tr = tr, name = tname ~= "" and tname or ("Pista " .. (t + 1)), lfx = -1, pfx = pfx,
+        effect = effect_of(pname), pn = pn, bars = tonumber(bars) or 0,
+        p = { az = pn["Azimuth"] or -1, cur_az = pn["Current Azimuth"] or -1 },
+      }
+    end
     if lfx >= 0 then
       local _, tname = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
       local ln = param_names(tr, lfx)
       local pn = pfx >= 0 and param_names(tr, pfx) or {}
       list[#list + 1] = {
+        kind = "loop", input = E4L.loop_input(tr),
         tr = tr, name = tname ~= "" and tname or ("Pista " .. (t + 1)), lfx = lfx, pfx = pfx,
         effect = pfx >= 0 and effect_of(pname) or 0, pn = pn,
         p = {
@@ -88,6 +106,7 @@ local function scan()
     end
   end
   loops = list
+  n_inputs = #E4L.synth_inputs()
 end
 
 ---------------------------------------------------------------------------------------
@@ -234,12 +253,113 @@ local function transport()
     playing = playing, bar = math.floor(measure) + 1,
     beat = math.floor(beat_in_bar) + 1,
     bpb = math.floor((beats_per_bar or num or 4) + 0.5), num = num or 4, denom = denom or 4,
-    bpm = bpm or reaper.Master_GetTempo(), qn = qn,
+    bpm = bpm or reaper.Master_GetTempo(), qn = qn, time = t,
   }
 end
 
 ---------------------------------------------------------------------------------------
 local editing = nil   -- index of the loop whose movement editor is open
+
+-- audio tracks: SONAR / SILENCIO switch on the next bar, like the loops
+local pend_mute, last_bar = {}, nil
+local function apply_pending(tp)
+  if (not tp.playing) or (last_bar and tp.bar ~= last_bar) then
+    for tr, m in pairs(pend_mute) do
+      if reaper.ValidatePtr2 == nil or reaper.ValidatePtr2(0, tr, "MediaTrack*") then
+        reaper.SetMediaTrackInfo_Value(tr, "B_MUTE", m)
+      end
+    end
+    pend_mute = {}
+  end
+  last_bar = tp.bar
+end
+
+local status_text, status_time = "", 0
+local function status(t) status_text, status_time = t, reaper.time_precise() end
+
+---------------------------------------------------------------------------------------
+-- toolbar actions
+local function act_add_loop()
+  reaper.Undo_BeginBlock()
+  local tr = E4L.add_loop(E4L.cfg_get("stereo_pan", 0) == 1, E4L.cfg_get("lat_ms", E4L.latency_ms()))
+  reaper.Undo_EndBlock("E4L: + loop", -1)
+  last_scan = -1
+  status(E4L.track_name(tr) .. " agregado.")
+end
+
+local function act_add_audio()
+  local ok, file = reaper.GetUserFileNameForRead("", "Elige un audio pregrabado", "wav;aif;aiff;mp3;flac;ogg")
+  if not ok or file == "" then return end
+  reaper.Undo_BeginBlock()
+  local tr, bars = E4L.add_audio(file, true)
+  reaper.Undo_EndBlock("E4L: + audio", -1)
+  last_scan = -1
+  status(E4L.track_name(tr) .. (bars > 0 and (": " .. bars .. " compases, ajustado al tempo") or
+         ": no dura compases enteros, suena a su velocidad") .. ". Pulsa SONAR para que entre.")
+end
+
+local function act_add_input()
+  local ins = E4L.synth_inputs()
+  local ok, csv = reaper.GetUserInputs("Nueva entrada", 2,
+    "Entrada de la interfaz (canal),1 mono 2 estéreo", tostring(#ins + 1) .. ",1")
+  if not ok then return end
+  local ch, st = csv:match("^%s*(%d+)%s*,%s*(%d+)")
+  if not ch then return end
+  reaper.Undo_BeginBlock()
+  local tr = E4L.add_input(tonumber(ch), tonumber(st) == 2, E4L.cfg_get("cue_ch", 7))
+  reaper.Undo_EndBlock("E4L: + entrada", -1)
+  last_scan = -1
+  status(E4L.track_name(tr) .. " (entrada " .. ch .. ") agregada. Elige en cada loop su entrada con el botón ENT.")
+end
+
+local function act_save_song()
+  local _, dir = E4L.list_songs()
+  local cur = reaper.GetProjectName(0, ""):gsub("%.[Rr][Pp][Pp]$", "")
+  local ok, name = reaper.GetUserInputs("Guardar canción", 1, "Nombre de la canción,extrawidth=150",
+                                        cur ~= "" and cur or "Cancion 1")
+  if not ok or name == "" then return end
+  name = name:gsub("[/\\:%*%?\"<>|]", "-")
+  reaper.Main_SaveProjectEx(0, dir .. "/" .. name .. ".RPP", 0)
+  status("Canción «" .. name .. "» guardada (pistas, posiciones, movimientos y tempo).")
+end
+
+local function act_load_song()
+  local songs, dir = E4L.list_songs()
+  if #songs == 0 then status("Todavía no hay canciones guardadas.") return end
+  local items = {}
+  for i, f in ipairs(songs) do items[i] = f:gsub("%.[Rr][Pp][Pp]$", "") end
+  gfx.x, gfx.y = gfx.mouse_x, gfx.mouse_y
+  local m = gfx.showmenu(table.concat(items, "|"))
+  if m > 0 then
+    reaper.Main_openProject(dir .. "/" .. songs[m])
+    editing = nil; last_scan = -1
+    status("Canción «" .. items[m] .. "» cargada. Los loops empiezan vacíos.")
+  end
+end
+
+local function act_new_song()
+  local f = DIR .. "E4L - Nuevo proyecto en vivo.lua"
+  local ok, err = pcall(dofile, f)
+  if not ok then status("Error: " .. tostring(err)) end
+  editing = nil; last_scan = -1
+end
+
+local function draw_toolbar(W)
+  local y, h = 80, 28
+  local items = {
+    { "+ LOOP", 80, act_add_loop }, { "+ AUDIO", 84, act_add_audio }, { "+ ENTRADA", 96, act_add_input },
+    { "GUARDAR CANCIÓN", 150, act_save_song }, { "CARGAR CANCIÓN", 140, act_load_song },
+    { "NUEVA CANCIÓN", 130, act_new_song },
+  }
+  local x = 8
+  for _, it in ipairs(items) do
+    if button(it[1], x, y, it[2], h, false) then it[3]() end
+    x = x + it[2] + 6
+  end
+  if status_text ~= "" and reaper.time_precise() - status_time < 8 then
+    rgb(0.7, 0.85, 1); text(status_text, x + 8, y, nil, h)
+  end
+end
 
 local function draw_header(tp, W)
   rgb(0.11, 0.11, 0.14); rect(0, 0, W, 74)
@@ -271,7 +391,9 @@ local function draw_header(tp, W)
     reaper.Main_OnCommand(40044, 0)              -- Transport: Play/stop
   end
   if button("PARAR TODOS LOS LOOPS", rx + 104, 36, 200, 28, false) then
-    for _, L in ipairs(loops) do setp(L.tr, L.lfx, L.p.play, 0) end
+    for _, L in ipairs(loops) do
+      if L.kind == "loop" then setp(L.tr, L.lfx, L.p.play, 0) else pend_mute[L.tr] = 1 end
+    end
   end
 end
 
@@ -280,68 +402,101 @@ local function draw_rows(tp, x0, y0, W, H)
   gfx.setfont(1)
   if #loops == 0 then
     rgb(0.7, 0.7, 0.75)
-    text("No hay pistas con E4L Looper. Usa el script \"E4L - Live Looper template\".", x0, y0 + 10)
+    text("No hay loops todavía. Pulsa «NUEVA CANCIÓN» o «+ LOOP».", x0, y0 + 10)
     return
   end
+  local col = { [0] = { 0.4, 0.4, 0.45 }, { 1, 0.6, 0.2 }, { 1, 0.3, 0.3 }, { 0.35, 0.95, 0.5 }, { 0.55, 0.7, 0.9 } }
   for i, L in ipairs(loops) do
     local y = y0 + (i - 1) * rowh
     local bh = rowh - 16
-    local st = math.floor(getp(L.tr, L.lfx, L.p.status) + 0.5)
-    local pend = math.floor(getp(L.tr, L.lfx, L.p.pend) + 0.5)
     local sel = reaper.IsTrackSelected(L.tr)
     rgb(sel and 0.17 or 0.13, sel and 0.17 or 0.13, sel and 0.21 or 0.16); rect(x0, y, W, rowh - 4)
-
     rgb(0.88, 0.88, 0.92)
     text(string.format("%d  %s", i, L.name), x0 + 8, y, nil, rowh - 4)
     if clicked and hit(x0, y, 110, rowh - 4) then reaper.SetOnlyTrackSelected(L.tr) end
+    local blink_on = math.floor(reaper.time_precise() * 4) % 2 == 0
+    local px = x0 + 706                                   -- position bar
+    local pw = W - (px - x0) - 6
 
-    -- state
-    local col = { [0] = { 0.4, 0.4, 0.45 }, { 1, 0.6, 0.2 }, { 1, 0.3, 0.3 }, { 0.35, 0.95, 0.5 }, { 0.55, 0.7, 0.9 } }
-    local c = col[st] or col[0]
-    local blink = (st == 1 or pend > 0) and (math.floor(reaper.time_precise() * 4) % 2 == 0)
-    rgb(c[1], c[2], c[3], blink and 0.45 or 1); rect(x0 + 110, y + 6, 96, bh)
-    rgb(0.05, 0.05, 0.05)
-    local label = STATE_NAME[st] or "?"
-    if pend == 1 then label = "→ SONAR" elseif pend == 2 then label = "→ PARAR" end
-    text(label, x0 + 110, y + 6, 96, bh, 1)
+    if L.kind == "loop" then
+      local st = math.floor(getp(L.tr, L.lfx, L.p.status) + 0.5)
+      local pend = math.floor(getp(L.tr, L.lfx, L.p.pend) + 0.5)
+      local c = col[st] or col[0]
+      local blink = (st == 1 or pend > 0) and blink_on
+      rgb(c[1], c[2], c[3], blink and 0.45 or 1); rect(x0 + 110, y + 6, 96, bh)
+      rgb(0.05, 0.05, 0.05)
+      local label = STATE_NAME[st] or "?"
+      if pend == 1 then label = "→ SONAR" elseif pend == 2 then label = "→ PARAR" end
+      text(label, x0 + 110, y + 6, 96, bh, 1)
 
-    -- length
-    local li = math.floor(getp(L.tr, L.lfx, L.p.len) + 0.5)
-    local nl = LENGTHS[li + 1] or 4
-    if button(nl .. (nl == 1 and " compás" or " comp."), x0 + 212, y + 6, 74, bh, false) then
-      setp(L.tr, L.lfx, L.p.len, (li + 1) % #LENGTHS)
-    end
-
-    local bx = x0 + 292
-    if button("GRABAR", bx, y + 6, 66, bh, st == 1 or st == 2, 1, 0.3, 0.3) then
-      setp(L.tr, L.lfx, L.p.rec, getp(L.tr, L.lfx, L.p.rec) > 0.5 and 0 or 1)
-    end
-    local play_on = getp(L.tr, L.lfx, L.p.play) > 0.5
-    if button("SONAR", bx + 70, y + 6, 60, bh, play_on, 0.35, 0.95, 0.5) then
-      setp(L.tr, L.lfx, L.p.play, play_on and 0 or 1)
-    end
-    local od = getp(L.tr, L.lfx, L.p.odub) > 0.5
-    if button("CAPA", bx + 134, y + 6, 50, bh, od, 1, 0.75, 0.2) then
-      setp(L.tr, L.lfx, L.p.odub, od and 0 or 1)
-    end
-    if button("BORRAR", bx + 188, y + 6, 64, bh, false) then setp(L.tr, L.lfx, L.p.clear, 1) end
-    if button("MOVIMIENTO", bx + 256, y + 6, 100, bh, editing == i, 0.45, 0.75, 1) then
-      editing = (editing == i) and nil or i
-    end
-
-    -- loop position
-    local px, pw = bx + 362, W - (bx - x0) - 368
-    if pw > 30 then
-      rgb(0.2, 0.2, 0.24); rect(px, y + 10, pw, rowh - 24)
-      local lqn = getp(L.tr, L.lfx, L.p.qn)
-      if (st == 2 or st == 3) and lqn > 0 and tp.playing then
-        local ph = ((tp.qn - getp(L.tr, L.lfx, L.p.start)) / lqn) % 1
-        if st == 2 then rgb(1, 0.3, 0.3, 0.9) else rgb(0.35, 0.95, 0.5, 0.9) end
-        rect(px, y + 10, pw * ph, rowh - 24)
+      local li = math.floor(getp(L.tr, L.lfx, L.p.len) + 0.5)
+      local nl = LENGTHS[li + 1] or 4
+      if button(nl .. (nl == 1 and " compás" or " comp."), x0 + 212, y + 6, 74, bh, false) then
+        setp(L.tr, L.lfx, L.p.len, (li + 1) % #LENGTHS)
       end
-      rgb(0.5, 0.5, 0.55)
-      local nb = math.floor(getp(L.tr, L.lfx, L.p.bars) + 0.5)
-      for k = 1, nb - 1 do gfx.line(px + pw * k / nb, y + 10, px + pw * k / nb, y + rowh - 15) end
+      -- input of the interface that feeds this loop (click to change)
+      if button("ENT " .. (L.input > 0 and L.input or "-"), x0 + 290, y + 6, 50, bh, false) and n_inputs > 0 then
+        local k = L.input % n_inputs + 1
+        E4L.set_loop_input(L.tr, k); L.input = k
+      end
+
+      local bx = x0 + 344
+      if button("GRABAR", bx, y + 6, 66, bh, st == 1 or st == 2, 1, 0.3, 0.3) then
+        setp(L.tr, L.lfx, L.p.rec, getp(L.tr, L.lfx, L.p.rec) > 0.5 and 0 or 1)
+      end
+      local play_on = getp(L.tr, L.lfx, L.p.play) > 0.5
+      if button("SONAR", bx + 70, y + 6, 60, bh, play_on, 0.35, 0.95, 0.5) then
+        setp(L.tr, L.lfx, L.p.play, play_on and 0 or 1)
+      end
+      local od = getp(L.tr, L.lfx, L.p.odub) > 0.5
+      if button("CAPA", bx + 134, y + 6, 50, bh, od, 1, 0.75, 0.2) then
+        setp(L.tr, L.lfx, L.p.odub, od and 0 or 1)
+      end
+      if button("BORRAR", bx + 188, y + 6, 64, bh, false) then setp(L.tr, L.lfx, L.p.clear, 1) end
+      if button("MOVIMIENTO", bx + 256, y + 6, 100, bh, editing == i, 0.45, 0.75, 1) then
+        editing = (editing == i) and nil or i
+      end
+      if pw > 30 then
+        rgb(0.2, 0.2, 0.24); rect(px, y + 10, pw, rowh - 24)
+        local lqn = getp(L.tr, L.lfx, L.p.qn)
+        if (st == 2 or st == 3) and lqn > 0 and tp.playing then
+          local ph = ((tp.qn - getp(L.tr, L.lfx, L.p.start)) / lqn) % 1
+          if st == 2 then rgb(1, 0.3, 0.3, 0.9) else rgb(0.35, 0.95, 0.5, 0.9) end
+          rect(px, y + 10, pw * ph, rowh - 24)
+        end
+        rgb(0.5, 0.5, 0.55)
+        local nb = math.floor(getp(L.tr, L.lfx, L.p.bars) + 0.5)
+        for k = 1, nb - 1 do gfx.line(px + pw * k / nb, y + 10, px + pw * k / nb, y + rowh - 15) end
+      end
+    else
+      -- pre-recorded audio: SONAR / SILENCIO on the next bar
+      local muted = reaper.GetMediaTrackInfo_Value(L.tr, "B_MUTE") > 0.5
+      local pm = pend_mute[L.tr]
+      local c = muted and col[0] or col[3]
+      rgb(c[1], c[2], c[3], (pm ~= nil and blink_on) and 0.45 or 1); rect(x0 + 110, y + 6, 96, bh)
+      rgb(0.05, 0.05, 0.05)
+      local label = muted and "SILENCIO" or "SONANDO"
+      if pm == 0 then label = "→ SONAR" elseif pm == 1 then label = "→ SILENCIO" end
+      text(label, x0 + 110, y + 6, 96, bh, 1)
+      rgb(0.7, 0.7, 0.75)
+      text(L.bars > 0 and ("audio · " .. L.bars .. " comp.") or "audio", x0 + 212, y + 6, 128, bh)
+      local bx = x0 + 344
+      local want_on = (pm ~= nil) and (pm == 0) or (pm == nil and not muted)
+      if button("SONAR", bx + 70, y + 6, 60, bh, want_on, 0.35, 0.95, 0.5) then
+        pend_mute[L.tr] = want_on and 1 or 0
+      end
+      if button("MOVIMIENTO", bx + 256, y + 6, 100, bh, editing == i, 0.45, 0.75, 1) then
+        editing = (editing == i) and nil or i
+      end
+      if pw > 30 then
+        rgb(0.2, 0.2, 0.24); rect(px, y + 10, pw, rowh - 24)
+        if L.bars > 0 and tp.playing and not muted then
+          local ll = L.bars * E4L.bar_seconds(0)
+          rgb(0.35, 0.95, 0.5, 0.9); rect(px, y + 10, pw * ((tp.time % ll) / ll), rowh - 24)
+        end
+        rgb(0.5, 0.5, 0.55)
+        for k = 1, L.bars - 1 do gfx.line(px + pw * k / L.bars, y + 10, px + pw * k / L.bars, y + rowh - 15) end
+      end
     end
   end
 end
@@ -504,7 +659,8 @@ local function draw_room(x, y, size)
       if drag == i then az = getp(L.tr, L.pfx, L.p.az) end
       local r = math.rad(az)
       local dx, dy = cx + math.sin(r) * R * 0.78, cy - math.cos(r) * R * 0.78
-      local st = math.floor(getp(L.tr, L.lfx, L.p.status) + 0.5)
+      local st = L.kind == "loop" and math.floor(getp(L.tr, L.lfx, L.p.status) + 0.5)
+                 or (reaper.GetMediaTrackInfo_Value(L.tr, "B_MUTE") > 0.5 and 0 or 3)
       if st == 3 then rgb(0.35, 0.95, 0.5) elseif st == 2 then rgb(1, 0.3, 0.3)
       else rgb(0.5, 0.5, 0.6) end
       gfx.circle(dx, dy, 11, 1, 1)
@@ -529,9 +685,10 @@ local function keyboard(c)
   if c == 32 then reaper.Main_OnCommand(40044, 0) end                   -- space
   if c >= 49 and c <= 57 then                                            -- 1-9: record
     local L = loops[c - 48]
-    if L then setp(L.tr, L.lfx, L.p.rec, getp(L.tr, L.lfx, L.p.rec) > 0.5 and 0 or 1) end
+    if L and L.kind == "loop" then setp(L.tr, L.lfx, L.p.rec, getp(L.tr, L.lfx, L.p.rec) > 0.5 and 0 or 1)
+    elseif L then pend_mute[L.tr] = reaper.GetMediaTrackInfo_Value(L.tr, "B_MUTE") > 0.5 and 0 or 1 end
   end
-  if c == 48 then for _, L in ipairs(loops) do setp(L.tr, L.lfx, L.p.play, 0) end end  -- 0
+  if c == 48 then for _, L in ipairs(loops) do if L.kind == "loop" then setp(L.tr, L.lfx, L.p.play, 0) end end end  -- 0
 end
 
 local function main()
@@ -565,11 +722,15 @@ local function main()
     if m == 1 then gfx.dock(docked and 0 or 1) end
   elseif gfx.mouse_cap & 2 == 0 then RCLICK = false end
 
-  local room = math.max(0, math.min(H - 90, math.floor(W * 0.32)))
+  draw_toolbar(W)
+  apply_pending(tp)
+  local room = math.max(0, math.min(H - TOP - 6, math.floor(W * 0.32)))
   if W < 900 then room = 0 end
   local lw = W - room - 24
-  if editing then draw_editor(8, 84, lw, H - 92) else draw_rows(tp, 8, 84, lw, H) end
-  if room > 120 then draw_room(W - room - 8, 84, room) end
+  if editing and not loops[editing] then editing = nil end
+  if editing then draw_editor(8, TOP, lw, H - TOP - 8) else draw_rows(tp, 8, TOP, lw, H) end
+  if room > 120 then draw_room(W - room - 8, TOP, room) end
+  reaper.SetExtState(EXT, "alive", tostring(reaper.time_precise()), false)
 
   mouse_was_down = mouse_down
   gfx.update()

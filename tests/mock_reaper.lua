@@ -14,7 +14,12 @@ function reaper.CountTracks() return #T end
 function reaper.GetTrack(_, i) return T[i+1] end
 function reaper.GetMasterTrack() return master end
 function reaper.InsertTrackAtIndex(i) table.insert(T, i+1, newtr()) end
-function reaper.GetSetMediaTrackInfo_String(tr, k, v, set) if set then tr.name=v end return true, tr.name end
+function reaper.GetSetMediaTrackInfo_String(tr, k, v, set)
+  if k == "P_NAME" then if set then tr.name = v end return true, tr.name end
+  tr.ext = tr.ext or {}
+  if set then tr.ext[k] = v end
+  return true, tr.ext[k] or ""
+end
 function reaper.SetMediaTrackInfo_Value(tr, k, v) tr.vals[k]=v end
 function reaper.GetMediaTrackInfo_Value(tr, k)
   if k=="IP_TRACKNUMBER" then for i,t in ipairs(T) do if t==tr then return i end end end
@@ -74,5 +79,45 @@ function gfx.quit() end
 function gfx.dock() return 0 end
 function gfx.showmenu() return 0 end
 function gfx.getchar() local k = MOCK_KEY; MOCK_KEY = 0; return k end
+
+-- project ext state, items, files, projects (live scripts)
+MOCK_PROJEXT = {}
+function reaper.GetProjExtState(_, a, b) local v = MOCK_PROJEXT[a .. b]; if v then return 1, v end return 0, "" end
+function reaper.SetProjExtState(_, a, b, v) MOCK_PROJEXT[a .. b] = v return 1 end
+MOCK_CURSOR = 0; MOCK_SRCLEN = 7.9; MOCK_FILES = {}; MOCK_SAVED = {}; MOCK_OPENED = {}
+function reaper.SetEditCurPos(t) MOCK_CURSOR = t end
+function reaper.InsertMedia(file)
+  local tr = MOCK_SEL
+  tr.items = tr.items or {}
+  local item = { file = file, vals = { D_POSITION = MOCK_CURSOR, D_LENGTH = MOCK_SRCLEN }, take = { vals = { D_PLAYRATE = 1 } } }
+  item.take.item = item
+  table.insert(tr.items, item)
+  return 1
+end
+function reaper.CountTrackMediaItems(tr) return tr.items and #tr.items or 0 end
+function reaper.GetTrackMediaItem(tr, i) return tr.items[i + 1] end
+function reaper.GetActiveTake(item) return item.take end
+function reaper.GetMediaItemTake_Source(take) return take end
+function reaper.GetMediaSourceLength() return MOCK_SRCLEN, false end
+function reaper.SetMediaItemTakeInfo_Value(take, k, v) take.vals[k] = v return true end
+function reaper.SetMediaItemInfo_Value(item, k, v) item.vals[k] = v return true end
+function reaper.GetMediaItemInfo_Value(item, k) return item.vals[k] or 0 end
+function reaper.GetResourcePath() return "/res" end
+function reaper.RecursiveCreateDirectory() return 1 end
+function reaper.EnumerateFiles(_, i) return MOCK_FILES[i + 1] end
+function reaper.Main_SaveProjectEx(_, path) MOCK_SAVED[#MOCK_SAVED + 1] = path end
+function reaper.Main_openProject(path) MOCK_OPENED[#MOCK_OPENED + 1] = path end
+function reaper.GetProjectName() return "" end
+function reaper.GetUserFileNameForRead() return true, "/sounds/pad.wav" end
+function reaper.SetMediaTrackInfo_Value_orig() end
+local _cmd = reaper.Main_OnCommand
+function reaper.Main_OnCommand(c, f)
+  if c == 40023 then           -- File: New project
+    for i = #T, 1, -1 do T[i] = nil end
+    master.fx = {}; master.sends = {[0]={},[1]={{dst=nil,vals={I_SRCCHAN=0,I_DSTCHAN=0}}}}; master.vals = {I_NCHAN=2}
+    MOCK_PROJEXT = {}
+  end
+  _cmd(c, f)
+end
 
 MOCK = {T=T, master=master}
