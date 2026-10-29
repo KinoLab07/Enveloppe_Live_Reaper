@@ -46,7 +46,8 @@ in_pin:Input R
 out_pin:Output L
 out_pin:Output R
 
-options:maxmem=32000000
+// gmem is shared with "E4L Sync Out" (reset pulse for an external sequencer)
+options:maxmem=32000000 gmem=E4L_SYNC
 
 @init
 ext_tail_size = -1;
@@ -229,7 +230,7 @@ gain = 10 ^ (vol_db / 20);
 @block
 // ---------- buttons (UI clicks, automation, MIDI learn): react to changes ----------
 rec_btn && !p_rec && state != ST_REC ? ( armed = 1; err_msg = 0; );
-!rec_btn && p_rec && armed ? armed = 0;
+!rec_btn && p_rec && armed ? ( armed = 0; gmem[0] = -1; );
 clear_btn && !p_clear ? ( do_clear(); set_slider(5, 0); );
 // PLAY: from the beginning on the next bar (also from a pause)
 play_btn && !p_play && has_loop && (state == ST_STOP || state == ST_PAUSE) ? (
@@ -280,6 +281,8 @@ playing_now && !(prev_ps & 1) && prev_ps != 2 && prev_ps != 6 && has_loop && sta
 );
 prev_ps = play_state;
 !playing_now ? ( last_bar = -1; env = 0; );
+// armed: tell "E4L Sync Out" on which bar line the recording will start (and when we said it)
+armed && playing_now ? ( gmem[0] = ceil((b - 0.5 * qn_per_spl) / bar_qn - 0.0000001) * bar_qn; gmem[1] = b; );
 env_step = 1 / max(1, srate * fade_ms / 1000);
 
 @sample

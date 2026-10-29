@@ -30,6 +30,11 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
     5.1, 7.1, 5.1.2, 7.1.4, ambiX), optional sub.
   - `E4L Sub Out` – on the REAPER master, sub to output 5.
   - `E4L Looper` – bar-synced looper (see below).
+  - `E4L Sync Out` – on track `SYNC OUT` (no master send, out 1 → Mbox output 6): reset pulse
+    for the user's analog sequencer on the bar where a loop starts recording (looper publishes
+    the armed bar line in `gmem[0]`, stamp in `gmem[1]`, namespace `E4L_SYNC`), on start from
+    STOP, optionally every N bars; clock on out 2; optional MIDI. Untested on the real synth yet
+    (Mbox outputs are AC coupled, ~1.5-2 V: pulse may need tuning).
 - `Scripts/E4L/` – `e4l_lib.lua` (shared), `E4L - Live Panel.lua` (the single-window UI),
   `E4L - New live project.lua`, `E4L - Live Looper template.lua`, `E4L - Add sub to master.lua`,
   `E4L - Update from GitHub.lua`, helpers.
@@ -37,7 +42,7 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
   changing behaviour. `tools/render_panel_preview.py` → panel PNGs used by the guide.
 - Live project tracks: `SYNTH IN`, `SYNTH IN 2`… (monitor only, to headphones), `LOOP n`
   (Looper + panner), `AUDIO n` (looped file + panner), `E4L Master` (Master Bus, Quad),
-  `CUE (headphones)` (binaural → outputs 7-8).
+  `CUE (headphones)` (binaural → outputs 7-8), `SYNC OUT` (E4L Sync Out → output 6).
 
 ## Behaviour decided with the user (keep it)
 - Loops record **ALL** inputs by default; the row button cycles ALL / IN 1 / IN 2…
@@ -79,7 +84,8 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
 
 ## Tests (run them before every push)
 - `bash tests/run_tests.sh` – builds ysfx + `tests/runfx.cpp` (once, into tests/build) and
-  runs `tests/test_e4l.py` (JSFX). runfx events: `name@sample=value` (slider),
+  runs `tests/test_e4l.py` (JSFX). `fx2=… out2=…` runs a second plug-in in the same process
+  (shared gmem, sliders prefixed `B.`). runfx events: `name@sample=value` (slider),
   `ps@sample=state` (play state), `beat@sample=qn` (move transport); events apply at the start
   of the 256-sample block containing that sample.
 - `python3 tests/test_scripts.py` – Lua scripts against the REAPER mock (`tests/mock_reaper.lua`,

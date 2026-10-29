@@ -432,6 +432,26 @@ local function act_new_song()
   editing = nil; last_scan = -1
 end
 
+-- SYNC: reset pulse for an external sequencer ("E4L Sync Out" on the SYNC OUT track).
+-- Adds the track (asking for the interface output) or opens its window if it exists.
+local function act_sync()
+  local tr = E4L.find_track("SYNC OUT")
+  if tr then
+    local fx = E4L.find_fx(tr, "E4L Sync Out")
+    if fx >= 0 then reaper.TrackFX_Show(tr, fx, 3) end
+    return
+  end
+  local ok, v = reaper.GetUserInputs("Sync out", 1, "Pulse to interface output (channel)",
+                                     tostring(E4L.cfg_get("sync_ch", 6)))
+  local ch = ok and tonumber(v)
+  if not ch or ch < 1 then return end
+  reaper.Undo_BeginBlock()
+  E4L.add_sync_out(math.floor(ch))
+  reaper.Undo_EndBlock("E4L: sync out", -1)
+  status("SYNC OUT added: a reset pulse on output " .. math.floor(ch) ..
+         " when a loop starts recording and when REAPER starts. Patch it to the sequencer's RESET.")
+end
+
 -- runs a toolbar action without ever killing the panel; with keep_playing the transport is
 -- restarted if something stopped it (the loops only sound while REAPER is playing)
 local restart_check = nil   -- time at which we verify that REAPER really plays again
@@ -484,6 +504,7 @@ local function draw_toolbar(W)
     { "+ INPUT", 84, act_add_input, true },
     { "SAVE TEMPLATE", 140, act_save_song }, { "LOAD TEMPLATE", 140, act_load_song },
     { "NEW TEMPLATE", 130, act_new_song },
+    { E4L.find_track("SYNC OUT") and "SYNC" or "+ SYNC", 76, act_sync },
   }
   local x = 8
   for _, it in ipairs(items) do

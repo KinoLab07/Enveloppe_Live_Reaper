@@ -8,6 +8,8 @@
 --   E4L Master        E4L Master Bus = Quad -> REAPER master -> outputs 1-4.
 --   MASTER            "E4L Sub Out": the sum of everything on the master -> sub output.
 --   CUE (headphones)  binaural copy of the loops, to the headphone outputs.
+--   SYNC OUT          "E4L Sync Out": reset pulse for an external sequencer when a loop
+--                     starts recording (and when REAPER starts), to a free output.
 --
 -- Headphones: choose an output pair that is not a speaker, e.g. 7-8 on an Mbox Pro, and in the
 -- interface's control panel set the headphone output source to that pair.
@@ -24,10 +26,11 @@ local set_param, add_send, add_hw_out = E4L.set_param, E4L.add_send, E4L.add_hw_
 
 ---------------------------------------------------------------------------------------
 local existing = find_track("SYNTH IN")
-local defaults = existing and "4,1,1,7,1,5" or "8,1,1,7,1,5"
-local ok, csv = reaper.GetUserInputs("E4L Live Looper", 6,
+local defaults = existing and "4,1,1,7,1,5,0" or "8,1,1,7,1,5,6"
+local ok, csv = reaper.GetUserInputs("E4L Live Looper", 7,
   "Loop tracks to add,Synth input (first channel),Synth input: 1 mono 2 stereo," ..
-  "Headphones output (first channel),Loop panner: 1 Mono 2 Stereo,Sub output (0 = none)", defaults)
+  "Headphones output (first channel),Loop panner: 1 Mono 2 Stereo,Sub output (0 = none)," ..
+  "Sync pulse output (0 = none)", defaults)
 if not ok then return end
 local f = {}
 for v in csv:gmatch("[^,]+") do f[#f + 1] = tonumber(v) end
@@ -37,6 +40,7 @@ local in_stereo = (f[3] or 1) == 2
 local cue_ch    = math.max(1, f[4] or 7)
 local stereo_pan = (f[5] or 1) == 2
 local sub_ch    = math.max(0, f[6] or 0)
+local sync_ch   = math.max(0, f[7] or 0)
 
 local lat_ms = E4L.latency_ms()
 E4L.cfg_set("cue_ch", cue_ch); E4L.cfg_set("sub_ch", sub_ch)
@@ -79,6 +83,9 @@ if not existing then E4L.add_input(in_ch, in_stereo, cue_ch) end
 
 -- LOOP tracks, placed after the existing ones (before E4L Master)
 for _ = 1, n_loops do E4L.add_loop(stereo_pan, lat_ms) end
+
+-- SYNC OUT: reset pulse for an external sequencer
+if sync_ch > 0 then E4L.add_sync_out(sync_ch) end
 
 reaper.PreventUIRefresh(-1)
 reaper.TrackList_AdjustWindows(false)

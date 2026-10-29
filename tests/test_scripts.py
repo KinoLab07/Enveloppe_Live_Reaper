@@ -31,8 +31,12 @@ lua.execute(template)
 T = lua.eval("MOCK.T")
 tracks = {T[i].name: T[i] for i in range(1, len(T) + 1)}
 names = [T[i].name for i in range(1, len(T) + 1)]
-check("template creates SYNTH IN, 8 loops, E4L Master and CUE",
-      names == ["SYNTH IN"] + ["LOOP %d" % i for i in range(1, 9)] + ["E4L Master", "CUE (headphones)"])
+check("template creates SYNTH IN, 8 loops, E4L Master, CUE and SYNC OUT",
+      names == ["SYNTH IN"] + ["LOOP %d" % i for i in range(1, 9)] + ["E4L Master", "CUE (headphones)", "SYNC OUT"])
+sy = tracks["SYNC OUT"]
+check("SYNC OUT: E4L Sync Out, no master send, its pulse (mono) to output 6",
+      sy.fx[1].file == "E4L Sync Out.jsfx" and sy.vals.B_MAINSEND == 0
+      and sy.sends[1][1].vals.I_DSTCHAN == 1024 + 5 and sy.sends[1][1].vals.I_SRCCHAN == 1024)
 s = tracks["SYNTH IN"]
 check("SYNTH IN: armed, monitored, never recorded, no master send",
       s.vals.I_RECARM == 1 and s.vals.I_RECMON == 1 and s.vals.I_RECMODE == 2 and s.vals.B_MAINSEND == 0)
@@ -56,7 +60,8 @@ lua.execute(template)
 T = lua.eval("MOCK.T")
 m = lua.eval("MOCK.master")
 check("running it again only adds loops (4 more), no second sub plugin or output",
-      len(T) == 15 and T[13].name == "LOOP 12" and len(m.fx) == 1 and len(m.sends[1]) == 3)
+      len(T) == 16 and T[13].name == "LOOP 12" and len(m.fx) == 1 and len(m.sends[1]) == 3
+      and [T[i].name for i in range(1, 17)].count("SYNC OUT") == 1)
 
 # a loop from an older version (no stored input choice, SYNTH IN 2 muted) becomes ALL in the panel
 lua3 = lupa.LuaRuntime()
@@ -168,7 +173,7 @@ names = lua.eval("function() local t = {} for i, tr in ipairs(MOCK.T) do t[i] = 
 name_list = lambda: list(names().values())
 TB = 80 + 10
 xs, x = [], 8
-for w in (80, 84, 84, 140, 140, 130):
+for w in (80, 84, 84, 140, 140, 130, 76):
     xs.append(x + 10); x += w + 6
 click(xs[0], TB)
 check("toolbar: + LOOP adds LOOP 13 before E4L Master",
@@ -299,6 +304,17 @@ click(xs[4], TB)
 lua.execute("function gfx.showmenu() return 0 end")
 check("toolbar: LOAD TEMPLATE opens the chosen song",
       list(lua.eval("MOCK_OPENED").values()) == ["/res/E4L_Templates/Piece 2.RPP"])
+# SYNC: adds the SYNC OUT track (E4L Sync Out, no master send, output 1 -> interface output 6)
+lua.execute("function reaper.GetUserInputs(t, n, cap, def) return true, '6' end")
+click(xs[6], TB)
+sy = tr_index("SYNC OUT") if "SYNC OUT" in name_list() else 0
+hw = lua.eval("function(i) local s = MOCK.T[i].sends[1][1]; return s and s.vals.I_SRCCHAN, s and s.vals.I_DSTCHAN end")
+check("toolbar: + SYNC adds SYNC OUT (E4L Sync Out, no master send, mono to output 6)",
+      sy > 0 and fxfile(sy, 1) == "E4L Sync Out.jsfx" and lua.eval("MOCK.T[%d].vals.B_MAINSEND" % sy) == 0
+      and hw(sy) == (1024, 1024 + 5))
+click(xs[6], TB)
+check("toolbar: SYNC again opens its window (no second track)",
+      name_list().count("SYNC OUT") == 1 and lua.eval("MOCK_SHOWN and MOCK_SHOWN.fx") == 0)
 lua.execute("MOCK_INPUT = nil; function reaper.GetUserInputs(t, n, cap, def) return true, def end")
 click(xs[5], TB)
 check("toolbar: NEW TEMPLATE = new project with the live template (8 loops), panel not duplicated",

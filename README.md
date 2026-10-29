@@ -176,6 +176,8 @@ opening any plug-in.
     positions, movements, tempo) in `E4L_Templates` inside the resource folder, to move from one
     piece to the next.
   - **NEW TEMPLATE** – a new live project from scratch.
+  - **+ SYNC** – adds the `SYNC OUT` track (E4L Sync Out) to a free output (6 on the Mbox Pro);
+    afterwards the button (**SYNC**) opens its window.
 - **One row per loop:** state (empty, waiting, recording, playing, stopped, paused), length
   (1-32 bars), input (**ALL** / **IN n**), **REC**, **PLAY**, **PAUSE**, **OVERDUB**, **CLEAR**,
   **MOVEMENT** (movement editor) and the position inside the loop. Record, play and stop are
@@ -226,6 +228,16 @@ can also be automated with envelopes or REAPER's parameter modulation.
 ---
 
 ## Plug-in reference
+
+**E4L Sync Out:** reset pulses for an external (analog) sequencer, on its own `SYNC OUT` track
+(no master send, output 1 → a free interface output, patched to the sequencer's RESET input).
+A pulse on the bar line where an E4L Looper starts recording (so the sequence starts on step 1
+with the loop; the looper tells it through shared memory), when REAPER starts from STOP (not
+from PAUSE) and optionally every N bars. Output 2: optional clock (1/4 … 1/32, 24 PPQN).
+Optional MIDI Start / clock / Stop. Pulse length, level, polarity and timing offset; a test
+button. The interface's latency is already undone by the looper's latency compensation, so
+step 1 lands on the start of the loop. Line outputs are usually AC coupled and give ~1.5-2 V:
+try a longer pulse or the other polarity if the sequencer does not react.
 
 **E4L Looper:** Length (1-32 bars), Record, Play, Overdub, Clear, Loop Volume, Input Thru,
 Recording Latency Compensation (set automatically from the interface latency), Loop Seam

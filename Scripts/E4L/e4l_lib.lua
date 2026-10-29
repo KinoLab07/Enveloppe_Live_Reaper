@@ -288,6 +288,21 @@ end
 
 function E.delete_track(tr) reaper.DeleteTrack(tr) end
 
+-- SYNC OUT: "E4L Sync Out" on its own track (no master send), its output 1 (reset pulse)
+-- to the interface output `out_ch` (1-based, mono). Returns the track (existing or new).
+function E.add_sync_out(out_ch)
+  local tr = E.find_track("SYNC OUT")
+  if not tr then
+    tr = E.new_track("SYNC OUT")
+    reaper.SetMediaTrackInfo_Value(tr, "I_NCHAN", 2)
+    reaper.SetMediaTrackInfo_Value(tr, "B_MAINSEND", 0)
+    E.add_fx(tr, "E4L Sync Out.jsfx", "E4L Sync Out (reset / clock pulses for hardware sequencers)")
+  end
+  E.add_hw_out(tr, 0, out_ch - 1, true)
+  E.cfg_set("sync_ch", out_ch)
+  return tr
+end
+
 -- position inside the file of an AUDIO track (project seconds from the file's start).
 -- The item starts at 0 and loops; where it is read from is set with the take's start offset.
 local function audio_take(tr)

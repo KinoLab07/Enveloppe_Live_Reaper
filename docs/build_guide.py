@@ -633,7 +633,16 @@ def build(path):
         "file starts again from its beginning, like Ableton. <b>PAUSE</b> keeps the position: PLAY "
         "continues exactly where it was.",
         "<b>Toolbar:</b> <b>+ LOOP</b>, <b>+ AUDIO</b>, <b>+ INPUT</b>, <b>SAVE TEMPLATE</b>, "
-        "<b>LOAD TEMPLATE</b>, <b>NEW TEMPLATE</b> (see below).",
+        "<b>LOAD TEMPLATE</b>, <b>NEW TEMPLATE</b> (see below), <b>+ SYNC</b> (reset pulse for an "
+        "external sequencer, see below).",
+        "<b>Syncing an analog sequencer:</b> the <b>SYNC OUT</b> track (created by the template or by "
+        "<b>+ SYNC</b>) sends a short pulse to output 6 of the Mbox on the bar where a loop starts "
+        "recording, and when REAPER starts from STOP. Patch output 6 to the <b>RESET</b> input of the "
+        "sequencer: the sequence starts on step 1 exactly with the loop. In its window (button "
+        "<b>SYNC</b>): <b>SEND A RESET</b> to test the cable, pulse length, level, polarity, a timing "
+        "offset, reset every N bars, a clock on output 2 and MIDI Start / clock. If the sequencer "
+        "does not react, try a longer pulse or Polarity = Negative (interface outputs give little "
+        "voltage).",
         "<b>One row per loop:</b> state (EMPTY, WAITING, RECORDING, PLAYING, STOPPED, PAUSED; it blinks "
         "while waiting for the bar), length, input (<b>ALL</b> or <b>IN n</b>), <b>REC</b>, <b>PLAY</b>, "
         "<b>PAUSE</b>, <b>OVERDUB</b>, <b>CLEAR</b>, <b>MOVEMENT</b> and the position inside the loop.",
@@ -812,6 +821,17 @@ def build(path):
         ["Loop Seam Crossfade (ms)", "1 to 170 (50)"],
         ["Seam Level Compensation", "Auto (by pitch) / Off / Full"],
         ["Start / Stop Fade (ms)", "1 to 200 (30)"],
+    ], [60, 110]))
+    st.append(P("E4L Sync Out", "h2"))
+    st.append(table([
+        ["Parameter", "Values"],
+        ["Reset when a loop starts recording", "On / Off (On)"],
+        ["Reset when REAPER starts from STOP", "On / Off (On)"],
+        ["Reset every N bars", "Off, 1, 2, 4, 8, 16 bars"],
+        ["Pulse Length (ms) / Level / Polarity", "1-100 (10) / 0-1 (1) / Positive, Negative"],
+        ["Timing Offset (ms)", "−50 to +50 (negative = earlier)"],
+        ["Clock on output 2", "Off, 1/4, 1/8, 1/16, 1/32, 24 PPQN"],
+        ["MIDI", "Off, Start on reset, Start + clock 24 PPQN"],
     ], [60, 110]))
     st.append(Spacer(1, 8))
     st.append(P("Envelop for Live © Envelop (envelop.us), Mark C. Slee and contributors. REAPER port "

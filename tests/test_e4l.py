@@ -245,6 +245,47 @@ check("looper: re-record keeps the old loop until the new one starts",
 o = run(LP, ramp, *EXACT, "s1=0", "s2=1", "s5@250000=1")
 check("looper: clear", np.abs(o[250300:]).max() == 0)
 
+# --- sync out (reset pulses for an external sequencer) ------------------------
+SY = "E4L Sync Out.jsfx"
+def run2(fx, x, fx2, *sliders):
+    """fx then fx2 in the same process (like two tracks: gmem is shared)."""
+    inp, out, out2 = (os.path.join(TMP, n) for n in ("in.raw", "out.raw", "out2.raw"))
+    x.astype(np.float32).tofile(inp)
+    args = [RUNFX, os.path.join(FX, fx), DATA, str(SR), str(len(x)), inp, str(x.shape[1]), out,
+            "fx2=" + os.path.join(FX, fx2), "out2=" + out2, *sliders, "tempo=120", "play=1"]
+    r = subprocess.run(args, capture_output=True, text=True)
+    if r.returncode:
+        raise RuntimeError(r.stderr)
+    o1 = np.fromfile(out, np.float32).reshape(len(x), -1)
+    return o1, np.fromfile(out2, np.float32).reshape(len(x), -1)
+def pulses(ch):
+    on = np.flatnonzero((ch[1:] != 0) & (ch[:-1] == 0)) + 1
+    return ([0] if ch[0] != 0 else []) + list(on)
+sil = np.zeros((6 * SR, 2))
+# REC pressed mid-bar (sample 30000) on a 1-bar looper: the recording starts at bar 2 (96000)
+_, so = run2(LP, sil, SY, "s1=0", "s2@30000=1")
+check("sync out: reset when REAPER starts (0) and on the bar where the loop starts recording (96000)",
+      pulses(so[:, 0]) == [0, 96000] and np.all(so[96000:96480, 0] == 1) and so[96480, 0] == 0)
+so, _ = run2(SY, np.zeros((6 * SR, 1)), LP, "B.s1=0", "B.s2@30000=1")
+check("sync out: same pulse when the sync track is processed before the looper",
+      pulses(so[:, 0]) == [0, 96000])
+_, so = run2(LP, sil, SY, "s1=0", "s2@30000=1", "s2@60000=0")
+check("sync out: REC cancelled before the bar -> no reset", pulses(so[:, 0]) == [0])
+_, so = run2(LP, sil, SY, "s1=0", "s2@30000=1", "B.s7=-5")
+check("sync out: timing offset -5 ms -> the pulse leaves 240 samples earlier", pulses(so[:, 0])[1] == 96000 - 240)
+_, so = run2(LP, sil, SY, "s1=0", "B.s2=0", "B.s3=2")
+check("sync out: reset every 2 bars (start reset off)", pulses(so[:, 0]) == [0, 192000])
+_, so = run2(LP, sil, SY, "s1=0", "B.s2=1", "ps@120064=2", "ps@150016=1", "ps@200192=0", "beat@250112=0", "ps@250112=1")
+check("sync out: resuming from PAUSE does not reset, starting from STOP does",
+      pulses(so[:, 0]) == [0, 250112])
+_, so = run2(LP, sil, SY, "s1=0", "B.s2=0", "B.s8=3")
+pc = pulses(so[:, 1])
+check("sync out: clock 1/16 on output 2 (every 6000 samples at 120 BPM)",
+      pc[:4] == [6000, 12000, 18000, 24000] and np.all(np.diff(pc) == 6000))
+_, so = run2(LP, sil, SY, "s1=0", "B.s2=0", "B.s10@48128=1", "B.s6=1", "B.s4=2")
+check("sync out: test button sends one pulse (negative polarity, 2 ms)",
+      pulses(so[:, 0]) == [48128] and np.all(so[48128:48128 + 96, 0] == -1) and so[48128 + 96, 0] == 0)
+
 # --- decoders --------------------------------------------------------------
 noise = np.random.default_rng(0).normal(size=(2 * SR, 1)).repeat(2, 1) * 0.1
 for az_in, louder in ((-90, 0), (90, 1)):
