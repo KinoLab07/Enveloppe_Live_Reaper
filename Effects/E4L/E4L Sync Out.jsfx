@@ -135,16 +135,23 @@ playing ? (
   b += qn_per_spl;
 );
 
+// a click on the button in the window (set by @gfx)
+gfx_req ? (
+  gfx_req = 0;
+  out1_mode ? ( clk_left = clk_len; flash = 1; ) : fire_reset(spl_i);
+);
 sgn = polarity ? -1 : 1;
 r_out = rst_left > 0 ? sgn * level : 0;
 c_out = clk_left > 0 ? sgn * level : 0;
 spl0 = out1_mode ? c_out : r_out;
 spl1 = out1_mode ? r_out : c_out;
+spl0 != 0 ? out1_lit = 1;                   // for the OUT 1 light in the window
+alive += 1;                                 // the window checks that audio is running
 rst_left > 0 ? rst_left -= 1;
 clk_left > 0 ? clk_left -= 1;
 spl_i += 1;
 
-@gfx 360 150
+@gfx 360 152
 gfx_set(0.08, 0.08, 0.1, 1); gfx_rect(0, 0, gfx_w, gfx_h);
 gfx_setfont(1, "Arial", 14);
 gfx_set(0.85, 0.85, 0.9, 1); gfx_x = 8; gfx_y = 6; gfx_drawstr("E4L Sync Out");
@@ -166,6 +173,21 @@ armed_q = gmem[0];
 gfx_set(0.22, 0.22, 0.26, 1); gfx_rect(8, 92, 160, 34);
 gfx_set(0.9, 0.9, 0.95, 1); gfx_x = 26; gfx_y = 101; gfx_drawstr(out1_mode ? "SEND A PULSE" : "SEND A RESET");
 (mouse_cap & 1) && !last_cap && mouse_x >= 8 && mouse_x < 168 && mouse_y >= 92 && mouse_y < 126 ? (
-  slider10 = 1; slider_automate(2 ^ 9);
+  gfx_req = 1;
 );
 last_cap = mouse_cap & 1;
+// OUT 1 light: on only when a pulse really left through output 1
+out1_lit ? ( out1_glow = 1; out1_lit = 0; );
+out1_glow > 0.02 ? gfx_set(0.35, 0.95, 0.5, out1_glow) : gfx_set(0.25, 0.25, 0.3, 1);
+gfx_circle(196, 109, 9, 1, 1);
+out1_glow *= 0.8;
+gfx_set(0.7, 0.7, 0.75, 1); gfx_x = 212; gfx_y = 102; gfx_drawstr("OUT 1");
+// is REAPER running this plug-in? (it does not when the transport is stopped, unless
+// Preferences > Audio > "Run FX when stopped" is on)
+alive != last_alive ? ( last_alive = alive; alive_t = time_precise(); );
+time_precise() - alive_t > 0.5 ? (
+  gfx_set(0.12, 0.05, 0.05, 1); gfx_rect(0, 128, gfx_w, 22);
+  gfx_set(1, 0.45, 0.4, 1); gfx_x = 8; gfx_y = 132;
+  gfx_drawstr("Audio is not running here: press PLAY in REAPER");
+  gfx_req ? ( gfx_x = 8; gfx_y = 74; gfx_drawstr("(the pulse goes out as soon as it runs)"); );
+);

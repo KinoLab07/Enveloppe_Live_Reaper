@@ -38,6 +38,11 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
     Panel SYNC menu: settings / move the pulses to another output (warns if speakers use it).
     The user moved to another audio interface and patched the clock to its output 1 – check that
     the speakers are not on output 1 of that card. Untested on the real synth yet.
+    Findings so far: the user's sequencer free-runs on its INTERNAL clock (keeps going with the
+    cable unplugged) – it must be switched to external clock (model still unknown). The user
+    reported SEND A PULSE "never works": the window button now triggers the pulse from the audio
+    thread (gfx_req), shows an OUT 1 light only when a pulse really leaves, and warns when the
+    plug-in's audio is not running (REAPER stopped without "Run FX when stopped").
 - `Scripts/E4L/` – `e4l_lib.lua` (shared), `E4L - Live Panel.lua` (the single-window UI),
   `E4L - New live project.lua`, `E4L - Live Looper template.lua`, `E4L - Add sub to master.lua`,
   `E4L - Update from GitHub.lua`, helpers.
