@@ -298,9 +298,38 @@ function E.add_sync_out(out_ch)
     reaper.SetMediaTrackInfo_Value(tr, "B_MAINSEND", 0)
     E.add_fx(tr, "E4L Sync Out.jsfx", "E4L Sync Out (reset / clock pulses for hardware sequencers)")
   end
+  E.set_sync_output(tr, out_ch)
+  return tr
+end
+
+-- interface output (1-based) of the SYNC OUT track: its only hardware output, mono
+function E.set_sync_output(tr, out_ch)
+  for i = reaper.GetTrackNumSends(tr, 1) - 1, 0, -1 do reaper.RemoveTrackSend(tr, 1, i) end
   E.add_hw_out(tr, 0, out_ch - 1, true)
   E.cfg_set("sync_ch", out_ch)
-  return tr
+end
+
+function E.sync_output(tr)
+  if reaper.GetTrackNumSends(tr, 1) == 0 then return 0 end
+  return (math.floor(reaper.GetTrackSendInfo_Value(tr, 1, 0, "I_DSTCHAN")) & 1023) + 1
+end
+
+-- which other track already sends to interface output `ch` (1-based): its name, or nil
+function E.output_user(ch, except)
+  local function uses(tr)
+    for i = 0, reaper.GetTrackNumSends(tr, 1) - 1 do
+      local d = math.floor(reaper.GetTrackSendInfo_Value(tr, 1, i, "I_DSTCHAN"))
+      local mono = d & 1024 ~= 0
+      local first = (d & 1023) + 1
+      if ch == first or (not mono and ch == first + 1) then return true end
+    end
+  end
+  local master = reaper.GetMasterTrack(0)
+  if uses(master) then return "the speakers / sub (REAPER master)" end
+  for i = 0, reaper.CountTracks(0) - 1 do
+    local tr = reaper.GetTrack(0, i)
+    if tr ~= except and uses(tr) then return E.track_name(tr) end
+  end
 end
 
 -- position inside the file of an AUDIO track (project seconds from the file's start).

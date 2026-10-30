@@ -177,7 +177,8 @@ opening any plug-in.
     piece to the next.
   - **NEW TEMPLATE** – a new live project from scratch.
   - **+ SYNC** – adds the `SYNC OUT` track (E4L Sync Out) to a free output (6 on the Mbox Pro);
-    afterwards the button (**SYNC**) opens its window.
+    afterwards the button (**SYNC**) opens a menu: its settings, or the output for the pulses
+    (with a warning if that output already carries the speakers, the sub or the headphones).
 - **One row per loop:** state (empty, waiting, recording, playing, stopped, paused), length
   (1-32 bars), input (**ALL** / **IN n**), **REC**, **PLAY**, **PAUSE**, **OVERDUB**, **CLEAR**,
   **MOVEMENT** (movement editor) and the position inside the loop. Record, play and stop are
@@ -234,7 +235,10 @@ can also be automated with envelopes or REAPER's parameter modulation.
 A pulse on the bar line where an E4L Looper starts recording (so the sequence starts on step 1
 with the loop; the looper tells it through shared memory), when REAPER starts from STOP (not
 from PAUSE) and optionally every N bars. Output 2: optional clock (1/4 … 1/32, 24 PPQN).
-Optional MIDI Start / clock / Stop. Pulse length, level, polarity and timing offset; a test
+Optional MIDI Start / clock / Stop. **Output 1 sends = Clock** puts the clock on output 1
+instead (1/16 if no rate is chosen) for sequencers that only have a clock input: the first pulse
+falls exactly where REAPER starts, so with the sequencer on step 1 when you press PLAY and a
+sequence of 1 (2, 4…) bars, every loop starts on step 1. Pulse length, level, polarity and timing offset; a test
 button. The interface's latency is already undone by the looper's latency compensation, so
 step 1 lands on the start of the loop. Line outputs are usually AC coupled and give ~1.5-2 V:
 try a longer pulse or the other polarity if the sequencer does not react.

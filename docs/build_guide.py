@@ -643,6 +643,11 @@ def build(path):
         "offset, reset every N bars, a clock on output 2 and MIDI Start / clock. If the sequencer "
         "does not react, try a longer pulse or Polarity = Negative (interface outputs give little "
         "voltage).",
+        "<b>Sequencer with only a CLOCK input:</b> in the SYNC settings set <b>Output 1 sends = Clock "
+        "pulses</b> and the <b>Clock Rate</b> to one pulse per step (usually 1/16). The clock starts "
+        "exactly where REAPER starts: put the sequencer on step 1, press PLAY, and with a sequence of "
+        "1, 2 or 4 bars every loop starts on step 1. To use another output: <b>SYNC</b> › <b>Send the "
+        "pulses to output…</b> (it warns you if the speakers already use it).",
         "<b>One row per loop:</b> state (EMPTY, WAITING, RECORDING, PLAYING, STOPPED, PAUSED; it blinks "
         "while waiting for the bar), length, input (<b>ALL</b> or <b>IN n</b>), <b>REC</b>, <b>PLAY</b>, "
         "<b>PAUSE</b>, <b>OVERDUB</b>, <b>CLEAR</b>, <b>MOVEMENT</b> and the position inside the loop.",
@@ -830,7 +835,8 @@ def build(path):
         ["Reset every N bars", "Off, 1, 2, 4, 8, 16 bars"],
         ["Pulse Length (ms) / Level / Polarity", "1-100 (10) / 0-1 (1) / Positive, Negative"],
         ["Timing Offset (ms)", "−50 to +50 (negative = earlier)"],
-        ["Clock on output 2", "Off, 1/4, 1/8, 1/16, 1/32, 24 PPQN"],
+        ["Clock Rate", "Off, 1/4, 1/8 (2 PPQN), 1/16 (4 PPQN), 1/32, 24 PPQN"],
+        ["Output 1 sends", "Reset pulses / Clock pulses (then the clock is 1/16 by default)"],
         ["MIDI", "Off, Start on reset, Start + clock 24 PPQN"],
     ], [60, 110]))
     st.append(Spacer(1, 8))

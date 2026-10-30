@@ -111,6 +111,7 @@ function reaper.GetMediaSourceNumChannels(src)
   return f:match("quad") and 4 or f:match("mono") and 1 or f:match("8ch") and 8 or 2
 end
 MOCK_SHOWN = nil
+function reaper.RemoveTrackSend(tr, c, i) table.remove(tr.sends[c], i + 1) return true end
 function reaper.TrackFX_Show(tr, fx, f) MOCK_SHOWN = { tr = tr, fx = fx, f = f } end
 function reaper.DeleteTrack(tr) for i, t in ipairs(T) do if t == tr then table.remove(T, i) return end end end
 function reaper.AddMediaItemToTrack(tr)

@@ -14,6 +14,10 @@ desc: E4L Sync Out (reset / clock pulses for hardware sequencers)
 //     - when REAPER starts playing from STOP (not when resuming from PAUSE);
 //     - optionally every N bars.
 //   Output 2 = CLOCK pulses (optional): 1/4, 1/8, 1/16, 1/32 or 24 PPQN.
+//   "Output 1 sends = Clock" swaps them: the clock on output 1 (1/16 if no rate is chosen), for
+//   sequencers that only have a clock input. They advance one step per pulse; the clock starts
+//   exactly on the bar line where REAPER starts, so with the sequencer on step 1 when you press
+//   PLAY, and a sequence of 1 bar (or 2, 4 ... bars), every loop starts on step 1.
 //   MIDI (optional): Start on every reset, and MIDI clock (24 PPQN); Stop when REAPER stops.
 //
 // Timing: the pulse leaves on the bar line of the timeline. The synth's sound comes back
@@ -31,22 +35,23 @@ slider4:len_ms=10<1,100,1>Pulse Length (ms)
 slider5:level=1<0,1,0.01>Pulse Level
 slider6:polarity=0<0,1,1{Positive,Negative}>Polarity
 slider7:off_ms=0<-50,50,0.1>Timing Offset (ms, negative = earlier)
-slider8:clk_mode=0<0,5,1{Off,1/4,1/8,1/16,1/32,24 PPQN}>Clock on output 2
+slider8:clk_mode=0<0,5,1{Off,1/4,1/8 (2 PPQN),1/16 (4 PPQN),1/32,24 PPQN}>Clock Rate
 slider9:midi_mode=0<0,2,1{Off,Start on reset,Start + clock 24 PPQN}>MIDI
-slider10:test_btn=0<0,1,1{-,Send}>Send a reset pulse now
+slider10:test_btn=0<0,1,1{-,Send}>Send a test pulse now (output 1)
 slider11:pulses_out=0<0,1000000,1>-Resets sent
+slider12:out1_mode=0<0,1,1{Reset pulses,Clock pulses}>Output 1 sends
 
 options:gmem=E4L_SYNC
 
 in_pin:none
-out_pin:Reset
-out_pin:Clock
+out_pin:Output 1
+out_pin:Output 2
 
 @init
 ext_noinit = 1;
 ext_tail_size = -1;
 rst_left = 0; clk_left = 0;
-last_cb = -1000000000; last_cc = -1000000000;
+last_cb = -1000000000; last_cc = -1000000000; last_mc = -1000000000;
 prev_ps = 0;
 p_test = 0;
 flash = 0;
@@ -69,7 +74,9 @@ off_qn = off_ms / 1000 * tempo / 60;
 playing = play_state & 1;
 b = beat_position;
 spl_i = 0;
-clk_div = clk_mode == 1 ? 1 : clk_mode == 2 ? 0.5 : clk_mode == 3 ? 0.25 : clk_mode == 4 ? 0.125 : 1 / 24;
+cm = clk_mode > 0 ? clk_mode : out1_mode ? 3 : 0;     // clock on output 1: 1/16 by default
+clk_div = cm == 1 ? 1 : cm == 2 ? 0.5 : cm == 3 ? 0.25 : cm == 4 ? 0.125 : 1 / 24;
+clk_len = max(1, min(floor(len_ms * srate / 1000), floor(clk_div / max(qn_per_spl, 0.0000001) / 2)));
 every = rst_every == 0 ? 0 : 2 ^ (rst_every - 1);
 
 // REAPER starts from STOP (not from a pause): reset now
@@ -83,10 +90,13 @@ started && !rst_play && every > 0 ? (
   abs(cb0 - rb0) * bar_qn < qn_per_spl && (rb0 - floor(rb0 / every) * every) == 0 ? fire_reset(0);
 );
 stopped && midi_mode > 0 ? midi_byte(0, $xFC);    // MIDI Stop
-!playing ? ( last_cb = -1000000000; last_cc = -1000000000; );
+!playing ? ( last_cb = -1000000000; last_cc = -1000000000; last_mc = -1000000000; );
 
-// test button
-test_btn && !p_test ? ( fire_reset(0); slider10 = 0; slider_automate(2 ^ 9); );
+// test button: one pulse on output 1 (a clock pulse moves the sequencer one step)
+test_btn && !p_test ? (
+  out1_mode ? ( clk_left = clk_len; flash = 1; ) : fire_reset(0);
+  slider10 = 0; slider_automate(2 ^ 9);
+);
 p_test = test_btn;
 
 @sample
@@ -104,15 +114,21 @@ playing ? (
   last_cb = cb;
 
   // ---------- clock ----------
-  clk_mode > 0 || midi_mode == 2 ? (
-    cdiv = clk_mode > 0 ? clk_div : 1 / 24;
-    cc = floor((b - off_qn) / cdiv + 0.0000001);
-    cc != last_cc && last_cc > -1000000000 && clk_mode > 0 ?
-      clk_left = max(1, min(floor(len_ms * srate / 1000), floor(cdiv / qn_per_spl / 2)));
+  cm > 0 || midi_mode == 2 ? (
+    cdiv = cm > 0 ? clk_div : 1 / 24;
+    x = (b - off_qn) / cdiv;
+    cc = floor(x + 0.0000001);
+    // a pulse on every clock line; when playback starts right on one, that first one too
+    (cc != last_cc && last_cc > -1000000000) ||
+      (last_cc <= -1000000000 && abs(x - floor(x + 0.5)) * cdiv < qn_per_spl) ? (
+      cm > 0 ? ( clk_left = clk_len; out1_mode ? flash = 1; );
+    );
     last_cc = cc;
     midi_mode == 2 ? (
-      mc = floor((b - off_qn) * 24 + 0.0000001);
-      mc != last_mc ? midi_byte(spl_i, $xF8);
+      xm = (b - off_qn) * 24;
+      mc = floor(xm + 0.0000001);
+      (mc != last_mc && last_mc > -1000000000) ||
+        (last_mc <= -1000000000 && abs(xm - floor(xm + 0.5)) < qn_per_spl * 24) ? midi_byte(spl_i, $xF8);
       last_mc = mc;
     );
   );
@@ -120,8 +136,10 @@ playing ? (
 );
 
 sgn = polarity ? -1 : 1;
-spl0 = rst_left > 0 ? sgn * level : 0;
-spl1 = clk_left > 0 ? sgn * level : 0;
+r_out = rst_left > 0 ? sgn * level : 0;
+c_out = clk_left > 0 ? sgn * level : 0;
+spl0 = out1_mode ? c_out : r_out;
+spl1 = out1_mode ? r_out : c_out;
 rst_left > 0 ? rst_left -= 1;
 clk_left > 0 ? clk_left -= 1;
 spl_i += 1;
@@ -135,16 +153,18 @@ flash > 0.01 ? gfx_set(1, 0.35, 0.3, flash) : gfx_set(0.25, 0.25, 0.3, 1);
 gfx_circle(30, 52, 16, 1, 1);
 flash *= 0.85;
 gfx_setfont(2, "Arial", 18, 'b');
-gfx_set(0.9, 0.9, 0.95, 1); gfx_x = 58; gfx_y = 36; gfx_printf("RESET  x %d", pulses_out);
+gfx_set(0.9, 0.9, 0.95, 1); gfx_x = 58; gfx_y = 36;
+out1_mode ? gfx_printf("CLOCK %s on output 1", cm == 1 ? "1/4" : cm == 2 ? "1/8" : cm == 3 ? "1/16" : cm == 4 ? "1/32" : "24 PPQN")
+          : gfx_printf("RESET  x %d", pulses_out);
 gfx_setfont(1, "Arial", 13);
 gfx_set(0.7, 0.7, 0.75, 1); gfx_x = 58; gfx_y = 60;
 armed_q = gmem[0];
-(play_state & 1) && rst_rec && armed_q > beat_position && armed_q - beat_position <= bar_qn ? (
+!out1_mode && (play_state & 1) && rst_rec && armed_q > beat_position && armed_q - beat_position <= bar_qn ? (
   gfx_set(1, 0.7, 0.3, 1); gfx_printf("Loop armed: reset on the next bar");
-) : gfx_printf("Output 1 = reset, output 2 = clock");
+) : out1_mode ? gfx_printf("Sequencer on step 1 before PLAY") : gfx_printf("Output 1 = reset, output 2 = clock");
 // test button
 gfx_set(0.22, 0.22, 0.26, 1); gfx_rect(8, 92, 160, 34);
-gfx_set(0.9, 0.9, 0.95, 1); gfx_x = 26; gfx_y = 101; gfx_drawstr("SEND A RESET");
+gfx_set(0.9, 0.9, 0.95, 1); gfx_x = 26; gfx_y = 101; gfx_drawstr(out1_mode ? "SEND A PULSE" : "SEND A RESET");
 (mouse_cap & 1) && !last_cap && mouse_x >= 8 && mouse_x < 168 && mouse_y >= 92 && mouse_y < 126 ? (
   slider10 = 1; slider_automate(2 ^ 9);
 );

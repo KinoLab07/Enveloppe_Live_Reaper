@@ -312,9 +312,21 @@ hw = lua.eval("function(i) local s = MOCK.T[i].sends[1][1]; return s and s.vals.
 check("toolbar: + SYNC adds SYNC OUT (E4L Sync Out, no master send, mono to output 6)",
       sy > 0 and fxfile(sy, 1) == "E4L Sync Out.jsfx" and lua.eval("MOCK.T[%d].vals.B_MAINSEND" % sy) == 0
       and hw(sy) == (1024, 1024 + 5))
+lua.execute("function gfx.showmenu() return 1 end")
 click(xs[6], TB)
-check("toolbar: SYNC again opens its window (no second track)",
+check("toolbar: SYNC again -> menu -> Settings opens its window (no second track)",
       name_list().count("SYNC OUT") == 1 and lua.eval("MOCK_SHOWN and MOCK_SHOWN.fx") == 0)
+# move the pulses to output 1 (where the speakers are): it moves, with a warning
+lua.execute("function gfx.showmenu() return 2 end; function reaper.GetUserInputs() return true, '1' end; MOCK_TEXT = {}")
+click(xs[6], TB); frame()
+txt = lua.eval("status_text_for_test()")
+check("toolbar: SYNC -> Send the pulses to output 1: one mono hardware output, to output 1",
+      lua.eval("#MOCK.T[%d].sends[1]" % sy) == 1 and hw(sy) == (1024, 1024 + 0))
+check("toolbar: ... with a warning that output 1 also carries the speakers",
+      "WARNING: output 1 is also used by the speakers" in txt)
+lua.execute("function gfx.showmenu() return 2 end; function reaper.GetUserInputs() return true, '6' end")
+click(xs[6], TB)
+lua.execute("function gfx.showmenu() return 0 end")
 lua.execute("MOCK_INPUT = nil; function reaper.GetUserInputs(t, n, cap, def) return true, def end")
 click(xs[5], TB)
 check("toolbar: NEW TEMPLATE = new project with the live template (8 loops), panel not duplicated",

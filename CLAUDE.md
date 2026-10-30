@@ -33,8 +33,11 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
   - `E4L Sync Out` – on track `SYNC OUT` (no master send, out 1 → Mbox output 6): reset pulse
     for the user's analog sequencer on the bar where a loop starts recording (looper publishes
     the armed bar line in `gmem[0]`, stamp in `gmem[1]`, namespace `E4L_SYNC`), on start from
-    STOP, optionally every N bars; clock on out 2; optional MIDI. Untested on the real synth yet
-    (Mbox outputs are AC coupled, ~1.5-2 V: pulse may need tuning).
+    STOP, optionally every N bars; clock on out 2; optional MIDI. "Output 1 sends = Clock" swaps
+    outputs (user's sequencer has ONLY a clock input; first pulse exactly at playback start).
+    Panel SYNC menu: settings / move the pulses to another output (warns if speakers use it).
+    The user moved to another audio interface and patched the clock to its output 1 – check that
+    the speakers are not on output 1 of that card. Untested on the real synth yet.
 - `Scripts/E4L/` – `e4l_lib.lua` (shared), `E4L - Live Panel.lua` (the single-window UI),
   `E4L - New live project.lua`, `E4L - Live Looper template.lua`, `E4L - Add sub to master.lua`,
   `E4L - Update from GitHub.lua`, helpers.

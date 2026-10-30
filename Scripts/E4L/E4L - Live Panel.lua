@@ -434,22 +434,44 @@ end
 
 -- SYNC: reset pulse for an external sequencer ("E4L Sync Out" on the SYNC OUT track).
 -- Adds the track (asking for the interface output) or opens its window if it exists.
+local function ask_sync_output(default)
+  local ok, v = reaper.GetUserInputs("Sync out", 1, "Pulses to interface output (channel)", tostring(default))
+  local ch = ok and tonumber(v)
+  if not ch or ch < 1 then return end
+  return math.floor(ch)
+end
+
+local function sync_warning(ch, tr)
+  local who = E4L.output_user(ch, tr)
+  return who and ("  WARNING: output " .. ch .. " is also used by " .. who ..
+                  " - the pulses would mix with that sound. Use a free output.") or ""
+end
+
 local function act_sync()
   local tr = E4L.find_track("SYNC OUT")
   if tr then
-    local fx = E4L.find_fx(tr, "E4L Sync Out")
-    if fx >= 0 then reaper.TrackFX_Show(tr, fx, 3) end
+    gfx.x, gfx.y = gfx.mouse_x, gfx.mouse_y
+    local now = E4L.sync_output(tr)
+    local m = gfx.showmenu("Settings (reset / clock, pulse, test)|Send the pulses to output... (now " .. now .. ")")
+    if m == 1 then
+      local fx = E4L.find_fx(tr, "E4L Sync Out")
+      if fx >= 0 then reaper.TrackFX_Show(tr, fx, 3) end
+    elseif m == 2 then
+      local ch = ask_sync_output(now)
+      if not ch then return end
+      reaper.Undo_BeginBlock()
+      E4L.set_sync_output(tr, ch)
+      reaper.Undo_EndBlock("E4L: sync output", -1)
+      status("SYNC OUT now sends its pulses to output " .. ch .. "." .. sync_warning(ch, tr))
+    end
     return
   end
-  local ok, v = reaper.GetUserInputs("Sync out", 1, "Pulse to interface output (channel)",
-                                     tostring(E4L.cfg_get("sync_ch", 6)))
-  local ch = ok and tonumber(v)
-  if not ch or ch < 1 then return end
+  local ch = ask_sync_output(E4L.cfg_get("sync_ch", 6))
+  if not ch then return end
   reaper.Undo_BeginBlock()
-  E4L.add_sync_out(math.floor(ch))
+  tr = E4L.add_sync_out(ch)
   reaper.Undo_EndBlock("E4L: sync out", -1)
-  status("SYNC OUT added: a reset pulse on output " .. math.floor(ch) ..
-         " when a loop starts recording and when REAPER starts. Patch it to the sequencer's RESET.")
+  status("SYNC OUT added on output " .. ch .. " (settings: SYNC)." .. sync_warning(ch, tr))
 end
 
 -- runs a toolbar action without ever killing the panel; with keep_playing the transport is

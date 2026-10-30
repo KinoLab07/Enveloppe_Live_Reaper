@@ -280,8 +280,24 @@ check("sync out: resuming from PAUSE does not reset, starting from STOP does",
       pulses(so[:, 0]) == [0, 250112])
 _, so = run2(LP, sil, SY, "s1=0", "B.s2=0", "B.s8=3")
 pc = pulses(so[:, 1])
-check("sync out: clock 1/16 on output 2 (every 6000 samples at 120 BPM)",
-      pc[:4] == [6000, 12000, 18000, 24000] and np.all(np.diff(pc) == 6000))
+check("sync out: clock 1/16 on output 2 (from the very start, every 6000 samples at 120 BPM)",
+      pc[:4] == [0, 6000, 12000, 18000] and np.all(np.diff(pc) == 6000))
+# sequencer with only a clock input: "Output 1 sends = Clock" (1/16 when no rate is chosen)
+_, so = run2(LP, sil, SY, "s1=0", "s2@30000=1", "B.s12=1")
+pc = pulses(so[:, 0])
+check("sync out: Output 1 = Clock -> 1/16 clock on output 1 from the start, resets on output 2",
+      pc[:3] == [0, 6000, 12000] and np.all(np.diff(pc) == 6000) and len(pc) == 6 * SR // 6000
+      and pulses(so[:, 1]) == [0, 96000] and np.all(so[0:480, 0] == 1))
+# pause in the middle of a step: no extra pulse, the steps go on where they were
+_, so = run2(LP, sil, SY, "s1=0", "B.s12=1", "B.s2=0", "ps@120064=2", "ps@150016=1")
+pc = pulses(so[:, 0])
+before = [p for p in pc if p < 120064]; after = [p for p in pc if p >= 150016]
+check("sync out: clock through a PAUSE: no extra pulse, the next one where the step was due",
+      before[-1] == 120000 and after[0] == 150016 + (126000 - 120064) and np.all(np.diff(after) == 6000))
+_, so = run2(LP, sil, SY, "s1=0", "B.s12=1", "B.s2=0", "ps@120064=0", "beat@150016=0", "ps@150016=1")
+pc = pulses(so[:, 0])
+check("sync out: clock after STOP + PLAY from bar 1: a pulse right on the start",
+      150016 in pc and [p for p in pc if p > 150016][0] == 150016 + 6000)
 _, so = run2(LP, sil, SY, "s1=0", "B.s2=0", "B.s10@48128=1", "B.s6=1", "B.s4=2")
 check("sync out: test button sends one pulse (negative polarity, 2 ms)",
       pulses(so[:, 0]) == [48128] and np.all(so[48128:48128 + 96, 0] == -1) and so[48128 + 96, 0] == 0)
