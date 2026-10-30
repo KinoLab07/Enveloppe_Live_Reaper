@@ -43,6 +43,9 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
     reported SEND A PULSE "never works": the window button now triggers the pulse from the audio
     thread (gfx_req), shows an OUT 1 light only when a pulse really leaves, and warns when the
     plug-in's audio is not running (REAPER stopped without "Run FX when stopped").
+    Measured on the user's new card, output 1, with the voltmeter test (square 50 Hz, level 1):
+    3.34 V AC on an average-responding meter (BAKU 9205A) -> pulse peak about 3 V: enough for
+    most clock inputs. So the remaining problem is the sequencer's internal clock mode.
 - `Scripts/E4L/` – `e4l_lib.lua` (shared), `E4L - Live Panel.lua` (the single-window UI),
   `E4L - New live project.lua`, `E4L - Live Looper template.lua`, `E4L - Add sub to master.lua`,
   `E4L - Update from GitHub.lua`, helpers.
