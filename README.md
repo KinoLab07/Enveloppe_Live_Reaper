@@ -177,8 +177,10 @@ opening any plug-in.
     piece to the next.
   - **NEW TEMPLATE** – a new live project from scratch.
   - **+ SYNC** – adds the `SYNC OUT` track (E4L Sync Out) to a free output (6 on the Mbox Pro);
-    afterwards the button (**SYNC**) opens a menu: its settings, or the output for the pulses
-    (with a warning if that output already carries the speakers, the sub or the headphones).
+    afterwards the button (**SYNC**) opens a menu: **Turn sync OFF / ON** (no pulses at all; the
+    button then reads **SYNC OFF**), its settings, the output for the pulses (with a warning if
+    that output already carries the speakers, the sub or the headphones), or remove the track.
+    New projects have no SYNC OUT unless you add it.
 - **One row per loop:** state (empty, waiting, recording, playing, stopped, paused), length
   (1-32 bars), input (**ALL** / **IN n**), **REC**, **PLAY**, **PAUSE**, **OVERDUB**, **CLEAR**,
   **MOVEMENT** (movement editor) and the position inside the loop. Record, play and stop are

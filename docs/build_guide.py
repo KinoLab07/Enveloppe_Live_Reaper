@@ -635,8 +635,8 @@ def build(path):
         "<b>Toolbar:</b> <b>+ LOOP</b>, <b>+ AUDIO</b>, <b>+ INPUT</b>, <b>SAVE TEMPLATE</b>, "
         "<b>LOAD TEMPLATE</b>, <b>NEW TEMPLATE</b> (see below), <b>+ SYNC</b> (reset pulse for an "
         "external sequencer, see below).",
-        "<b>Syncing an analog sequencer:</b> the <b>SYNC OUT</b> track (created by the template or by "
-        "<b>+ SYNC</b>) sends a short pulse to output 6 of the Mbox on the bar where a loop starts "
+        "<b>Syncing an analog sequencer:</b> the <b>SYNC OUT</b> track (added with <b>+ SYNC</b>; new "
+        "projects do not have it) sends a short pulse to output 6 of the Mbox on the bar where a loop starts "
         "recording, and when REAPER starts from STOP. Patch output 6 to the <b>RESET</b> input of the "
         "sequencer: the sequence starts on step 1 exactly with the loop. In its window (button "
         "<b>SYNC</b>): <b>SEND A RESET</b> to test the cable, pulse length, level, polarity, a timing "

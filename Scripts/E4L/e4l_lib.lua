@@ -302,6 +302,17 @@ function E.add_sync_out(out_ch)
   return tr
 end
 
+-- SYNC OUT on / off (the plug-in is bypassed: no pulse at all)
+function E.sync_enabled(tr)
+  local fx = E.find_fx(tr, "E4L Sync Out")
+  return fx >= 0 and reaper.TrackFX_GetEnabled(tr, fx)
+end
+
+function E.set_sync_enabled(tr, on)
+  local fx = E.find_fx(tr, "E4L Sync Out")
+  if fx >= 0 then reaper.TrackFX_SetEnabled(tr, fx, on) end
+end
+
 -- interface output (1-based) of the SYNC OUT track: its only hardware output, mono
 function E.set_sync_output(tr, out_ch)
   for i = reaper.GetTrackNumSends(tr, 1) - 1, 0, -1 do reaper.RemoveTrackSend(tr, 1, i) end

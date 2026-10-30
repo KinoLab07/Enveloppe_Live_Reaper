@@ -35,7 +35,9 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
     the armed bar line in `gmem[0]`, stamp in `gmem[1]`, namespace `E4L_SYNC`), on start from
     STOP, optionally every N bars; clock on out 2; optional MIDI. "Output 1 sends = Clock" swaps
     outputs (user's sequencer has ONLY a clock input; first pulse exactly at playback start).
-    Panel SYNC menu: settings / move the pulses to another output (warns if speakers use it).
+    Panel SYNC menu: Turn sync OFF/ON (bypass; button reads SYNC OFF) / settings / move the
+    pulses to another output (warns if speakers use it) / remove the track. New projects do NOT
+    get SYNC OUT any more (template default 0): the user found the pulses always on.
     The user moved to another audio interface and patched the clock to its output 1 – check that
     the speakers are not on output 1 of that card. Untested on the real synth yet.
     Findings so far: the user's sequencer free-runs on its INTERNAL clock (keeps going with the

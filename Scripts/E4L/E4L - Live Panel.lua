@@ -447,12 +447,31 @@ local function sync_warning(ch, tr)
                   " - the pulses would mix with that sound. Use a free output.") or ""
 end
 
+local function sync_label()
+  local tr = E4L.find_track("SYNC OUT")
+  if not tr then return "+ SYNC" end
+  return E4L.sync_enabled(tr) and "SYNC" or "SYNC OFF"
+end
+
 local function act_sync()
   local tr = E4L.find_track("SYNC OUT")
   if tr then
     gfx.x, gfx.y = gfx.mouse_x, gfx.mouse_y
     local now = E4L.sync_output(tr)
-    local m = gfx.showmenu("Settings (reset / clock, pulse, test)|Send the pulses to output... (now " .. now .. ")")
+    local on = E4L.sync_enabled(tr)
+    local m = gfx.showmenu((on and "Turn sync OFF (no pulses)" or "Turn sync ON") ..
+                           "|Settings (reset / clock, pulse, test)|Send the pulses to output... (now " .. now .. ")" ..
+                           "|Remove the SYNC OUT track")
+    if m == 1 then
+      E4L.set_sync_enabled(tr, not on)
+      status(on and "Sync OFF: no pulses. SYNC > Turn sync ON to send them again." or "Sync ON.")
+    elseif m == 4 then
+      reaper.Undo_BeginBlock()
+      E4L.delete_track(tr)
+      reaper.Undo_EndBlock("E4L: remove sync out", -1)
+      status("SYNC OUT removed (+ SYNC adds it again).")
+    end
+    m = m - 1
     if m == 1 then
       local fx = E4L.find_fx(tr, "E4L Sync Out")
       if fx >= 0 then reaper.TrackFX_Show(tr, fx, 3) end
@@ -526,7 +545,7 @@ local function draw_toolbar(W)
     { "+ INPUT", 84, act_add_input, true },
     { "SAVE TEMPLATE", 140, act_save_song }, { "LOAD TEMPLATE", 140, act_load_song },
     { "NEW TEMPLATE", 130, act_new_song },
-    { E4L.find_track("SYNC OUT") and "SYNC" or "+ SYNC", 76, act_sync },
+    { sync_label(), 76, act_sync },
   }
   local x = 8
   for _, it in ipairs(items) do

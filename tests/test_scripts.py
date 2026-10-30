@@ -31,12 +31,8 @@ lua.execute(template)
 T = lua.eval("MOCK.T")
 tracks = {T[i].name: T[i] for i in range(1, len(T) + 1)}
 names = [T[i].name for i in range(1, len(T) + 1)]
-check("template creates SYNTH IN, 8 loops, E4L Master, CUE and SYNC OUT",
-      names == ["SYNTH IN"] + ["LOOP %d" % i for i in range(1, 9)] + ["E4L Master", "CUE (headphones)", "SYNC OUT"])
-sy = tracks["SYNC OUT"]
-check("SYNC OUT: E4L Sync Out, no master send, its pulse (mono) to output 6",
-      sy.fx[1].file == "E4L Sync Out.jsfx" and sy.vals.B_MAINSEND == 0
-      and sy.sends[1][1].vals.I_DSTCHAN == 1024 + 5 and sy.sends[1][1].vals.I_SRCCHAN == 1024)
+check("template creates SYNTH IN, 8 loops, E4L Master and CUE (no SYNC OUT unless asked)",
+      names == ["SYNTH IN"] + ["LOOP %d" % i for i in range(1, 9)] + ["E4L Master", "CUE (headphones)"])
 s = tracks["SYNTH IN"]
 check("SYNTH IN: armed, monitored, never recorded, no master send",
       s.vals.I_RECARM == 1 and s.vals.I_RECMON == 1 and s.vals.I_RECMODE == 2 and s.vals.B_MAINSEND == 0)
@@ -60,8 +56,7 @@ lua.execute(template)
 T = lua.eval("MOCK.T")
 m = lua.eval("MOCK.master")
 check("running it again only adds loops (4 more), no second sub plugin or output",
-      len(T) == 16 and T[13].name == "LOOP 12" and len(m.fx) == 1 and len(m.sends[1]) == 3
-      and [T[i].name for i in range(1, 17)].count("SYNC OUT") == 1)
+      len(T) == 15 and T[13].name == "LOOP 12" and len(m.fx) == 1 and len(m.sends[1]) == 3)
 
 # a loop from an older version (no stored input choice, SYNTH IN 2 muted) becomes ALL in the panel
 lua3 = lupa.LuaRuntime()
@@ -312,20 +307,30 @@ hw = lua.eval("function(i) local s = MOCK.T[i].sends[1][1]; return s and s.vals.
 check("toolbar: + SYNC adds SYNC OUT (E4L Sync Out, no master send, mono to output 6)",
       sy > 0 and fxfile(sy, 1) == "E4L Sync Out.jsfx" and lua.eval("MOCK.T[%d].vals.B_MAINSEND" % sy) == 0
       and hw(sy) == (1024, 1024 + 5))
-lua.execute("function gfx.showmenu() return 1 end")
+# SYNC -> Turn sync OFF: the plug-in is bypassed (no pulses), the button says SYNC OFF; and ON again
+lua.execute("function gfx.showmenu() return 1 end; MOCK_TEXT = {}")
+click(xs[6], TB); frame()
+check("toolbar: SYNC -> Turn sync OFF bypasses E4L Sync Out, the button shows SYNC OFF",
+      lua.eval("MOCK.T[%d].fx[1].enabled" % sy) is False and "SYNC OFF" in lua.eval("status_text_for_test()"))
+click(xs[6], TB)
+check("toolbar: SYNC OFF -> Turn sync ON enables it again", lua.eval("MOCK.T[%d].fx[1].enabled" % sy) is True)
+lua.execute("function gfx.showmenu() return 2 end")
 click(xs[6], TB)
 check("toolbar: SYNC again -> menu -> Settings opens its window (no second track)",
       name_list().count("SYNC OUT") == 1 and lua.eval("MOCK_SHOWN and MOCK_SHOWN.fx") == 0)
 # move the pulses to output 1 (where the speakers are): it moves, with a warning
-lua.execute("function gfx.showmenu() return 2 end; function reaper.GetUserInputs() return true, '1' end; MOCK_TEXT = {}")
+lua.execute("function gfx.showmenu() return 3 end; function reaper.GetUserInputs() return true, '1' end; MOCK_TEXT = {}")
 click(xs[6], TB); frame()
 txt = lua.eval("status_text_for_test()")
 check("toolbar: SYNC -> Send the pulses to output 1: one mono hardware output, to output 1",
       lua.eval("#MOCK.T[%d].sends[1]" % sy) == 1 and hw(sy) == (1024, 1024 + 0))
 check("toolbar: ... with a warning that output 1 also carries the speakers",
       "WARNING: output 1 is also used by the speakers" in txt)
-lua.execute("function gfx.showmenu() return 2 end; function reaper.GetUserInputs() return true, '6' end")
+lua.execute("function gfx.showmenu() return 3 end; function reaper.GetUserInputs() return true, '6' end")
 click(xs[6], TB)
+lua.execute("function gfx.showmenu() return 4 end")
+click(xs[6], TB)
+check("toolbar: SYNC -> Remove the SYNC OUT track", "SYNC OUT" not in name_list())
 lua.execute("function gfx.showmenu() return 0 end")
 lua.execute("MOCK_INPUT = nil; function reaper.GetUserInputs(t, n, cap, def) return true, def end")
 click(xs[5], TB)

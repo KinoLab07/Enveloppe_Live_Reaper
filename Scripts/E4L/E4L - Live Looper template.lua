@@ -26,7 +26,8 @@ local set_param, add_send, add_hw_out = E4L.set_param, E4L.add_send, E4L.add_hw_
 
 ---------------------------------------------------------------------------------------
 local existing = find_track("SYNTH IN")
-local defaults = existing and "4,1,1,7,1,5,0" or "8,1,1,7,1,5,6"
+local defaults = "8,1,1,7,1,5,0"
+if existing then defaults = "4,1,1,7,1,5,0" end
 local ok, csv = reaper.GetUserInputs("E4L Live Looper", 7,
   "Loop tracks to add,Synth input (first channel),Synth input: 1 mono 2 stereo," ..
   "Headphones output (first channel),Loop panner: 1 Mono 2 Stereo,Sub output (0 = none)," ..
