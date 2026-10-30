@@ -73,6 +73,8 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
   Items are built with PCM_Source_CreateFromFile, never InsertMedia (it stopped the transport).
 - Toolbar actions run under pcall and restart the transport if it stopped.
 - The updater runs its shell job in the background (ExecProcess was blocking REAPER).
+- After installing, the updater registers every `E4L - *.lua` script in the action list
+  (AddRemoveReaScript): new scripts appear without loading them by hand.
 
 - Random movement ("Random Wander", sliders 45-49 on Mono/Stereo/Quad, `e4l_wander` in the
   include): smooth path between random points inside the disk (Area), new point per LFO

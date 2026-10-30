@@ -137,15 +137,35 @@ local function reopen_project_and_panel(panel_was_open)
   end
 end
 
+-- puts every "E4L - ….lua" action script in REAPER's action list (new ones appear without
+-- having to load them by hand; already registered ones are left as they are)
+local function register_actions()
+  local dir = res .. sep .. "Scripts" .. sep .. "E4L"
+  local files, i = {}, 0
+  while true do
+    local f = reaper.EnumerateFiles(dir, i)
+    if not f then break end
+    if f:match("^E4L %- .+%.lua$") then files[#files + 1] = f end
+    i = i + 1
+  end
+  local n = 0
+  for k, f in ipairs(files) do
+    if reaper.AddRemoveReaScript(true, 0, dir .. sep .. f, k == #files) ~= 0 then n = n + 1 end
+  end
+  return n
+end
+
 local function finished(sha, out, err)
   win_close()
   if out and out:find("E4L_OK", 1, true) then
     if sha then reaper.SetExtState(EXT, "sha", sha, true) end
+    local n_actions = register_actions()
     -- close the running Live Panel (it reopens with the new version)
     local alive = tonumber(reaper.GetExtState("E4L_LivePanel", "alive")) or 0
     local panel_open = reaper.time_precise() - alive < 1.5
     if panel_open then reaper.SetExtState("E4L_LivePanel", "quit", "1", false) end
     msg("E4L updated" .. (sha and (" (version " .. sha:sub(1, 7) .. ")") or "") .. ".\n\n" ..
+        "• " .. n_actions .. " E4L scripts are in the action list (Actions > Show action list, search E4L).\n" ..
         "• The PDF guide is in: " .. res .. sep .. "Data" .. sep .. "E4L" ..
         (panel_open and "\n• The Live Panel reopens with the new version." or ""))
     reopen_project_and_panel(panel_open)
