@@ -298,6 +298,10 @@ _, so = run2(LP, sil, SY, "s1=0", "B.s12=1", "B.s2=0", "ps@120064=0", "beat@1500
 pc = pulses(so[:, 0])
 check("sync out: clock after STOP + PLAY from bar 1: a pulse right on the start",
       150016 in pc and [p for p in pc if p > 150016][0] == 150016 + 6000)
+_, so = run2(LP, sil, SY, "s1=0", "B.s13=1", "B.s5=0.8")
+seg = so[48000:96000, 0]
+check("sync out: voltmeter test, square 50 Hz at the pulse level on output 1",
+      np.allclose(np.abs(seg), 0.8) and abs(np.mean(seg)) < 0.01 and len(pulses(np.maximum(seg, 0))) in (50, 51))
 _, so = run2(LP, sil, SY, "s1=0", "B.s2=0", "B.s10@48128=1", "B.s6=1", "B.s4=2")
 check("sync out: test button sends one pulse (negative polarity, 2 ms)",
       pulses(so[:, 0]) == [48128] and np.all(so[48128:48128 + 96, 0] == -1) and so[48128 + 96, 0] == 0)

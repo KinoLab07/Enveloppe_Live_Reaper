@@ -838,6 +838,7 @@ def build(path):
         ["Clock Rate", "Off, 1/4, 1/8 (2 PPQN), 1/16 (4 PPQN), 1/32, 24 PPQN"],
         ["Output 1 sends", "Reset pulses / Clock pulses (then the clock is 1/16 by default)"],
         ["MIDI", "Off, Start on reset, Start + clock 24 PPQN"],
+        ["Voltmeter Test Signal", "Off / Square 50 Hz (meter on AC) / DC held (meter on DC)"],
     ], [60, 110]))
     st.append(Spacer(1, 8))
     st.append(P("Envelop for Live © Envelop (envelop.us), Mark C. Slee and contributors. REAPER port "

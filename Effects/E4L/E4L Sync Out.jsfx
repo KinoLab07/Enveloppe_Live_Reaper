@@ -40,6 +40,7 @@ slider9:midi_mode=0<0,2,1{Off,Start on reset,Start + clock 24 PPQN}>MIDI
 slider10:test_btn=0<0,1,1{-,Send}>Send a test pulse now (output 1)
 slider11:pulses_out=0<0,1000000,1>-Resets sent
 slider12:out1_mode=0<0,1,1{Reset pulses,Clock pulses}>Output 1 sends
+slider13:meter_test=0<0,2,1{Off,Square 50 Hz (voltmeter on AC),DC held (voltmeter on DC)}>Voltmeter Test Signal (output 1)
 
 options:gmem=E4L_SYNC
 
@@ -144,6 +145,11 @@ sgn = polarity ? -1 : 1;
 r_out = rst_left > 0 ? sgn * level : 0;
 c_out = clk_left > 0 ? sgn * level : 0;
 spl0 = out1_mode ? c_out : r_out;
+// voltmeter test: a steady signal at the pulse level, so a meter can read it (a 10 ms pulse
+// is too short). Square 50 Hz: the AC reading is about the pulse's peak voltage. DC held:
+// on an AC-coupled output the DC reading falls to 0 in a moment (that tells you it is AC coupled)
+meter_test == 1 ? ( tph += 50 / srate; tph >= 1 ? tph -= 1; spl0 = (tph < 0.5 ? 1 : -1) * level; );
+meter_test == 2 ? spl0 = (polarity ? -1 : 1) * level;
 spl1 = out1_mode ? r_out : c_out;
 spl0 != 0 ? out1_lit = 1;                   // for the OUT 1 light in the window
 alive += 1;                                 // the window checks that audio is running
@@ -176,6 +182,10 @@ gfx_set(0.9, 0.9, 0.95, 1); gfx_x = 26; gfx_y = 101; gfx_drawstr(out1_mode ? "SE
   gfx_req = 1;
 );
 last_cap = mouse_cap & 1;
+meter_test > 0 ? (
+  gfx_set(1, 0.8, 0.3, 1); gfx_x = 58; gfx_y = 74;
+  gfx_drawstr(meter_test == 1 ? "TEST: square 50 Hz on output 1" : "TEST: DC on output 1");
+);
 // OUT 1 light: on only when a pulse really left through output 1
 out1_lit ? ( out1_glow = 1; out1_lit = 0; );
 out1_glow > 0.02 ? gfx_set(0.35, 0.95, 0.5, out1_glow) : gfx_set(0.25, 0.25, 0.3, 1);
