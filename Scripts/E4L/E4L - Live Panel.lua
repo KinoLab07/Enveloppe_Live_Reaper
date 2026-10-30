@@ -262,6 +262,12 @@ local PRESETS = {
   { "Right swing", { ["Azimuth"] = 90, ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 1,
                         ["Azimuth LFO Time Mode"] = 0, ["Azimuth LFO Frequency (Hz)"] = 0.25,
                         ["Azimuth LFO Rate"] = 1, ["Azimuth LFO Depth"] = 45, ["Random Wander On/Off"] = 0 } },
+  { "Back swing", { ["Azimuth"] = 180, ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 1,
+                        ["Azimuth LFO Time Mode"] = 0, ["Azimuth LFO Frequency (Hz)"] = 0.25,
+                        ["Azimuth LFO Rate"] = 1, ["Azimuth LFO Depth"] = 45, ["Random Wander On/Off"] = 0 } },
+  { "Left swing", { ["Azimuth"] = -90, ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 1,
+                        ["Azimuth LFO Time Mode"] = 0, ["Azimuth LFO Frequency (Hz)"] = 0.25,
+                        ["Azimuth LFO Rate"] = 1, ["Azimuth LFO Depth"] = 45, ["Random Wander On/Off"] = 0 } },
   { "Wander", { ["Random Wander On/Off"] = 1, ["Random Wander Time Mode"] = 0,
                 ["Random Wander Rate (Hz)"] = 0.25, ["Random Wander Area"] = 1, ["Azimuth LFO On/Off"] = 0 } },
   { "Wander 1 bar", { ["Random Wander On/Off"] = 1, ["Random Wander Time Mode"] = 1,
@@ -919,10 +925,10 @@ local function draw_editor(x0, y0, W, H)
   end
 
   section("QUICK MOVEMENTS", c2, y, colw); y = y + 26
-  local bw = (colw - 6) / 3
+  local bw = (colw - 9) / 4
   for i, pr in ipairs(PRESETS) do
-    local bx = c2 + ((i - 1) % 3) * (bw + 3)
-    local by = y + math.floor((i - 1) / 3) * 28
+    local bx = c2 + ((i - 1) % 4) * (bw + 3)
+    local by = y + math.floor((i - 1) / 4) * 28
     if button(pr[1], bx, by, bw, 24, false) then
       reaper.Undo_BeginBlock()
       for n, val in pairs(pr[2]) do s(n, val) end

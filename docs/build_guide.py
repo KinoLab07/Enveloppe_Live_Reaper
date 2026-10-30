@@ -729,7 +729,8 @@ def build(path):
          "random points (near the centre it spreads over all the speakers). <b>New point</b> every N "
          "seconds or bars, <b>Area</b> from near the centre to the whole room. Freezes on pause."],
         ["<b>Quick movements</b>", "One click: <b>Still</b>, <b>Slow turn</b>, <b>4-bar turn</b>, "
-         "<b>Whirl</b>, <b>Front swing</b>, <b>Right swing</b>, <b>Wander</b>, <b>Wander 1 bar</b>."],
+         "<b>Whirl</b>, <b>Front</b> / <b>Right</b> / <b>Back</b> / <b>Left swing</b>, <b>Wander</b>, "
+         "<b>Wander 1 bar</b>."],
     ], [45, 125]))
     st.append(P("Keyboard and MIDI control", "h2"))
     st += bullets([

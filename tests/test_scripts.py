@@ -157,16 +157,21 @@ check("editor: RANDOM MOVEMENT ON turns the random wander on", param(2, 2, "Rand
 click(c2 + colw - 20, y_rand + 26 + 10)
 check("editor: RANDOM MOVEMENT Tempo sync", param(2, 2, "Random Wander Time Mode") == 1)
 y_pres = y_rand + 26 + 46 + 26 + 26             # Mono panner: no stereo width section
-bw = (colw - 6) / 3
-click(c2 + 2 * (bw + 3) + 10, y_pres + 28 + 10)
+bw = (colw - 9) / 4
+click(c2 + 1 * (bw + 3) + 10, y_pres + 28 + 10)            # Right swing: row 2, column 2
 check("editor: preset Right swing sets azimuth 90, swing ±45 (and stops the random wander)",
       param(2, 2, "Azimuth") == 90 and param(2, 2, "Azimuth LFO Mode") == 1 and param(2, 2, "Azimuth LFO Depth") == 45
       and param(2, 2, "Random Wander On/Off") == 0)
-click(c2 + 10, y_pres + 56 + 10)
+click(c2 + 10, y_pres + 56 + 10)                          # Wander: row 3, column 1
 check("editor: preset Wander: random movement on, free speed, whole room, no rotation",
       param(2, 2, "Random Wander On/Off") == 1 and param(2, 2, "Random Wander Time Mode") == 0
       and param(2, 2, "Random Wander Area") == 1 and param(2, 2, "Azimuth LFO On/Off") == 0)
-click(c2 + 2 * (bw + 3) + 10, y_pres + 28 + 10)     # back to Right swing for the next checks
+click(c2 + 2 * (bw + 3) + 10, y_pres + 28 + 10)            # Back swing
+check("editor: preset Back swing: swing around the back (180)", param(2, 2, "Azimuth") == 180
+      and param(2, 2, "Azimuth LFO Mode") == 1)
+click(c2 + 3 * (bw + 3) + 10, y_pres + 28 + 10)            # Left swing
+check("editor: preset Left swing: swing around the left (-90)", param(2, 2, "Azimuth") == -90)
+click(c2 + 1 * (bw + 3) + 10, y_pres + 28 + 10)            # back to Right swing for the next checks
 lua.execute("function gfx.showmenu() return 2 end")
 click(8 + 100 + 20, TOP + 42 + 10)
 lua.execute("function gfx.showmenu() return 0 end")

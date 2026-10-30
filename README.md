@@ -210,8 +210,8 @@ The **MOVEMENT** button of each loop opens all its spatial controls in the same 
   points of the floor plan (not only around the circle; near the centre it spreads over all the
   speakers). A new point every N seconds or every N bars; Area from "near the centre" to "whole
   room". Combines with the rotation; freezes on pause. (Mono, Stereo and Quad panners.)
-- **Quick movements:** still, slow turn, 4-bar turn, whirl, front swing, right swing, wander,
-  wander 1 bar.
+- **Quick movements:** still, slow turn, 4-bar turn, whirl, front / right / back / left swing,
+  wander, wander 1 bar.
 - **● REC** (header): records the whole session – what goes to the 4 speakers, after the quad
   decoder – on two tracks `REC 1-2 (speakers)` and `REC 3-4 (speakers)` (REAPER "record output,
   latency compensated"). REC again or STOP ends it; the files go to the project's folder (save
