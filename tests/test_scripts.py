@@ -151,11 +151,22 @@ click(c1 + 20, y_rot + 26 + 10)                # ACTIVADO
 check("editor: AUTOMATIC ROTATION turns the azimuth LFO on", param(2, 2, "Azimuth LFO On/Off") == 1)
 click(c1 + colw - 20, y_rot + 26 + 30 + 10)    # "Al tempo"
 check("editor: Tempo sync = LFO synced to the bars", param(2, 2, "Azimuth LFO Time Mode") == 1)
-y_pres = TOP + 84 + 26 + 46 + 40 + 26 + 26     # Mono panner: no stereo width section
+y_rand = TOP + 84 + 26 + 46 + 40 + 26          # top of "RANDOM MOVEMENT"
+click(c2 + 20, y_rand + 26 + 10)
+check("editor: RANDOM MOVEMENT ON turns the random wander on", param(2, 2, "Random Wander On/Off") == 1)
+click(c2 + colw - 20, y_rand + 26 + 10)
+check("editor: RANDOM MOVEMENT Tempo sync", param(2, 2, "Random Wander Time Mode") == 1)
+y_pres = y_rand + 26 + 46 + 26 + 26             # Mono panner: no stereo width section
 bw = (colw - 6) / 3
 click(c2 + 2 * (bw + 3) + 10, y_pres + 28 + 10)
-check("editor: preset Right swing sets azimuth 90, swing ±45",
-      param(2, 2, "Azimuth") == 90 and param(2, 2, "Azimuth LFO Mode") == 1 and param(2, 2, "Azimuth LFO Depth") == 45)
+check("editor: preset Right swing sets azimuth 90, swing ±45 (and stops the random wander)",
+      param(2, 2, "Azimuth") == 90 and param(2, 2, "Azimuth LFO Mode") == 1 and param(2, 2, "Azimuth LFO Depth") == 45
+      and param(2, 2, "Random Wander On/Off") == 0)
+click(c2 + 10, y_pres + 56 + 10)
+check("editor: preset Wander: random movement on, free speed, whole room, no rotation",
+      param(2, 2, "Random Wander On/Off") == 1 and param(2, 2, "Random Wander Time Mode") == 0
+      and param(2, 2, "Random Wander Area") == 1 and param(2, 2, "Azimuth LFO On/Off") == 0)
+click(c2 + 2 * (bw + 3) + 10, y_pres + 28 + 10)     # back to Right swing for the next checks
 lua.execute("function gfx.showmenu() return 2 end")
 click(8 + 100 + 20, TOP + 42 + 10)
 lua.execute("function gfx.showmenu() return 0 end")
@@ -332,6 +343,22 @@ lua.execute("function gfx.showmenu() return 4 end")
 click(xs[6], TB)
 check("toolbar: SYNC -> Remove the SYNC OUT track", "SYNC OUT" not in name_list())
 lua.execute("function gfx.showmenu() return 0 end")
+# ● REC: the two session tracks fed by E4L Master (after the decoder), armed, recording the output
+rx = max(200 + 4 * (26 + 5) + 20, W - 350)
+lua.execute("MOCK_CMDS = {}")
+click(rx - 82 + 10, 36 + 10)
+em = tr_index("E4L Master")
+sends = lua.eval("function(i) local t = {} for k, s in ipairs(MOCK.T[i].sends[0]) do t[k] = (s.dst and s.dst.name or '') .. ':' .. tostring(s.vals.I_SRCCHAN) .. ':' .. tostring(s.vals.I_SENDMODE) end return t end")
+sl = list(sends(em).values())
+r12, r34 = tr_index("REC 1-2 (speakers)"), tr_index("REC 3-4 (speakers)")
+val = lambda i, k: lua.eval("MOCK.T[%d].vals.%s" % (i, k))
+check("● REC: REC 1-2 / REC 3-4 fed by E4L Master post-decoder (channels 1-2 and 3-4)",
+      "REC 1-2 (speakers):0:0" in sl and "REC 3-4 (speakers):2:0" in sl)
+check("● REC: both armed, record output latency compensated (mode 3), no master send; REAPER records",
+      all(val(i, "I_RECARM") == 1 and val(i, "I_RECMODE") == 3 and val(i, "B_MAINSEND") == 0 for i in (r12, r34))
+      and 1013 in list(lua.eval("MOCK_CMDS").values()))
+click(rx - 82 + 10, 36 + 10)
+check("● REC again: no second pair of tracks", name_list().count("REC 1-2 (speakers)") == 1)
 lua.execute("MOCK_INPUT = nil; function reaper.GetUserInputs(t, n, cap, def) return true, def end")
 click(xs[5], TB)
 check("toolbar: NEW TEMPLATE = new project with the live template (8 loops), panel not duplicated",

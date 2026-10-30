@@ -35,8 +35,14 @@ slider26:e_dir=0<0,1,1{Clockwise,Counter}>Elevation LFO Direction
 slider27:e_depth=30<0,90,0.1>Elevation LFO Depth
 
 // read-only, published for the "E4L - Live Panel" script (hidden in the plugin UI)
+slider45:w_on=0<0,1,1{Off,On}>Random Wander On/Off
+slider46:w_tmode=0<0,1,1{Freq,Sync}>Random Wander Time Mode
+slider47:w_freq=0.25<0.02,4,0.001>Random Wander Rate (Hz)
+slider48:w_sync=2<0,10,1{1/4,1/2,1,2,3,4,6,8,16,32,64}>Random Wander Sync (bars)
+slider49:w_area=1<0,1,0.01>Random Wander Area
 slider60:0<-180,180,0.1>-Current Azimuth
 slider61:0<-90,90,0.1>-Current Elevation
+slider63:0<0,2,0.001>-Current Distance
 
 import e4l_ambix.jsfx-inc
 import e4l_gfx.jsfx-inc
@@ -71,11 +77,16 @@ ctr = 0;
 alfo.lfo_reset(); elfo.lfo_reset();
 cur_az = 0; cur_el = 0;
 
-function compute_targets(bpos, n) local(az, el)
+function compute_targets(bpos, n) local(az, el, rad)
 (
   az = alfo.e4l_azim_lfo(azim, a_on, a_mode, a_tmode, a_freq, a_rate, a_sync, a_dir, a_depth, bpos, n);
   el = elfo.e4l_pol_lfo(elev, e_on, e_pol, e_tmode, e_freq, e_rate, e_sync, e_dir, e_depth, bpos, n);
-  e4l_encode_target(az, el, radius, range, sh, tgt);
+  // random wander: the point goes around inside the room (the direction / rotation turn it)
+  wlfo.e4l_wander(w_on, w_tmode, w_freq, w_sync, w_area, bpos, n);
+  rad = radius;
+  wander_d >= 0 ? ( az += wander_az; rad = wander_d / max(range, 1); );
+  cur_d = rad * range;
+  e4l_encode_target(az, el, rad, range, sh, tgt);
   el = e4l_fold_elev(el); az += 180 * e4l_fold_flip;
   cur_az = e4l_wrap180(az); cur_el = el;
 );
@@ -87,6 +98,7 @@ pub_ctr >= srate / 30 ? (
   pub_ctr = 0;
   abs(cur_az - slider60) > 0.2 ? ( slider60 = cur_az; sliderchange(slider60); );
   abs(cur_el - slider61) > 0.2 ? ( slider61 = cur_el; sliderchange(slider61); );
+  abs(cur_d - slider63) > 0.01 ? ( slider63 = cur_d; sliderchange(slider63); );
 );
 blk_beat = beat_position;
 blk_spb  = tempo / 60 / srate;

@@ -302,6 +302,35 @@ function E.add_sync_out(out_ch)
   return tr
 end
 
+-- SESSION RECORDING: two tracks that record what goes to the speakers: the output of
+-- "E4L Master" after the quad decoder (channels 1-2 and 3-4), with REAPER's "record output
+-- (stereo, latency compensated)" mode (I_RECMODE 3). They have no master send. Returns them,
+-- armed, or nil and a message.
+E.SESSION_TRACKS = { { "REC 1-2 (speakers)", 0 }, { "REC 3-4 (speakers)", 2 } }
+
+function E.session_rec_tracks()
+  local m = E.find_track("E4L Master")
+  if not m then return nil, "There is no E4L Master track (use NEW TEMPLATE)." end
+  local out = {}
+  for _, d in ipairs(E.SESSION_TRACKS) do
+    local tr = E.find_track(d[1])
+    if not tr then
+      tr = E.new_track(d[1])
+      reaper.SetMediaTrackInfo_Value(tr, "I_NCHAN", 2)
+      reaper.SetMediaTrackInfo_Value(tr, "B_MAINSEND", 0)
+      local s = reaper.CreateTrackSend(m, tr)
+      reaper.SetTrackSendInfo_Value(m, 0, s, "I_SRCCHAN", d[2])      -- the pair d[2]+1 / d[2]+2
+      reaper.SetTrackSendInfo_Value(m, 0, s, "I_DSTCHAN", 0)
+      reaper.SetTrackSendInfo_Value(m, 0, s, "I_SENDMODE", 0)        -- post-fader: after the decoder
+    end
+    reaper.SetMediaTrackInfo_Value(tr, "I_RECMODE", 3)               -- record output, latency compensated
+    reaper.SetMediaTrackInfo_Value(tr, "I_RECMON", 0)
+    reaper.SetMediaTrackInfo_Value(tr, "I_RECARM", 1)
+    out[#out + 1] = tr
+  end
+  return out
+end
+
 -- SYNC OUT on / off (the plug-in is bypassed: no pulse at all)
 function E.sync_enabled(tr)
   local fx = E.find_fx(tr, "E4L Sync Out")

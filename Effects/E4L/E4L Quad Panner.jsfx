@@ -54,8 +54,14 @@ slider42:es_freq=1<0.01,4,0.001>Elevation Spread LFO Frequency (Hz)
 slider43:es_sync=2<0,10,1{1/4,1/2,1,2,3,4,6,8,16,32,64}>Elevation Spread LFO Sync (bars)
 slider44:es_depth=30<0,90,0.1>Elevation Spread LFO Depth
 // read-only: modulated position, published for the "E4L - Live Panel" script
+slider45:w_on=0<0,1,1{Off,On}>Random Wander On/Off
+slider46:w_tmode=0<0,1,1{Freq,Sync}>Random Wander Time Mode
+slider47:w_freq=0.25<0.02,4,0.001>Random Wander Rate (Hz)
+slider48:w_sync=2<0,10,1{1/4,1/2,1,2,3,4,6,8,16,32,64}>Random Wander Sync (bars)
+slider49:w_area=1<0,1,0.01>Random Wander Area
 slider60:0<-180,180,0.1>-Current Azimuth
 slider61:0<-90,90,0.1>-Current Elevation
+slider63:0<0,2,0.001>-Current Distance
 slider62:0<-180,180,0.1>-Current Spread
 
 import e4l_ambix.jsfx-inc
@@ -111,7 +117,7 @@ function quad_w2(x)
 function set_source(k, az, el)
 (
   pos_az[k] = az; pos_el[k] = el;
-  e4l_encode_target(az, el, radius, range, sh, tgt + 16*k);
+  e4l_encode_target(az, el, q_rad, range, sh, tgt + 16*k);
 );
 
 function compute_targets(bpos, n) local(az, el, s, e, h, w1, w2)
@@ -121,6 +127,11 @@ function compute_targets(bpos, n) local(az, el, s, e, h, w1, w2)
   s  = aslfo.e4l_spread_lfo(azsp, as_on, as_tmode, as_freq, as_sync, as_depth, bpos, n);
   e  = eslfo.e4l_spread_lfo(elsp, es_on, es_tmode, es_freq, es_sync, es_depth, bpos, n);
   h  = s * 0.5;
+  // random wander: the four points go around inside the room together
+  wlfo.e4l_wander(w_on, w_tmode, w_freq, w_sync, w_area, bpos, n);
+  q_rad = radius;
+  wander_d >= 0 ? ( az += wander_az; q_rad = wander_d / max(range, 1); );
+  cur_d = q_rad * range;
   cur_az = e4l_wrap180(az); cur_el = el; cur_sp = s;
 
   spmode == 0 ? (            // LR
@@ -149,6 +160,7 @@ pub_ctr >= srate / 30 ? (
   pub_ctr = 0;
   abs(cur_az - slider60) > 0.2 ? ( slider60 = cur_az; sliderchange(slider60); );
   abs(cur_el - slider61) > 0.2 ? ( slider61 = cur_el; sliderchange(slider61); );
+  abs(cur_d - slider63) > 0.01 ? ( slider63 = cur_d; sliderchange(slider63); );
   abs(cur_sp - slider62) > 0.2 ? ( slider62 = cur_sp; sliderchange(slider62); );
 );
 blk_beat = beat_position;

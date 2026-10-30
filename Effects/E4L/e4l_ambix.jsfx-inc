@@ -146,6 +146,28 @@ function e4l_spread_lfo(base, on, tmode, hz, sync, depth, bpos, n) local(p)
   ) : base;
 );
 
+// Random wander inside the room: a smooth path between random points of the floor plan
+// (x = right, y = front, 1 = the speakers' circle) within `area`. A new point every segment
+// (Hz or bars, like the LFOs: frozen while paused), cosine-eased between points.
+// Results: wander_az (degrees, clockwise) and wander_d (distance, 1 = at the speakers).
+function e4l_wander(on, tmode, hz, sync, area, bpos, n) instance(ph, pph, x0, y0, x1, y1, ok) local(g, r, t, x, y)
+(
+  on ? (
+    !ok ? ( x0 = y0 = 0; r = area * sqrt(rand(1)); t = 2 * $pi * rand(1); x1 = r * sin(t); y1 = r * cos(t); ok = 1; );
+    pph = ph;
+    ph = this.lfo_tick(tmode, hz, e4l_sync_beats(sync), 1, bpos, n);
+    ph < pph - 0.5 ? (
+      x0 = x1; y0 = y1;
+      r = area * sqrt(rand(1)); t = 2 * $pi * rand(1);   // uniform over the disk
+      x1 = r * sin(t); y1 = r * cos(t);
+    );
+    g = 0.5 - 0.5 * cos($pi * ph);
+    x = x0 + (x1 - x0) * g; y = y0 + (y1 - y0) * g;
+    wander_d = sqrt(x * x + y * y);
+    wander_az = wander_d > 0.000001 ? atan2(x, y) * 180 / $pi : 0;
+  ) : ( wander_d = -1; wander_az = 0; );
+);
+
 // Encodes one point source into tgt[0..15] (pole folding + SH + E4L distance gains).
 // sh: 16-value scratch array.
 function e4l_encode_target(az, el, radius, range, sh, tgt) local(i)

@@ -74,6 +74,14 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
 - Toolbar actions run under pcall and restart the transport if it stopped.
 - The updater runs its shell job in the background (ExecProcess was blocking REAPER).
 
+- Random movement ("Random Wander", sliders 45-49 on Mono/Stereo/Quad, `e4l_wander` in the
+  include): smooth path between random points inside the disk (Area), new point per LFO
+  segment (Hz or bars), adds to the direction/rotation, sets the distance (published as hidden
+  slider 63 `-Current Distance`; the room view draws the dot inside the circle).
+- Panel `● REC`: records the session on `REC 1-2 (speakers)` / `REC 3-4 (speakers)` (sends from
+  E4L Master post-fader, I_RECMODE 3 = stereo output latency compensated; the multichannel
+  output modes are undocumented, so two stereo tracks). Panel window default 1240x680.
+
 ## Looper seam (hard-won, read before touching)
 - Start/stop: output ramp `Start / Stop Fade` (30 ms).
 - Seam: the end of the loop crossfades (`Loop Seam Crossfade`, 50 ms) into the pre-roll

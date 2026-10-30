@@ -53,8 +53,9 @@ function gfx.setfont(i) if i and i > 0 then font = i end end
 function gfx.measurestr(s) if font == 2 then return utf8.len(s)*24, 44 elseif font == 3 then return utf8.len(s)*11, 20 end return utf8.len(s)*7.6, 15 end
 function gfx.drawstr(s) DRAW[#DRAW+1] = {"text",gfx.x,gfx.y,s,col[1],col[2],col[3],col[4],font} end
 ''')
+lua.execute("gfx.h = 680")
 lua.execute("dofile([[%s]])" % os.path.join(ROOT, "Scripts", "E4L", "E4L - Live Panel.lua"))
-W, H = 1240, 560
+W, H = 1240, 680
 F1 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13)
 F2 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40)
 F3 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 17)

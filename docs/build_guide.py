@@ -632,6 +632,9 @@ def build(path):
         "<b>STOP</b> (or the space bar) stops and goes back to bar 1: on PLAY every loop and audio "
         "file starts again from its beginning, like Ableton. <b>PAUSE</b> keeps the position: PLAY "
         "continues exactly where it was.",
+        "<b>● REC</b> records the whole session: what goes to the 4 speakers (loops, audio files and "
+        "movements, after the quad decoder) on two tracks, <b>REC 1-2</b> and <b>REC 3-4</b>. Save the "
+        "project first (Cmd+S) so the files go into its folder. REC again, or STOP, ends it.",
         "<b>Toolbar:</b> <b>+ LOOP</b>, <b>+ AUDIO</b>, <b>+ INPUT</b>, <b>SAVE TEMPLATE</b>, "
         "<b>LOAD TEMPLATE</b>, <b>NEW TEMPLATE</b> (see below), <b>+ SYNC</b> (reset pulse for an "
         "external sequencer, see below).",
@@ -722,8 +725,11 @@ def build(path):
          "depth (barely audible in quad: no speakers above)."],
         ["<b>Stereo width</b>", "(Two points only) <b>Left / right spread</b> and <b>Breathing</b>: "
          "the image opens and closes by itself."],
+        ["<b>Random movement</b>", "The sound wanders inside the room along a smooth path between "
+         "random points (near the centre it spreads over all the speakers). <b>New point</b> every N "
+         "seconds or bars, <b>Area</b> from near the centre to the whole room. Freezes on pause."],
         ["<b>Quick movements</b>", "One click: <b>Still</b>, <b>Slow turn</b>, <b>4-bar turn</b>, "
-         "<b>Whirl</b>, <b>Front swing</b>, <b>Right swing</b>."],
+         "<b>Whirl</b>, <b>Front swing</b>, <b>Right swing</b>, <b>Wander</b>, <b>Wander 1 bar</b>."],
     ], [45, 125]))
     st.append(P("Keyboard and MIDI control", "h2"))
     st += bullets([

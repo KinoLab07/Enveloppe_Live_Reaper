@@ -110,6 +110,30 @@ o = run("E4L Mono Panner.jsfx", dc, "s3=0.1", "s10=1", "s11=0", "s13=1")
 az, _ = direction(o)
 check("azimuth LFO cycle 1 Hz", angle_close(az[SR // 4], 90) and angle_close(az[3 * SR // 4], -90))
 
+# random wander: the point goes around INSIDE the room (direction and distance change)
+def wander_track(o):
+    az, _ = direction(o)
+    d = np.sqrt(np.hypot(o[:, 1], o[:, 3]) / np.maximum(np.abs(o[:, 0]), 1e-9))   # inside: g = d^2
+    return az, d
+dc3 = np.ones((6 * SR, 1))
+o = run("E4L Mono Panner.jsfx", dc3, "s3=0.1", "s45=1", "s47=2")
+az, d = wander_track(o)
+k = np.arange(SR, 6 * SR, 2400)
+check("random wander: the sound visits many directions and distances inside the room",
+      np.ptp(np.unwrap(np.radians(az[k]))) > 2 and d[k].max() <= 1.01 and d[k].std() > 0.1)
+step = np.abs(np.diff(o[:, 0]))
+check("random wander: the path is smooth (no jumps)", step.max() < 0.001)
+o = run("E4L Mono Panner.jsfx", dc3, "s3=0.1", "s45=1", "s47=2", "s49=0.3")
+_, d = wander_track(o)
+check("random wander: Area 0.3 keeps it near the centre", d[k].max() <= 0.31)
+o = run("E4L Mono Panner.jsfx", dc3, "s3=0.1", "s45=1", "s47=2", "ps@96000=2", "ps@192000=1")
+check("random wander: frozen while paused",
+      np.allclose(o[100000], o[190000]) and not np.allclose(o[200000], o[100000]))
+q1 = np.zeros((3 * SR, 4)); q1[:, 0] = 1       # only the front-left channel
+o = run("E4L Quad Panner.jsfx", q1, "s3=0.1", "s45=1", "s47=2")
+check("random wander: the quad panner wanders too (all four points move)",
+      np.ptp(o[SR:, 1]) > 0.1)
+
 # PAUSE freezes the movement and PLAY continues from there; STOP + PLAY starts from 0
 o = run("E4L Mono Panner.jsfx", dc, "s3=0.1", "s10=1", "s11=0", "s13=1", "ps@12032=2", "ps@36096=1")
 az, _ = direction(o)

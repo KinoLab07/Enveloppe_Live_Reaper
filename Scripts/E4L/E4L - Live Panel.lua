@@ -102,7 +102,8 @@ local function scan()
       list[#list + 1] = {
         kind = "audio", tr = tr, name = tname ~= "" and tname or ("Track " .. (t + 1)), lfx = -1, pfx = pfx,
         effect = effect_of(pname), pn = pn, bars = tonumber(bars) or 0,
-        p = { az = pn["Azimuth"] or -1, cur_az = pn["Current Azimuth"] or -1, sp = pn["Azimuth Spread"] or -1, cur_sp = pn["Current Spread"] or -1 },
+        p = { az = pn["Azimuth"] or -1, cur_az = pn["Current Azimuth"] or -1, sp = pn["Azimuth Spread"] or -1, cur_sp = pn["Current Spread"] or -1,
+              cur_d = pn["Current Distance"] or -1 },
       }
     end
     if lfx >= 0 then
@@ -120,6 +121,7 @@ local function scan()
           pend = find_prefix(ln, "Pending"), bars = ln["Loop Bars"], start = find_prefix(ln, "Loop Start"),
           qn = find_prefix(ln, "Loop Length"),
           az = pn["Azimuth"] or -1, cur_az = pn["Current Azimuth"] or -1, sp = pn["Azimuth Spread"] or -1, cur_sp = pn["Current Spread"] or -1,
+          cur_d = pn["Current Distance"] or -1,
         },
       }
     end
@@ -246,19 +248,24 @@ end
 
 -- quick movement presets (Mono / Stereo panners)
 local PRESETS = {
-  { "Still", { ["Azimuth LFO On/Off"] = 0, ["Elevation LFO On/Off"] = 0, ["Azimuth Spread LFO On/Off"] = 0 } },
+  { "Still", { ["Azimuth LFO On/Off"] = 0, ["Elevation LFO On/Off"] = 0, ["Azimuth Spread LFO On/Off"] = 0,
+              ["Random Wander On/Off"] = 0 } },
   { "Slow turn", { ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 0, ["Azimuth LFO Time Mode"] = 0,
-                    ["Azimuth LFO Frequency (Hz)"] = 0.1, ["Azimuth LFO Rate"] = 1 } },
+                    ["Azimuth LFO Frequency (Hz)"] = 0.1, ["Azimuth LFO Rate"] = 1, ["Random Wander On/Off"] = 0 } },
   { "4-bar turn", { ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 0, ["Azimuth LFO Time Mode"] = 1,
-                         ["Azimuth LFO Sync (bars)"] = 5, ["Azimuth LFO Direction"] = 0 } },
+                         ["Azimuth LFO Sync (bars)"] = 5, ["Azimuth LFO Direction"] = 0, ["Random Wander On/Off"] = 0 } },
   { "Whirl", { ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 0, ["Azimuth LFO Time Mode"] = 0,
-                  ["Azimuth LFO Frequency (Hz)"] = 1, ["Azimuth LFO Rate"] = 1 } },
+                  ["Azimuth LFO Frequency (Hz)"] = 1, ["Azimuth LFO Rate"] = 1, ["Random Wander On/Off"] = 0 } },
   { "Front swing", { ["Azimuth"] = 0, ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 1,
                          ["Azimuth LFO Time Mode"] = 0, ["Azimuth LFO Frequency (Hz)"] = 0.25,
-                         ["Azimuth LFO Rate"] = 1, ["Azimuth LFO Depth"] = 45 } },
+                         ["Azimuth LFO Rate"] = 1, ["Azimuth LFO Depth"] = 45, ["Random Wander On/Off"] = 0 } },
   { "Right swing", { ["Azimuth"] = 90, ["Azimuth LFO On/Off"] = 1, ["Azimuth LFO Mode"] = 1,
                         ["Azimuth LFO Time Mode"] = 0, ["Azimuth LFO Frequency (Hz)"] = 0.25,
-                        ["Azimuth LFO Rate"] = 1, ["Azimuth LFO Depth"] = 45 } },
+                        ["Azimuth LFO Rate"] = 1, ["Azimuth LFO Depth"] = 45, ["Random Wander On/Off"] = 0 } },
+  { "Wander", { ["Random Wander On/Off"] = 1, ["Random Wander Time Mode"] = 0,
+                ["Random Wander Rate (Hz)"] = 0.25, ["Random Wander Area"] = 1, ["Azimuth LFO On/Off"] = 0 } },
+  { "Wander 1 bar", { ["Random Wander On/Off"] = 1, ["Random Wander Time Mode"] = 1,
+                      ["Random Wander Sync (bars)"] = 2, ["Random Wander Area"] = 1, ["Azimuth LFO On/Off"] = 0 } },
 }
 
 ---------------------------------------------------------------------------------------
@@ -571,6 +578,17 @@ local function play_stop()
   end
 end
 
+-- REC: records the whole session (what goes to the speakers) on the REC 1-2 / REC 3-4 tracks
+local function rec_session()
+  if reaper.GetPlayState() & 4 == 4 then play_stop() return end   -- recording: stop
+  reaper.Undo_BeginBlock()
+  local trs, err = E4L.session_rec_tracks()
+  reaper.Undo_EndBlock("E4L: session recording tracks", -1)
+  if not trs then status(err) return end
+  reaper.Main_OnCommand(1013, 0)                                     -- Transport: Record
+  status("Recording the session (the 4 speakers) on REC 1-2 and REC 3-4. REC or STOP ends it.")
+end
+
 local function draw_header(tp, W)
   rgb(0.11, 0.11, 0.14); rect(0, 0, W, 74)
   gfx.setfont(2)
@@ -598,7 +616,7 @@ local function draw_header(tp, W)
   local mx = bx + 250
   for k, tr in ipairs(inputs) do
     local x = mx + (k - 1) * 104
-    if x + 96 > W - 360 then break end
+    if x + 96 > W - 442 then break end
     local pk = math.max(reaper.Track_GetPeakInfo(tr, 0), reaper.Track_GetPeakInfo(tr, 1))
     local db = pk > 0 and 20 * math.log(pk, 10) or -90
     local f = math.max(0, math.min(1, (db + 60) / 60))
@@ -610,6 +628,9 @@ local function draw_header(tp, W)
   if n_inputs > 0 then rgb(0.5, 0.5, 0.55); text("inputs", mx, 30) end
 
   local rx = math.max(bx + tp.bpb * (bw + gap) + 20, W - 350)
+  local recording = reaper.GetPlayState() & 4 == 4
+  local blink = math.floor(reaper.time_precise() * 2) % 2 == 0
+  if button(recording and "■ REC" or "● REC", rx - 82, 36, 76, 28, recording and blink, 1, 0.3, 0.3) then rec_session() end
   rgb(0.85, 0.85, 0.9)
   text(string.format("%.1f BPM   %d/%d", tp.bpm, tp.num, tp.denom), rx, 12)
   if button(tp.playing and "STOP" or "PLAY", rx, 36, 96, 28, tp.playing, 0.35, 0.95, 0.5) then play_stop() end
@@ -858,6 +879,32 @@ local function draw_editor(x0, y0, W, H)
   if v then s("Elevation LFO Depth", math.floor(v + 0.5)) end
   y = y + 26
 
+  if has("Random Wander On/Off") then
+    section("RANDOM MOVEMENT (inside the room)", c2, y, colw); y = y + 26
+    on = g("Random Wander On/Off") > 0.5
+    if button(on and "ON" or "OFF", c2, y, 110, 24, on, 0.35, 0.95, 0.5) then s("Random Wander On/Off", on and 0 or 1) end
+    local wsync = g("Random Wander Time Mode") > 0.5
+    k = segmented({ "Free speed", "Tempo sync" }, wsync and 2 or 1, c2 + 118, y, colw - 118, 24)
+    if k then s("Random Wander Time Mode", k - 1) end
+    y = y + 46
+    local hw = math.floor((colw - 16) / 2)          -- speed and area side by side
+    if wsync then
+      local si = math.floor(g("Random Wander Sync (bars)") + 0.5)
+      v = hslider("wsync", c2, y, hw, 12, si, 0, 10, "New point", "every " .. SYNC_LABELS[si + 1] .. " bar(s)")
+      if v then s("Random Wander Sync (bars)", math.floor(v + 0.5)) end
+    else
+      local whz = g("Random Wander Rate (Hz)")
+      local lv = math.log(math.max(whz, 0.02) / 0.02) / math.log(200)
+      v = hslider("wspd", c2, y, hw, 12, lv, 0, 1, "New point", string.format("every %.1f s", 1 / math.max(whz, 0.02)))
+      if v then s("Random Wander Rate (Hz)", math.floor(0.02 * 200 ^ v * 1000 + 0.5) / 1000) end
+    end
+    local wa = g("Random Wander Area")
+    v = hslider("warea", c2 + hw + 16, y, hw, 12, wa, 0, 1, "Area",
+                wa >= 0.95 and "whole room" or wa < 0.35 and "near the centre" or string.format("%d%%", math.floor(wa * 100 + 0.5)))
+    if v then s("Random Wander Area", math.floor(v * 100 + 0.5) / 100) end
+    y = y + 26
+  end
+
   if has("Azimuth Spread LFO On/Off") then
     section(EFFECTS[L.effect] and EFFECTS[L.effect].key == "Quad" and "WIDTH (quad)" or "STEREO WIDTH", c2, y, colw); y = y + 42
     v = hslider("sp", c2, y, colw, 12, g("Azimuth Spread"), 0, 180, "Left / right spread", string.format("± %d°", math.floor(g("Azimuth Spread") + 0.5)))
@@ -904,7 +951,9 @@ local function draw_room(x, y, size)
       local az = L.p.cur_az >= 0 and getp(L.tr, L.pfx, L.p.cur_az) or getp(L.tr, L.pfx, L.p.az)
       if drag == i then az = getp(L.tr, L.pfx, L.p.az) end
       local r = math.rad(az)
-      local dx, dy = cx + math.sin(r) * R * 0.78, cy - math.cos(r) * R * 0.78
+      local dist = (L.p.cur_d and L.p.cur_d >= 0 and drag ~= i) and getp(L.tr, L.pfx, L.p.cur_d) or 1
+      dist = dist > 0.001 and math.min(dist, 1.2) or 1      -- not published (yet): on the circle
+      local dx, dy = cx + math.sin(r) * R * 0.78 * dist, cy - math.cos(r) * R * 0.78 * dist
       local st = L.kind == "loop" and math.floor(getp(L.tr, L.lfx, L.p.status) + 0.5)
                  or (reaper.GetMediaTrackInfo_Value(L.tr, "B_MUTE") > 0.5 and 0 or 3)
       local r0, g0, b0 = 0.5, 0.5, 0.6
@@ -1008,7 +1057,7 @@ local function main()
 end
 
 local dock = tonumber(reaper.GetExtState(EXT, "dock")) or 0
-gfx.init(TITLE, 1240, 560, dock)
+gfx.init(TITLE, 1240, 680, dock)
 gfx.setfont(1, "Arial", 15)
 gfx.setfont(2, "Arial", 44, string.byte("b"))
 gfx.setfont(3, "Arial", 20, string.byte("b"))
