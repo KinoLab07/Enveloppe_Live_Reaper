@@ -340,6 +340,17 @@ for az_in, louder in ((-90, 0), (90, 1)):
         check("%s: source at %d is louder on the %s" % (name, az_in, "left" if louder == 0 else "right"),
               rms[louder] > 2 * rms[1 - louder])
 
+# "Binaural mix of the session": a recorded speaker feed played as a virtual speaker at its
+# place (Quad Panner, spread 90, LR) and decoded to binaural lands in the right ear
+for inp, side, name in ((3, 1, "speaker 3 (+135, rear right) -> right ear"),
+                        (2, 0, "speaker 4 (-135, rear left) -> left ear"),
+                        (0, 0, "speaker 1 (-45, front left) -> left ear")):
+    q = np.zeros((2 * SR, 4)); q[:, inp] = noise[:, 0]
+    enc = run("E4L Quad Panner.jsfx", q, "s3=0.1", "s5=90", "s7=0")
+    out = run("E4L Master Bus.jsfx", enc, "s1=0")[4800:]
+    rms = np.sqrt((out[:, :2] ** 2).mean(0))
+    check("binaural mix of the session: " + name, rms[side] > 2 * rms[1 - side])
+
 enc = run("E4L Mono Panner.jsfx", noise, "s1=0", "s3=0.1")
 out = run("E4L Master Bus.jsfx", enc, "s1=7")[4800:]
 rms = np.sqrt((out ** 2).mean(0))

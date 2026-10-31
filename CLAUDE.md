@@ -83,6 +83,10 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
 - Panel `● REC`: records the session on `REC 1-2 (speakers)` / `REC 3-4 (speakers)` (sends from
   E4L Master post-fader, I_RECMODE 3 = stereo output latency compensated; the multichannel
   output modes are undocumented, so two stereo tracks). Panel window default 1240x680.
+- `E4L - Binaural mix of the session.lua`: copies the REC items to `BIN 1-2` / `BIN 3-4`, mono
+  sends into `BINAURAL MIX` (Quad Panner spread 90 LR = the 4 speaker places; speaker 3 +135 ->
+  input RR, speaker 4 -135 -> input RL) + Master Bus Binaural; sets RENDER_* (stems, bounds of
+  the recording, 2 ch, "Session binaural") and opens File > Render (40015).
 
 ## Looper seam (hard-won, read before touching)
 - Start/stop: output ramp `Start / Stop Fade` (30 ms).

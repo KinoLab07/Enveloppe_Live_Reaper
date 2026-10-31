@@ -73,6 +73,55 @@ lua3.execute("dofile([[%s]])" % os.path.join(SCRIPTS, "E4L - Live Panel.lua").re
 check("panel: loops from older versions switch to ALL (the new input is recorded)",
       lua3.eval("MOCK.T[2].name") == "SYNTH IN 2" and lua3.eval("MOCK.T[2].sends[0][1].vals.B_MUTE") == 0)
 
+# "Binaural mix of the session": the 4 recorded speaker feeds as 4 virtual speakers, binaural
+lb = lupa.LuaRuntime()
+lb.execute(FXP)
+lb.execute(open(os.path.join(HERE, "mock_reaper.lua")).read())
+lb.execute("dofile([[%s]])" % template_path)
+binaural_script = "dofile([[%s]])" % os.path.join(SCRIPTS, "E4L - Binaural mix of the session.lua").replace("\\", "/")
+lb.execute("MOCK_MSG = nil; MOCK_CMDS = {}")
+lb.execute(binaural_script)
+check("binaural mix: without a recording it explains what to do (no render)",
+      "no recorded session" in (lb.eval("MOCK_MSG") or "") and 40015 not in list(lb.eval("MOCK_CMDS").values()))
+lb.execute("""
+local E = dofile([[%s]])
+local trs = E.session_rec_tracks()
+for k, tr in ipairs(trs) do          -- one recorded file per track, from 2 s to 62 s
+  local it = reaper.AddMediaItemToTrack(tr)
+  local tk = reaper.AddTakeToMediaItem(it)
+  reaper.SetMediaItemTake_Source(tk, reaper.PCM_Source_CreateFromFile("/projects/My set/REC " .. k .. ".wav"))
+  reaper.SetMediaItemInfo_Value(it, "D_POSITION", 2); reaper.SetMediaItemInfo_Value(it, "D_LENGTH", 60)
+end
+MOCK_CMDS = {}
+""" % os.path.join(SCRIPTS, "e4l_lib.lua").replace("\\", "/"))
+lb.execute(binaural_script)
+bnames = [lb.eval("MOCK.T[%d].name" % i) for i in range(1, lb.eval("#MOCK.T") + 1)]
+bi = lambda n: bnames.index(n) + 1
+mx, b12, b34 = bi("BINAURAL MIX"), bi("BIN 1-2"), bi("BIN 3-4")
+fxf = lb.eval("function(t, f) return MOCK.T[t].fx[f].file end")
+fxp = lb.eval("function(t, f, n) return MOCK.T[t].fx[f].p[n] end")
+check("binaural mix: BINAURAL MIX = Quad Panner on the 4 speaker places + Master Bus Binaural, no master send",
+      fxf(mx, 1) == "E4L Quad Panner.jsfx" and fxp(mx, 1, "Azimuth Spread") == 90 and fxp(mx, 1, "Azimuth Spread Mode") == 0
+      and fxp(mx, 1, "Radius") == 0.1 and fxf(mx, 2) == "E4L Master Bus.jsfx" and fxp(mx, 2, "Decoder") == 0
+      and lb.eval("MOCK.T[%d].vals.B_MAINSEND" % mx) == 0)
+sends_of = lb.eval("function(t) local r = {} for k, s in ipairs(MOCK.T[t].sends[0]) do r[k] = s.vals.I_SRCCHAN .. '>' .. s.vals.I_DSTCHAN end return r end")
+check("binaural mix: speakers 1, 2 -> FL, FR; speaker 3 (+135) -> rear right, 4 (-135) -> rear left",
+      list(sends_of(b12).values()) == ["1024>1024", "1025>1025"] and list(sends_of(b34).values()) == ["1024>1027", "1025>1026"])
+check("binaural mix: the recorded items are copied (same files, same place); REC tracks untouched",
+      lb.eval("MOCK.T[%d].items[1].file" % b12) == "/projects/My set/REC 1.wav"
+      and lb.eval("MOCK.T[%d].items[1].vals.D_POSITION" % b34) == 2
+      and lb.eval("#MOCK.T[%d].items" % bi("REC 1-2 (speakers)")) == 1)
+pi = lambda k: lb.eval("MOCK_PROJINFO['%s']" % k)
+check("binaural mix: render = only BINAURAL MIX (stem), stereo, 2 s .. 62 s, 'Session binaural'; Render window opens",
+      pi("RENDER_SETTINGS") == 2 and pi("RENDER_BOUNDSFLAG") == 0 and pi("RENDER_STARTPOS") == 2
+      and pi("RENDER_ENDPOS") == 62 and pi("RENDER_CHANNELS") == 2 and pi("RENDER_PATTERN") == "Session binaural"
+      and lb.eval("MOCK.T[%d].selected" % mx) is True and lb.eval("MOCK.T[1].selected") is None
+      and 40015 in list(lb.eval("MOCK_CMDS").values()))
+lb.execute(binaural_script)
+bnames = [lb.eval("MOCK.T[%d].name" % i) for i in range(1, lb.eval("#MOCK.T") + 1)]
+check("binaural mix: running it again rebuilds (no duplicate tracks)",
+      bnames.count("BINAURAL MIX") == 1 and bnames.count("BIN 1-2") == 1)
+
 # "Add sub to master" on an older project whose decoder still feeds the sub itself
 lua2 = lupa.LuaRuntime()
 lua2.execute(FXP)

@@ -635,6 +635,10 @@ def build(path):
         "<b>● REC</b> records the whole session: what goes to the 4 speakers (loops, audio files and "
         "movements, after the quad decoder) on two tracks, <b>REC 1-2</b> and <b>REC 3-4</b>. Save the "
         "project first (Cmd+S) so the files go into its folder. REC again, or STOP, ends it.",
+        "<b>A binaural (headphones) version of the recording:</b> run the action <b>E4L - Binaural mix "
+        "of the session</b>. It plays the 4 recorded speaker feeds as 4 virtual speakers and decodes "
+        "them to binaural, then opens the Render window already set: press <b>Render</b>. You get "
+        "\"Session binaural\" in the project folder.",
         "<b>Toolbar:</b> <b>+ LOOP</b>, <b>+ AUDIO</b>, <b>+ INPUT</b>, <b>SAVE TEMPLATE</b>, "
         "<b>LOAD TEMPLATE</b>, <b>NEW TEMPLATE</b> (see below), <b>+ SYNC</b> (reset pulse for an "
         "external sequencer, see below).",

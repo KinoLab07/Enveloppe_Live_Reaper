@@ -216,6 +216,11 @@ The **MOVEMENT** button of each loop opens all its spatial controls in the same 
   decoder – on two tracks `REC 1-2 (speakers)` and `REC 3-4 (speakers)` (REAPER "record output,
   latency compensated"). REC again or STOP ends it; the files go to the project's folder (save
   the project first).
+- **Binaural version of a recorded session:** run the action **E4L - Binaural mix of the
+  session**. It plays the 4 recorded speaker feeds as 4 virtual speakers at their places and
+  decodes them to binaural (same HRTFs as the headphones), on a `BINAURAL MIX` track, and opens
+  REAPER's Render window already set (that track only, stereo, over the recording, "Session
+  binaural" in the project folder): press Render.
 
 ---
 

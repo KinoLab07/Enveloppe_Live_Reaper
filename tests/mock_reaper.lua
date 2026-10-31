@@ -111,6 +111,12 @@ function reaper.GetMediaSourceNumChannels(src)
   return f:match("quad") and 4 or f:match("mono") and 1 or f:match("8ch") and 8 or 2
 end
 MOCK_SHOWN = nil
+function reaper.GetMediaSourceFileName(src) return src and src.file or "" end
+MOCK_PROJINFO = {}
+function reaper.GetSetProjectInfo(_, k, v, set) if set then MOCK_PROJINFO[k] = v end return MOCK_PROJINFO[k] or 0 end
+function reaper.GetSetProjectInfo_String(_, k, v, set) if set then MOCK_PROJINFO[k] = v end return true, MOCK_PROJINFO[k] or "" end
+function reaper.GetProjectPath() return "/projects/My set" end
+function reaper.SetTrackSelected(tr, on) tr.selected = on or nil end
 function reaper.TrackFX_GetEnabled(tr, fx) return tr.fx[fx + 1].enabled ~= false end
 function reaper.TrackFX_SetEnabled(tr, fx, on) tr.fx[fx + 1].enabled = on end
 function reaper.RemoveTrackSend(tr, c, i) table.remove(tr.sends[c], i + 1) return true end
@@ -136,7 +142,7 @@ function reaper.OnPauseButton() MOCK_PLAY = MOCK_PLAY == 2 and 1 or 2 end
 function reaper.CountTrackMediaItems(tr) return tr.items and #tr.items or 0 end
 function reaper.GetTrackMediaItem(tr, i) return tr.items[i + 1] end
 function reaper.GetActiveTake(item) return item.take end
-function reaper.GetMediaItemTake_Source(take) return take end
+function reaper.GetMediaItemTake_Source(take) return take.src or take end
 function reaper.GetMediaSourceLength() return MOCK_SRCLEN, false end
 function reaper.SetMediaItemTakeInfo_Value(take, k, v) take.vals[k] = v return true end
 function reaper.SetMediaItemInfo_Value(item, k, v) item.vals[k] = v return true end
