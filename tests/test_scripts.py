@@ -183,7 +183,7 @@ lua.execute("MOCK_KEY = 50"); frame()
 check("panel: key 2 = record on loop 2", param(3, 1, "Record") == 1)
 
 import math
-room = min(H - TOP - 6, int(W * 0.32)); rx, ry = W - room - 8, TOP
+room = min(H - TOP - 6, int(W * 0.28)); rx, ry = W - room - 8, TOP
 cx, cy, R = rx + room / 2, ry + room / 2, room / 2 - 22
 setp(2, 2, "-Current Azimuth", -45)
 dx, dy = cx + math.sin(math.radians(-45)) * R * 0.78, cy - math.cos(math.radians(-45)) * R * 0.78
@@ -297,6 +297,14 @@ check("audio row: PLAY after a stop starts the file from its beginning on the ne
       lua.eval("MOCK.T[%d].vals.B_MUTE" % a1) == 1 and abs(apos(a1, 20.0)) < 1e-6)
 lua.execute("MOCK_POS = 20.1"); frame()
 check("audio row: ... and comes in on that bar", lua.eval("MOCK.T[%d].vals.B_MUTE" % a1) == 0)
+lua.execute("MOCK_TEXT = {}"); frame()
+txt = lua.eval("status_text_for_test()")
+check("audio row: shows the time left of the file (8 s file started at 20 s, now 20.1 s -> 0:08 left)",
+      "4 bars · 0:08 left" in txt)
+lua.execute("MOCK_POS = 26.5; MOCK_TEXT = {}"); frame()
+txt = lua.eval("status_text_for_test()")
+check("audio row: in its last bar the time left is shown (0:02 left)", "4 bars · 0:02 left" in txt)
+lua.execute("MOCK_POS = 20.1"); frame()
 lua.execute("MOCK_KEY = 32"); frame()
 check("master STOP: back to bar 1 with every audio file at its beginning",
       lua.eval("MOCK_PLAY") == 0 and abs(apos(a1, 0.0)) < 1e-6)

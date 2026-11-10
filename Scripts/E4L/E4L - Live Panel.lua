@@ -739,8 +739,19 @@ local function draw_rows(tp, x0, y0, W, H)
       local label = paused and "PAUSED" or muted and "STOPPED" or "PLAYING"
       if pm == 0 then label = paused and "→ RESUME" or "→ PLAY" elseif pm == 1 then label = "→ STOP" end
       text(label, x0 + 110, y + 6, 96, bh, 1)
-      rgb(0.7, 0.7, 0.75)
-      text(L.bars > 0 and ("audio · " .. L.bars .. " bars") or "audio", x0 + 212, y + 6, 128, bh)
+      -- where the file is: its position over its whole length, and the time left (orange when
+      -- it is about to end: the last bar, or the last 5 s of a file that is not in whole bars)
+      local flen = E4L.audio_length(L.tr)
+      local fpos = paused and E4L.audio_paused(L.tr) or ((tp.playing and not muted) and E4L.audio_pos(L.tr, tp.time)) or nil
+      local left = (fpos and flen > 0) and (flen - fpos % flen) or nil
+      local ending = left and not paused and left <= (L.bars > 0 and E4L.bar_seconds(tp.time) or 5)
+      local lab = L.bars > 0 and (L.bars .. " bars") or "audio"
+      if left then
+        local sec = math.ceil(left - 0.000001)
+        lab = lab .. string.format(" · %d:%02d left", sec // 60, sec % 60)
+      end
+      if ending then rgb(1, 0.7, 0.3) else rgb(0.7, 0.7, 0.75) end
+      text(lab, x0 + 212, y + 6, 180, bh)
       local want_on = (pm ~= nil) and (pm == 0 and not paused) or (pm == nil and not muted)
       if button("PLAY", XP, y + 6, 52, bh, want_on, 0.35, 0.95, 0.5) then audio_play(L, tp) end
       if button(paused and "PAUSED" or "PAUSE", XPA, y + 6, 60, bh, paused, 1, 0.8, 0.3) then audio_pause(L, tp) end
@@ -763,9 +774,9 @@ local function draw_rows(tp, x0, y0, W, H)
       end
       if pw > 30 then
         rgb(0.2, 0.2, 0.24); rect(px, y + 10, pw, rowh - 24)
-        if L.bars > 0 and tp.playing and not muted then
-          local ll = L.bars * E4L.bar_seconds(0)
-          rgb(0.35, 0.95, 0.5, 0.9); rect(px, y + 10, pw * ((E4L.audio_pos(L.tr, tp.time) % ll) / ll), rowh - 24)
+        if fpos and flen > 0 then
+          if ending then rgb(1, 0.7, 0.3, 0.95) elseif paused then rgb(1, 0.8, 0.3, 0.5) else rgb(0.35, 0.95, 0.5, 0.9) end
+          rect(px, y + 10, pw * ((fpos % flen) / flen), rowh - 24)
         end
         rgb(0.5, 0.5, 0.55)
         for k = 1, L.bars - 1 do gfx.line(px + pw * k / L.bars, y + 10, px + pw * k / L.bars, y + rowh - 15) end
@@ -1049,7 +1060,7 @@ local function main()
   check_dropped_files()
   check_restart()
   apply_pending(tp)
-  local room = math.max(0, math.min(H - TOP - 6, math.floor(W * 0.32)))
+  local room = math.max(0, math.min(H - TOP - 6, math.floor(W * 0.28)))
   if W < 900 then room = 0 end
   local lw = W - room - 24
   if editing and not loops[editing] then editing = nil end

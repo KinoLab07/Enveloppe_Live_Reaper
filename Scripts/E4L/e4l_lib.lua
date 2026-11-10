@@ -392,6 +392,13 @@ function E.audio_pos(tr, t)
   return (src % len) / rate
 end
 
+-- length of the file of an AUDIO track, in project seconds (at its play rate)
+function E.audio_length(tr)
+  local item, _, rate, len = audio_take(tr)
+  if not item or len <= 0 then return 0 end
+  return len / rate
+end
+
 -- makes the file be at position `u` (project seconds from its start) at time `t`
 function E.audio_set_pos(tr, t, u)
   local item, take, rate, len = audio_take(tr)

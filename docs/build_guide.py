@@ -685,7 +685,9 @@ def build(path):
         "number of bars it is fitted to the tempo without changing its pitch. It starts "
         "<b>STOPPED</b>: press <b>PLAY</b> and it comes in from its beginning on the next bar (same to take it "
         "out). <b>PAUSE</b> works as on the loops: silent at once, then it continues from the bar where it "
-        "was paused. It "
+        "was paused. Its row shows where the file is (the bar fills over the whole file) and the "
+        "<b>time left</b>, in orange during its last bar (or last 5 s): the moment to come in with the "
+        "next thing. It "
         "has its own <b>MOVEMENT</b> button. You can also drag files from the Finder onto the panel.",
         "The effect follows the channels of the file: <b>mono</b> = one point; <b>stereo</b> = two "
         "points, L and R on speakers 1 and 2; <b>quad</b> = four points, each channel on its own "

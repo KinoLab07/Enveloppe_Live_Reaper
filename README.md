@@ -187,7 +187,9 @@ opening any plug-in.
   quantised to the next bar. **PLAY** starts the loop from its beginning; **PAUSE** silences it at
   once and, pressed again, continues it at once from the exact point where it was paused (like a
   tape: it shifts against the bars by the paused time; PLAY puts it back on the bars).
-  Audio rows have **PLAY** / **PAUSE** too (resuming on the next bar from the bar where they were
+  Audio rows show where the file is: the bar fills over the file's whole length and the row says
+  the time left ("4 bars · 0:12 left"), in orange in its last bar (or last 5 s) – the cue to come
+  in with the next thing. Audio rows have **PLAY** / **PAUSE** too (resuming on the next bar from the bar where they were
   paused; the file is moved only while it is silent) and **DELETE**. The movement (LFOs) freezes while REAPER is paused and continues from there.
 - **Room view**, seen from above: the four speakers and one dot per loop, moving live with its
   animations. Drag a dot to move that loop.
