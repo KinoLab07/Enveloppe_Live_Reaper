@@ -252,7 +252,8 @@ can also be automated with envelopes or REAPER's parameter modulation.
 (no master send, output 1 → a free interface output, patched to the sequencer's RESET input).
 A pulse on the bar line where an E4L Looper starts recording (so the sequence starts on step 1
 with the loop; the looper tells it through shared memory), when REAPER starts from STOP (not
-from PAUSE) and optionally every N bars. Output 2: optional clock (1/4 … 1/32, 24 PPQN).
+from PAUSE) and optionally every N bars. Output 2: optional clock (1 per bar, 1/2, 1/4 … 1/32,
+24 PPQN).
 Optional MIDI Start / clock / Stop. Voltmeter Test Signal: a steady square 50 Hz (or DC) at
 the pulse level on output 1, to measure with a multimeter the voltage the interface gives. **Output 1 sends = Clock** puts the clock on output 1
 instead (1/16 if no rate is chosen) for sequencers that only have a clock input: the first pulse

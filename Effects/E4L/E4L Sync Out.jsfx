@@ -35,7 +35,7 @@ slider4:len_ms=10<1,100,1>Pulse Length (ms)
 slider5:level=1<0,1,0.01>Pulse Level
 slider6:polarity=0<0,1,1{Positive,Negative}>Polarity
 slider7:off_ms=0<-50,50,0.1>Timing Offset (ms, negative = earlier)
-slider8:clk_mode=0<0,5,1{Off,1/4,1/8 (2 PPQN),1/16 (4 PPQN),1/32,24 PPQN}>Clock Rate
+slider8:clk_mode=0<0,7,1{Off,1/4,1/8 (2 PPQN),1/16 (4 PPQN),1/32,24 PPQN,1/2,1 per bar}>Clock Rate
 slider9:midi_mode=0<0,2,1{Off,Start on reset,Start + clock 24 PPQN}>MIDI
 slider10:test_btn=0<0,1,1{-,Send}>Send a test pulse now (output 1)
 slider11:pulses_out=0<0,1000000,1>-Resets sent
@@ -76,7 +76,7 @@ playing = play_state & 1;
 b = beat_position;
 spl_i = 0;
 cm = clk_mode > 0 ? clk_mode : out1_mode ? 3 : 0;     // clock on output 1: 1/16 by default
-clk_div = cm == 1 ? 1 : cm == 2 ? 0.5 : cm == 3 ? 0.25 : cm == 4 ? 0.125 : 1 / 24;
+clk_div = cm == 1 ? 1 : cm == 2 ? 0.5 : cm == 3 ? 0.25 : cm == 4 ? 0.125 : cm == 6 ? 2 : cm == 7 ? bar_qn : 1 / 24;
 clk_len = max(1, min(floor(len_ms * srate / 1000), floor(clk_div / max(qn_per_spl, 0.0000001) / 2)));
 every = rst_every == 0 ? 0 : 2 ^ (rst_every - 1);
 
@@ -167,7 +167,7 @@ gfx_circle(30, 52, 16, 1, 1);
 flash *= 0.85;
 gfx_setfont(2, "Arial", 18, 'b');
 gfx_set(0.9, 0.9, 0.95, 1); gfx_x = 58; gfx_y = 36;
-out1_mode ? gfx_printf("CLOCK %s on output 1", cm == 1 ? "1/4" : cm == 2 ? "1/8" : cm == 3 ? "1/16" : cm == 4 ? "1/32" : "24 PPQN")
+out1_mode ? gfx_printf("CLOCK %s on output 1", cm == 1 ? "1/4" : cm == 2 ? "1/8" : cm == 3 ? "1/16" : cm == 4 ? "1/32" : cm == 6 ? "1/2" : cm == 7 ? "1 bar" : "24 PPQN")
           : gfx_printf("RESET  x %d", pulses_out);
 gfx_setfont(1, "Arial", 13);
 gfx_set(0.7, 0.7, 0.75, 1); gfx_x = 58; gfx_y = 60;

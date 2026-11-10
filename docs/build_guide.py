@@ -848,7 +848,7 @@ def build(path):
         ["Reset every N bars", "Off, 1, 2, 4, 8, 16 bars"],
         ["Pulse Length (ms) / Level / Polarity", "1-100 (10) / 0-1 (1) / Positive, Negative"],
         ["Timing Offset (ms)", "−50 to +50 (negative = earlier)"],
-        ["Clock Rate", "Off, 1/4, 1/8 (2 PPQN), 1/16 (4 PPQN), 1/32, 24 PPQN"],
+        ["Clock Rate", "Off, 1 per bar, 1/2, 1/4, 1/8 (2 PPQN), 1/16 (4 PPQN), 1/32, 24 PPQN"],
         ["Output 1 sends", "Reset pulses / Clock pulses (then the clock is 1/16 by default)"],
         ["MIDI", "Off, Start on reset, Start + clock 24 PPQN"],
         ["Voltmeter Test Signal", "Off / Square 50 Hz (meter on AC) / DC held (meter on DC)"],
