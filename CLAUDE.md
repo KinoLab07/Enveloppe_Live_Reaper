@@ -55,7 +55,9 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
   changing behaviour. `tools/render_panel_preview.py` → panel PNGs used by the guide.
 - Live project tracks: `SYNTH IN`, `SYNTH IN 2`… (monitor only, to headphones), `LOOP n`
   (Looper + panner), `AUDIO n` (looped file + panner), `E4L Master` (Master Bus, Quad),
-  `CUE (headphones)` (binaural → outputs 7-8), `SYNC OUT` (E4L Sync Out → output 6).
+  `CUE (headphones)` (binaural → outputs 7-8), `SYNC OUT` (E4L Sync Out → output 6),
+  `LIVE n` (+ LIVE: monitored interface input, I_RECMODE 2, panner, to E4L Master, marked
+  `P_EXT:E4L_live` = "3" / "3-4"; panel row ON AIR/MUTE at once, input meter, MOVEMENT, DELETE).
 
 ## Behaviour decided with the user (keep it)
 - Loops record **ALL** inputs by default; the row button cycles ALL / IN 1 / IN 2…

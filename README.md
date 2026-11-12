@@ -176,6 +176,10 @@ opening any plug-in.
     positions, movements, tempo) in `E4L_Templates` inside the resource folder, to move from one
     piece to the next.
   - **NEW TEMPLATE** – a new live project from scratch.
+  - **+ LIVE** – a live input (VCV Rack through BlackHole, another synth…) played in the room,
+    spatialised with its own MOVEMENT, not looped: a `LIVE n` track (interface input, mono or
+    stereo). Its row: **ON AIR / MUTE** (at once), the input level, MOVEMENT, DELETE. It starts
+    muted. To also loop that input, add it with **+ INPUT** as well.
   - **+ SYNC** – adds the `SYNC OUT` track (E4L Sync Out) to a free output (6 on the Mbox Pro);
     afterwards the button (**SYNC**) opens a menu: **Turn sync OFF / ON** (no pulses at all; the
     button then reads **SYNC OFF**), its settings, the output for the pulses (with a warning if

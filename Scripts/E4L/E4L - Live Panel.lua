@@ -94,7 +94,18 @@ local function scan()
       if lfx < 0 and name:find("E4L Looper", 1, true) then lfx = i
       elseif pfx < 0 and name:find("E4L", 1, true) and name:find("Panner", 1, true) then pfx, pname = i, name end
     end
-    if lfx < 0 and pfx >= 0 then
+    local live = (lfx < 0 and pfx >= 0) and E4L.live_input(tr)
+    if live then
+      -- a live input, spatialised (not looped)
+      local _, tname = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
+      local pn = param_names(tr, pfx)
+      list[#list + 1] = {
+        kind = "live", input = live, tr = tr, name = tname ~= "" and tname or ("Track " .. (t + 1)),
+        lfx = -1, pfx = pfx, effect = effect_of(pname), pn = pn, bars = 0,
+        p = { az = pn["Azimuth"] or -1, cur_az = pn["Current Azimuth"] or -1, sp = pn["Azimuth Spread"] or -1, cur_sp = pn["Current Spread"] or -1,
+              cur_d = pn["Current Distance"] or -1 },
+      }
+    elseif lfx < 0 and pfx >= 0 then
       -- a spatialised track without looper: pre-recorded audio
       local _, tname = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
       local pn = param_names(tr, pfx)
@@ -413,6 +424,22 @@ local function act_add_input()
   status(E4L.track_name(tr) .. " (input " .. ch .. ") added. Loops set to ALL record it; IN n = one input only.")
 end
 
+-- + LIVE: an interface input (VCV Rack via BlackHole, an external synth...) played live in the
+-- room with its own movement, not looped
+local function act_add_live()
+  local ok, csv = reaper.GetUserInputs("New live input", 2,
+    "Interface input (channel),1 mono 2 stereo", tostring(E4L.cfg_get("live_ch", 3)) .. ",2")
+  if not ok then return end
+  local ch, st = csv:match("^%s*(%d+)%s*,%s*(%d+)")
+  if not ch then return end
+  reaper.Undo_BeginBlock()
+  local tr = E4L.add_live(tonumber(ch), tonumber(st) == 2)
+  reaper.Undo_EndBlock("E4L: + live", -1)
+  E4L.cfg_set("live_ch", tonumber(ch) + (tonumber(st) == 2 and 2 or 1))
+  last_scan = -1
+  status(E4L.track_name(tr) .. " (input " .. E4L.live_input(tr) .. ") added, MUTED: press its ON AIR. MOVEMENT moves it.")
+end
+
 local function act_save_song()
   local _, dir = E4L.list_songs()
   local cur = reaper.GetProjectName(0, ""):gsub("%.[Rr][Pp][Pp]$", "")
@@ -555,7 +582,7 @@ local function draw_toolbar(W)
   local y, h = 80, 28
   local items = {
     { "+ LOOP", 80, act_add_loop, true }, { "+ AUDIO", 84, act_add_audio, true },
-    { "+ INPUT", 84, act_add_input, true },
+    { "+ INPUT", 84, act_add_input, true }, { "+ LIVE", 76, act_add_live, true },
     { "SAVE TEMPLATE", 140, act_save_song }, { "LOAD TEMPLATE", 140, act_load_song },
     { "NEW TEMPLATE", 130, act_new_song },
     { sync_label(), 76, act_sync },
@@ -644,7 +671,7 @@ local function draw_header(tp, W)
   if button(paused and "PAUSED" or "PAUSE", rx + 102, 36, 80, 28, paused, 1, 0.8, 0.3) then reaper.OnPauseButton() end
   if button("STOP ALL LOOPS", rx + 188, 36, 150, 28, false) then
     for _, L in ipairs(loops) do
-      if L.kind == "loop" then setp(L.tr, L.lfx, L.p.play, 0) else pend_mute[L.tr] = 1 end
+      if L.kind == "loop" then setp(L.tr, L.lfx, L.p.play, 0) elseif L.kind == "audio" then pend_mute[L.tr] = 1 end
     end
   end
 end
@@ -727,6 +754,40 @@ local function draw_rows(tp, x0, y0, W, H)
         rgb(0.5, 0.5, 0.55)
         local nb = math.floor(getp(L.tr, L.lfx, L.p.bars) + 0.5)
         for k = 1, nb - 1 do gfx.line(px + pw * k / nb, y + 10, px + pw * k / nb, y + rowh - 15) end
+      end
+    elseif L.kind == "live" then
+      -- live input: ON AIR / MUTED at once, MOVEMENT, DELETE, and its input level
+      local muted = reaper.GetMediaTrackInfo_Value(L.tr, "B_MUTE") > 0.5
+      local c = muted and col[0] or col[2]
+      rgb(c[1], c[2], c[3]); rect(x0 + 110, y + 6, 96, bh)
+      rgb(0.05, 0.05, 0.05); text(muted and "MUTED" or "ON AIR", x0 + 110, y + 6, 96, bh, 1)
+      rgb(0.7, 0.7, 0.75); text("live · input " .. L.input, x0 + 212, y + 6, 180, bh)
+      if button(muted and "ON AIR" or "MUTE", XP, y + 6, 112, bh, not muted, 1, 0.3, 0.3) then
+        reaper.SetMediaTrackInfo_Value(L.tr, "B_MUTE", muted and 0 or 1)
+      end
+      if button("MOVEMENT", XM, y + 6, 90, bh, editing == i, 0.45, 0.75, 1) then
+        editing = (editing == i) and nil or i
+      end
+      local sure = confirm_del and confirm_del.tr == L.tr and reaper.time_precise() - confirm_del.t < 3
+      if button(sure and "SURE?" or "DELETE", XO, y + 6, 74, bh, sure, 1, 0.3, 0.3) then
+        if sure then
+          confirm_del = nil
+          reaper.Undo_BeginBlock()
+          E4L.delete_track(L.tr)
+          reaper.Undo_EndBlock("E4L: delete " .. L.name, -1)
+          editing = nil; last_scan = -1
+          status(L.name .. " deleted (Cmd+Z in REAPER brings it back).")
+          return
+        end
+        confirm_del = { tr = L.tr, t = reaper.time_precise() }
+      end
+      if pw > 30 then                                     -- input level (what comes in)
+        rgb(0.2, 0.2, 0.24); rect(px, y + 10, pw, rowh - 24)
+        local pk = math.max(reaper.Track_GetPeakInfo(L.tr, 0), reaper.Track_GetPeakInfo(L.tr, 1))
+        local db = pk > 0 and 20 * math.log(pk, 10) or -90
+        local f = math.max(0, math.min(1, (db + 60) / 60))
+        if db > -3 then rgb(1, 0.3, 0.3) elseif db > -12 then rgb(1, 0.8, 0.3) else rgb(0.35, 0.95, 0.5) end
+        rect(px, y + 10, pw * f, rowh - 24)
       end
     else
       -- pre-recorded audio: PLAY (from its beginning) / STOP on the next bar, PAUSE now
@@ -1012,6 +1073,8 @@ local function keyboard(c)
   if c >= 49 and c <= 57 then                                            -- 1-9: record
     local L = loops[c - 48]
     if L and L.kind == "loop" then setp(L.tr, L.lfx, L.p.rec, getp(L.tr, L.lfx, L.p.rec) > 0.5 and 0 or 1)
+    elseif L and L.kind == "live" then
+      reaper.SetMediaTrackInfo_Value(L.tr, "B_MUTE", reaper.GetMediaTrackInfo_Value(L.tr, "B_MUTE") > 0.5 and 0 or 1)
     elseif L then audio_play(L, transport()) end
   end
   if c == 48 then for _, L in ipairs(loops) do if L.kind == "loop" then setp(L.tr, L.lfx, L.p.play, 0) end end end  -- 0

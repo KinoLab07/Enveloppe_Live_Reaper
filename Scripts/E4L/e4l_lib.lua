@@ -286,6 +286,33 @@ function E.add_audio(file)
   return tr, bars, nch
 end
 
+-- LIVE n: an interface input (VCV Rack through BlackHole, another synth...) played live
+-- in the room, spatialised like a loop (with its own movement), not recorded. Monitored input
+-- (I_RECMODE 2 = no recording), 16 ch, to E4L Master (so also to the headphones' CUE), no
+-- master send. It starts MUTED: the panel's ON AIR brings it in. in_ch is 1-based.
+function E.add_live(in_ch, stereo)
+  local num = #E.tracks_matching("^LIVE %d+$") + 1
+  local tr = E.new_track("LIVE " .. num, before_master())
+  reaper.SetMediaTrackInfo_Value(tr, "I_NCHAN", E.NCH)
+  reaper.SetMediaTrackInfo_Value(tr, "B_MAINSEND", 0)
+  reaper.SetMediaTrackInfo_Value(tr, "I_RECINPUT", (stereo and 1024 or 0) + (in_ch - 1))
+  reaper.SetMediaTrackInfo_Value(tr, "I_RECMODE", 2)
+  reaper.SetMediaTrackInfo_Value(tr, "I_RECARM", 1)
+  reaper.SetMediaTrackInfo_Value(tr, "I_RECMON", 1)
+  reaper.SetMediaTrackInfo_Value(tr, "B_MUTE", 1)
+  reaper.GetSetMediaTrackInfo_String(tr, "P_EXT:E4L_live", stereo and (in_ch .. "-" .. (in_ch + 1)) or tostring(in_ch), true)
+  add_file_panner(tr, stereo and 2 or 1, E.SPREAD[(num + 1) % #E.SPREAD + 1])
+  local m = E.find_track("E4L Master")
+  if m then E.add_send(tr, m, E.NCH, 0) end
+  return tr
+end
+
+-- the input of a LIVE track as text ("3" or "3-4"), or nil if the track is not a LIVE track
+function E.live_input(tr)
+  local _, v = reaper.GetSetMediaTrackInfo_String(tr, "P_EXT:E4L_live", "", false)
+  return v ~= "" and v or nil
+end
+
 function E.delete_track(tr) reaper.DeleteTrack(tr) end
 
 -- SYNC OUT: "E4L Sync Out" on its own track (no master send), its output 1 (reset pulse)

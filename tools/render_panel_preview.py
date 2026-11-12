@@ -28,6 +28,9 @@ a.fx[1].p["-Current Azimuth"] = 150; a.fx[1].p["-Current Spread"] = 30
 local q = E.add_audio("/sounds/pad_quad.wav")
 q.vals.B_MUTE = 0
 q.fx[1].p["-Current Azimuth"] = 20; q.fx[1].p["-Current Spread"] = 90
+local lv = E.add_live(5, true)
+lv.vals.B_MUTE = 0
+lv.fx[1].p["-Current Azimuth"] = -100; lv.fx[1].p["-Current Spread"] = 30
 """ % os.path.join(ROOT, "Scripts", "E4L", "e4l_lib.lua"))
 lua.execute('''
 local T = MOCK.T

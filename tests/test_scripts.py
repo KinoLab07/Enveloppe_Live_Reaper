@@ -233,7 +233,7 @@ names = lua.eval("function() local t = {} for i, tr in ipairs(MOCK.T) do t[i] = 
 name_list = lambda: list(names().values())
 TB = 80 + 10
 xs, x = [], 8
-for w in (80, 84, 84, 140, 140, 130, 76):
+for w in (80, 84, 84, 76, 140, 140, 130, 76):
     xs.append(x + 10); x += w + 6
 click(xs[0], TB)
 check("toolbar: + LOOP adds LOOP 13 before E4L Master",
@@ -364,17 +364,17 @@ check("audio row: second click on DELETE deletes the track",
       "AUDIO 5" not in name_list() and "AUDIO 4" in name_list() and "AUDIO 6" in name_list())
 frame()
 lua.execute("function reaper.GetUserInputs() return true, 'Piece 1' end")
-click(xs[3], TB)
+click(xs[4], TB)
 check("toolbar: SAVE TEMPLATE saves E4L_Templates/Piece 1.RPP",
       list(lua.eval("MOCK_SAVED").values()) == ["/res/E4L_Templates/Piece 1.RPP"])
 lua.execute("MOCK_FILES = {'Piece 1.RPP', 'Piece 2.RPP'}; function gfx.showmenu() return 2 end")
-click(xs[4], TB)
+click(xs[5], TB)
 lua.execute("function gfx.showmenu() return 0 end")
 check("toolbar: LOAD TEMPLATE opens the chosen song",
       list(lua.eval("MOCK_OPENED").values()) == ["/res/E4L_Templates/Piece 2.RPP"])
 # SYNC: adds the SYNC OUT track (E4L Sync Out, no master send, output 1 -> interface output 6)
 lua.execute("function reaper.GetUserInputs(t, n, cap, def) return true, '6' end")
-click(xs[6], TB)
+click(xs[7], TB)
 sy = tr_index("SYNC OUT") if "SYNC OUT" in name_list() else 0
 hw = lua.eval("function(i) local s = MOCK.T[i].sends[1][1]; return s and s.vals.I_SRCCHAN, s and s.vals.I_DSTCHAN end")
 check("toolbar: + SYNC adds SYNC OUT (E4L Sync Out, no master send, mono to output 6)",
@@ -382,27 +382,27 @@ check("toolbar: + SYNC adds SYNC OUT (E4L Sync Out, no master send, mono to outp
       and hw(sy) == (1024, 1024 + 5))
 # SYNC -> Turn sync OFF: the plug-in is bypassed (no pulses), the button says SYNC OFF; and ON again
 lua.execute("function gfx.showmenu() return 1 end; MOCK_TEXT = {}")
-click(xs[6], TB); frame()
+click(xs[7], TB); frame()
 check("toolbar: SYNC -> Turn sync OFF bypasses E4L Sync Out, the button shows SYNC OFF",
       lua.eval("MOCK.T[%d].fx[1].enabled" % sy) is False and "SYNC OFF" in lua.eval("status_text_for_test()"))
-click(xs[6], TB)
+click(xs[7], TB)
 check("toolbar: SYNC OFF -> Turn sync ON enables it again", lua.eval("MOCK.T[%d].fx[1].enabled" % sy) is True)
 lua.execute("function gfx.showmenu() return 2 end")
-click(xs[6], TB)
+click(xs[7], TB)
 check("toolbar: SYNC again -> menu -> Settings opens its window (no second track)",
       name_list().count("SYNC OUT") == 1 and lua.eval("MOCK_SHOWN and MOCK_SHOWN.fx") == 0)
 # move the pulses to output 1 (where the speakers are): it moves, with a warning
 lua.execute("function gfx.showmenu() return 3 end; function reaper.GetUserInputs() return true, '1' end; MOCK_TEXT = {}")
-click(xs[6], TB); frame()
+click(xs[7], TB); frame()
 txt = lua.eval("status_text_for_test()")
 check("toolbar: SYNC -> Send the pulses to output 1: one mono hardware output, to output 1",
       lua.eval("#MOCK.T[%d].sends[1]" % sy) == 1 and hw(sy) == (1024, 1024 + 0))
 check("toolbar: ... with a warning that output 1 also carries the speakers",
       "WARNING: output 1 is also used by the speakers" in txt)
 lua.execute("function gfx.showmenu() return 3 end; function reaper.GetUserInputs() return true, '6' end")
-click(xs[6], TB)
+click(xs[7], TB)
 lua.execute("function gfx.showmenu() return 4 end")
-click(xs[6], TB)
+click(xs[7], TB)
 check("toolbar: SYNC -> Remove the SYNC OUT track", "SYNC OUT" not in name_list())
 lua.execute("function gfx.showmenu() return 0 end")
 # ● REC: the two session tracks fed by E4L Master (after the decoder), armed, recording the output
@@ -421,8 +421,34 @@ check("● REC: both armed, record output latency compensated (mode 3), no maste
       and 1013 in list(lua.eval("MOCK_CMDS").values()))
 click(rx - 82 + 10, 36 + 10)
 check("● REC again: no second pair of tracks", name_list().count("REC 1-2 (speakers)") == 1)
+# + LIVE: an input played live in the room, with its own movement (not looped)
+lua.execute("function reaper.GetUserInputs() return true, '3,2' end")
+click(xs[3], TB)
+lv = tr_index("LIVE 1")
+lval = lambda k: lua.eval("MOCK.T[%d].vals.%s" % (lv, k))
+lsend = lua.eval("function(i) local s = MOCK.T[i].sends[0][1]; return s and s.dst.name, s and s.vals.I_SRCCHAN end")
+check("+ LIVE: LIVE 1 = input 3-4 monitored (not recorded), 16 ch, Stereo Panner, to E4L Master, muted",
+      lval("I_RECINPUT") == 1024 + 2 and lval("I_RECMODE") == 2 and lval("I_RECARM") == 1 and lval("I_RECMON") == 1
+      and lval("I_NCHAN") == 16 and lval("B_MAINSEND") == 0 and lval("B_MUTE") == 1
+      and fxfile(lv, 1) == "E4L Stereo Panner.jsfx" and lsend(lv) == ("E4L Master", (16 // 2) << 10))
+rows = [x for x in name_list() if x.startswith(("LOOP ", "AUDIO ", "LIVE "))]
+il = rows.index("LIVE 1") + 1
+lua.execute("MOCK_TEXT = {}"); frame()
+check("+ LIVE: its row says MUTED and which input", "live · input 3-4" in lua.eval("status_text_for_test()"))
+click(BX + 56 + 10, row_y(il, len(rows)))
+check("live row: ON AIR brings it in at once", lval("B_MUTE") == 0)
+click(BX + 56 + 10, row_y(il, len(rows)))
+check("live row: MUTE takes it out at once", lval("B_MUTE") == 1)
+click(BX + 56 + 10, row_y(il, len(rows)))
+click(BX + 308 + 10, row_y(il, len(rows)))
+lua.execute("MOCK_TEXT = {}"); frame()
+check("live row: MOVEMENT opens its movement editor (same controls as a loop)",
+      "Movement · LIVE 1" in lua.eval("status_text_for_test()"))
+lua.execute("MOCK_KEY = 27"); frame()
+click(BX + 176 + 10, row_y(il, len(rows))); click(BX + 176 + 10, row_y(il, len(rows)))
+check("live row: DELETE (twice) removes it", "LIVE 1" not in name_list())
 lua.execute("MOCK_INPUT = nil; function reaper.GetUserInputs(t, n, cap, def) return true, def end")
-click(xs[5], TB)
+click(xs[6], TB)
 check("toolbar: NEW TEMPLATE = new project with the live template (8 loops), panel not duplicated",
       name_list().count("LOOP 8") == 1 and "LOOP 9" not in name_list() and "E4L Master" in name_list()
       and lua.eval("MOCK_DEFER") is not None)

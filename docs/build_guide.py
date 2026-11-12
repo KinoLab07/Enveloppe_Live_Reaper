@@ -700,6 +700,9 @@ def build(path):
         "3…) is created; it also goes to the headphones and has its own <b>IN</b> meter. Loops set "
         "to <b>ALL</b> record it straight away.",
         "<b>+ LOOP</b>: another loop track at the end, ready to record.",
+        "<b>+ LIVE</b>: a live input (VCV Rack through BlackHole, another synth…) played in the room "
+        "with its own <b>MOVEMENT</b>, not looped. Type the interface input and mono/stereo. Its row: "
+        "<b>ON AIR</b> / <b>MUTE</b> (at once), its input level, MOVEMENT and DELETE. It starts muted.",
     ])
     st.append(P("Templates: save, load and move to the next piece", "h2"))
     st += bullets([
