@@ -14,7 +14,7 @@ headphone monitoring and a one-click updater.
 
 ![E4L Live Panel](docs/live_panel_preview.png)
 
-> **Quick visual guide (PDF, 9 pages):** [`docs/E4L_Quick_Guide.pdf`](docs/E4L_Quick_Guide.pdf) ·
+> **Quick visual guide (PDF, 10 pages):** [`docs/E4L_Quick_Guide.pdf`](docs/E4L_Quick_Guide.pdf) ·
 > full user guide: [`docs/E4L_REAPER_Guide.pdf`](docs/E4L_REAPER_Guide.pdf). Both are also
 > installed in REAPER's resource folder › `Data/E4L` by the updater.
 

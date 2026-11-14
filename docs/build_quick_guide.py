@@ -316,6 +316,35 @@ st.append(P("Changing room or size takes a second or two (“building…”). Th
             "small"))
 st.append(PageBreak())
 
+# 7b ----------------------------------------------------------------- reverb and movement
+st.append(P("Reverb and movement", "h"))
+st.append(legend([
+    ("+", "<b>What it does</b>: puts the sounds <b>inside a room</b> (they no longer stick to the speakers), "
+          "gives <b>depth</b> (more reverb = farther; with <b>Distance</b> in MOVEMENT the coming and going "
+          "is much clearer) and, by contrast, helps to follow a moving sound."),
+    ("−", "<b>What it does not do</b>: the reverb does <b>not follow</b> the sound. Each track sends only "
+          "its non-directional signal, so the room answers the same whether the sound is in front or "
+          "behind. Only the direct sound moves."),
+    ("−", "<b>Too much reverb blurs the movement</b>: a loud tail (<b>Late</b>) washes out the position. "
+          "Moderate amounts show movement best."),
+], 267 * mm))
+st.append(Spacer(1, 4 * mm))
+st.append(P("Check it by ear (in the middle of the 4 speakers, or on the headphones)", "body"))
+st.append(Spacer(1, 2 * mm))
+st.append(steps([
+    "<b>A/B</b>: a short, percussive loop with <b>Slow turn</b>; switch <b>Send</b> between off and "
+    "−12 dB several times. Is the turn easier to follow?",
+    "<b>Solo the REVERB track</b>: while the loop turns the reverb stays still; moving "
+    "<b>Rotation</b> turns it.",
+    "<b>Depth</b>: a still sound, raise <b>Send</b> and <b>Distance</b>: farther. Lower Send, "
+    "closer: more present.",
+    "<b>Early vs Late</b>: Late −20 dB, Early 0 = room shape, position kept. Then the reverse: "
+    "the tail hides the movement.",
+]))
+st.append(Spacer(1, 5 * mm))
+st.append(note("<b>Starting point for clear movement</b>: Send −15 to −10 dB · Late −3 to −6 dB · Early 0 dB."))
+st.append(PageBreak())
+
 # 8 ------------------------------------------------------------------ record and export
 st.append(P("Record the session and export it", "h"))
 st.append(side(

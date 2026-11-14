@@ -766,6 +766,21 @@ def build(path):
         "Changing the room or the size rebuilds the reverb (a second or two: \"building...\"). "
         "It uses about 20 % of one CPU core; a shorter <b>Length</b> in the plug-in uses less.",
     ])
+    st.append(P("Reverb and movement", "h2"))
+    st += bullets([
+        "<b>What the reverb does:</b> it puts the sounds inside a room (they stop sticking to the "
+        "speakers and the space between them fills), gives <b>depth</b> (the more reverb compared with "
+        "the direct sound, the farther; together with <b>Distance</b> in MOVEMENT the coming and going is "
+        "much clearer) and, by contrast with the still room, helps to follow a moving sound.",
+        "<b>What it does not do:</b> it does not follow the sound. Each track sends only its "
+        "non-directional (W) signal, so the reflections are the same wherever the sound is; only the "
+        "direct sound moves. Too much reverb (a loud <b>Late</b> tail) blurs the position.",
+        "<b>Check it:</b> (1) A/B – a short percussive loop with <b>Slow turn</b>, Send off ↔ −12 dB; "
+        "(2) solo the <b>REVERB</b> track: it stays still while the loop turns, <b>Rotation</b> turns it; "
+        "(3) depth – a still sound, more Send and Distance = farther; (4) Late −20 dB with Early 0 dB "
+        "keeps the position, the reverse hides it.",
+        "<b>Starting point for clear movement:</b> Send −15 to −10 dB, Late −3 to −6 dB, Early 0 dB.",
+    ])
     st.append(P("Keyboard and MIDI control", "h2"))
     st += bullets([
         "<b>Every panel button is a REAPER action</b> you can bind to a MIDI controller: "

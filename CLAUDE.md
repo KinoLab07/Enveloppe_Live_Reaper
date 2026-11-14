@@ -64,7 +64,7 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
   `E4L - Update from GitHub.lua`, helpers.
 - `docs/build_guide.py` → `docs/E4L_REAPER_Guide.pdf` (reportlab, English). Rebuild after
   changing behaviour. `tools/render_panel_preview.py` → panel PNGs (drawn at 2x) used by the guides.
-- `docs/build_quick_guide.py` → `docs/E4L_Quick_Guide.pdf`: 9-page landscape visual guide (panel
+- `docs/build_quick_guide.py` → `docs/E4L_Quick_Guide.pdf`: 10-page landscape visual guide (p. 8 = reverb and movement: what it does / does not, how to check by ear) (panel
   crops with numbered red marks placed in white margins, step cards). The user asked for it
   "as simple as possible"; mark coordinates are panel pixels – re-check them when the panel
   layout changes, and rebuild it with the long guide.
