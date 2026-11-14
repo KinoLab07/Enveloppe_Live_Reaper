@@ -188,7 +188,9 @@ opening any plug-in.
 - **One row per loop:** state (empty, waiting, recording, playing, stopped, paused), length
   (1-32 bars), input (**ALL** / **IN n**), **REC**, **PLAY**, **PAUSE**, **OVERDUB**, **CLEAR**,
   **MOVEMENT** (movement editor) and the position inside the loop. Record, play and stop are
-  quantised to the next bar. **PLAY** starts the loop from its beginning; **PAUSE** silences it at
+  quantised to the next bar – or, with the toolbar's **REC: BAR / BEAT / NOW**, REC starts on
+  the next beat or **at once** (you sync it). Length **FREE**: REC starts, REC again (the button
+  reads END) closes the loop where you press it. **PLAY** starts the loop from its beginning; **PAUSE** silences it at
   once and, pressed again, continues it at once from the exact point where it was paused (like a
   tape: it shifts against the bars by the paused time; PLAY puts it back on the bars).
   Audio rows show where the file is: the bar fills over the file's whole length and the row says

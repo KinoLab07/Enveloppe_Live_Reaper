@@ -241,6 +241,22 @@ check("looper: after STOP, PLAY (here from bar 2) starts the loop from its begin
 o = run(LP, ramp, *EXACT, "s1=1", "s2=1", "ps@300032=2", "ps@340000=1")
 check("looper: after PAUSE, PLAY continues where it was",
       np.allclose(o[343000:380000, 0], ramp[111000:148000, 0], atol=1e-4))
+# Record Start: at once / next beat; Free length (REC again closes the loop)
+# (events apply at the start of the 256-sample block: REC at 30000 -> 29952)
+o = run(LP, ramp, *EXACT, "s1=0", "s18=2", "s2@30000=1")
+check("looper: Record Start = At once: records from the moment REC is pressed (1 bar), then loops",
+      np.allclose(o[29952 + 96000 + 1000:29952 + 96000 + 90000, 0], ramp[29952 + 1000:29952 + 90000, 0])
+      and np.abs(o[:29952 + 96000 - 100]).max() == 0)
+o = run(LP, ramp, *EXACT, "s1=0", "s18=1", "s2@30000=1")
+check("looper: Record Start = Next beat: starts on the next beat (48000), 1 bar",
+      np.allclose(o[48000 + 96000 + 1000:48000 + 96000 + 90000, 0], ramp[48000 + 1000:48000 + 90000, 0]))
+o = run(LP, ramp, *EXACT, "s1=6", "s18=2", "s2@30000=1", "s2@100000=0")
+L_free = 99840 - 29952
+check("looper: Free length: REC again closes the loop (%d samples) and it repeats with that length" % L_free,
+      np.allclose(o[99840 + 1000:99840 + 60000, 0], ramp[29952 + 1000:29952 + 60000, 0])
+      and np.allclose(o[99840 + L_free + 1000:99840 + L_free + 60000, 0], ramp[29952 + 1000:29952 + 60000, 0])
+      and np.abs(o[30500:99000]).max() == 0)
+
 # per-loop PAUSE (2-bar loop recorded in bars 1-2, playing from 192000): paused at 250112,
 # 58112 samples into the loop; PAUSE off at 300032 -> continues at once from that exact point
 o = run(LP, ramp, *EXACT, "s1=1", "s2=1", "s16@250112=1", "s16@300032=0")

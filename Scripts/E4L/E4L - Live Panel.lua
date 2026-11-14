@@ -42,7 +42,8 @@ end
 local function getp(tr, fx, p) if fx < 0 or not p or p < 0 then return 0 end return (reaper.TrackFX_GetParam(tr, fx, p)) end
 local function setp(tr, fx, p, v) if fx >= 0 and p and p >= 0 then reaper.TrackFX_SetParam(tr, fx, p, v) end end
 
-local LENGTHS = { 1, 2, 4, 8, 16, 32 }
+local LENGTHS = { 1, 2, 4, 8, 16, 32, "free" }      -- "free": REC again closes the loop
+local REC_STARTS = { "BAR", "BEAT", "NOW" }         -- the loopers' Record Start
 local SYNC_LABELS = { "1/4", "1/2", "1", "2", "3", "4", "6", "8", "16", "32", "64" }
 local STATE_NAME = { [0] = "EMPTY", "WAITING", "RECORDING", "PLAYING", "STOPPED", "PAUSED" }
 
@@ -129,6 +130,7 @@ local function scan()
         p = {
           len = find_prefix(ln, "Length"), rec = ln["Record"], play = ln["Play"],
           odub = ln["Overdub"], clear = ln["Clear"], pause = ln["Pause"], status = find_prefix(ln, "Status"),
+          rstart = ln["Record Start"],
           pend = find_prefix(ln, "Pending"), bars = ln["Loop Bars"], start = find_prefix(ln, "Loop Start"),
           qn = find_prefix(ln, "Loop Length"),
           az = pn["Azimuth"] or -1, cur_az = pn["Current Azimuth"] or -1, sp = pn["Azimuth Spread"] or -1, cur_sp = pn["Current Spread"] or -1,
@@ -370,9 +372,25 @@ local function status(t) status_text, status_time = t, reaper.time_precise() end
 
 ---------------------------------------------------------------------------------------
 -- toolbar actions
+-- REC start for every loop: BAR (next bar), BEAT (next beat) or NOW (at once, you sync it)
+local function set_rec_start(k)
+  E4L.cfg_set("rec_start", k)
+  for _, L in ipairs(loops) do
+    if L.kind == "loop" then setp(L.tr, L.lfx, L.p.rstart, k) end
+  end
+end
+
+local function act_rec_start()
+  local k = (math.floor(E4L.cfg_get("rec_start", 0)) + 1) % 3
+  set_rec_start(k)
+  status("REC starts " .. ({ "on the next bar", "on the next beat", "at once (you sync it)" })[k + 1] ..
+         " on every loop. Length FREE: REC again closes the loop.")
+end
+
 local function act_add_loop()
   reaper.Undo_BeginBlock()
   local tr = E4L.add_loop(E4L.cfg_get("stereo_pan", 0) == 1, E4L.cfg_get("lat_ms", E4L.latency_ms()))
+  E4L.set_param(tr, E4L.find_fx(tr, "E4L Looper"), "Record Start", math.floor(E4L.cfg_get("rec_start", 0)))
   reaper.Undo_EndBlock("E4L: + loop", -1)
   last_scan = -1
   status(E4L.track_name(tr) .. " added.")
@@ -586,6 +604,7 @@ local function draw_toolbar(W)
     { "SAVE TEMPLATE", 140, act_save_song }, { "LOAD TEMPLATE", 140, act_load_song },
     { "NEW TEMPLATE", 130, act_new_song },
     { sync_label(), 76, act_sync },
+    { "REC: " .. REC_STARTS[math.floor(E4L.cfg_get("rec_start", 0)) + 1], 96, act_rec_start },
   }
   local x = 8
   for _, it in ipairs(items) do
@@ -714,7 +733,8 @@ local function draw_rows(tp, x0, y0, W, H)
 
       local li = math.floor(getp(L.tr, L.lfx, L.p.len) + 0.5)
       local nl = LENGTHS[li + 1] or 4
-      if button(nl .. (nl == 1 and " bar" or " bars"), x0 + 212, y + 6, 74, bh, false) then
+      local free = nl == "free"
+      if button(free and "FREE" or (nl .. (nl == 1 and " bar" or " bars")), x0 + 212, y + 6, 74, bh, false) then
         setp(L.tr, L.lfx, L.p.len, (li + 1) % #LENGTHS)
       end
       -- input of the interface that feeds this loop (click to change)
@@ -724,7 +744,7 @@ local function draw_rows(tp, x0, y0, W, H)
         E4L.set_loop_input(L.tr, k); L.input = k
       end
 
-      if button("REC", XR, y + 6, 52, bh, st == 1 or st == 2, 1, 0.3, 0.3) then
+      if button((free and st == 2) and "END" or "REC", XR, y + 6, 52, bh, st == 1 or st == 2, 1, 0.3, 0.3) then
         setp(L.tr, L.lfx, L.p.rec, getp(L.tr, L.lfx, L.p.rec) > 0.5 and 0 or 1)
       end
       local play_on = getp(L.tr, L.lfx, L.p.play) > 0.5

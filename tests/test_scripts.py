@@ -233,7 +233,7 @@ names = lua.eval("function() local t = {} for i, tr in ipairs(MOCK.T) do t[i] = 
 name_list = lambda: list(names().values())
 TB = 80 + 10
 xs, x = [], 8
-for w in (80, 84, 84, 76, 140, 140, 130, 76):
+for w in (80, 84, 84, 76, 140, 140, 130, 76, 96):
     xs.append(x + 10); x += w + 6
 click(xs[0], TB)
 check("toolbar: + LOOP adds LOOP 13 before E4L Master",
@@ -421,6 +421,27 @@ check("● REC: both armed, record output latency compensated (mode 3), no maste
       and 1013 in list(lua.eval("MOCK_CMDS").values()))
 click(rx - 82 + 10, 36 + 10)
 check("● REC again: no second pair of tracks", name_list().count("REC 1-2 (speakers)") == 1)
+# REC: BAR / BEAT / NOW for every loop; length FREE; REC button reads END while recording free
+click(xs[8], TB)
+lp1 = tr_index("LOOP 1")
+check("toolbar: REC: BAR -> BEAT sets every looper's Record Start to Next beat",
+      param(lp1, 1, "Record Start") == 1 and param(tr_index("LOOP 13"), 1, "Record Start") == 1)
+click(xs[8], TB)
+check("toolbar: REC: BEAT -> NOW (at once)", param(lp1, 1, "Record Start") == 2)
+click(xs[8], TB)
+check("toolbar: REC: NOW -> BAR again", param(lp1, 1, "Record Start") == 0)
+rows = [x for x in name_list() if x.startswith(("LOOP ", "AUDIO ", "LIVE "))]
+i1 = rows.index("LOOP 1") + 1
+setp(lp1, 1, "Length (bars)", 5)
+click(8 + 212 + 10, row_y(i1, len(rows)))
+check("loop row: the length button goes on to FREE", param(lp1, 1, "Length (bars)") == 6)
+setp(lp1, 1, "-Status (0 empty 1 armed 2 rec 3 play 4 stop 5 pause)", 2)
+lua.execute("MOCK_TEXT = {}"); frame()
+check("loop row: recording a FREE loop, its REC button says END", "END" in lua.eval("status_text_for_test()"))
+setp(lp1, 1, "-Status (0 empty 1 armed 2 rec 3 play 4 stop 5 pause)", 3)
+click(8 + 212 + 10, row_y(i1, len(rows)))
+check("loop row: after FREE the length goes back to 1 bar", param(lp1, 1, "Length (bars)") == 0)
+
 # + LIVE: an input played live in the room, with its own movement (not looped)
 lua.execute("function reaper.GetUserInputs() return true, '3,2' end")
 click(xs[3], TB)

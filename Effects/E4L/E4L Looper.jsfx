@@ -9,7 +9,9 @@ desc: E4L Looper (bar-synced live looper)
 // REAPER timeline, then plays it back in sync with the project tempo. Put an E4L
 // panner after it to spatialise the loop.
 //
-//   REC      : waits for the next bar, records "Length" bars, then plays the loop.
+//   REC      : waits for the next bar (Record Start: or the next beat, or starts at once),
+//              records "Length" bars, then plays the loop. Length "Free": REC again closes the
+//              loop where you press it (its length is what you played).
 //              On a track that already has a loop, REC records a new one.
 //   PLAY     : starts the loop from its beginning on the next bar (or stops it on the next bar).
 //   PAUSE    : pauses the loop now; PAUSE again continues it at once from the exact point
@@ -21,7 +23,7 @@ desc: E4L Looper (bar-synced live looper)
 // REAPER must be playing: the loop follows the project position (bars and tempo).
 // Everything can be MIDI-learned (Param > Learn) or clicked in the plugin window.
 
-slider1:len_sel=2<0,5,1{1,2,4,8,16,32}>Length (bars)
+slider1:len_sel=2<0,6,1{1,2,4,8,16,32,Free (REC again closes it)}>Length (bars)
 slider2:rec_btn=0<0,1,1{Off,On}>Record
 slider3:play_btn=0<0,1,1{Off,On}>Play
 slider4:odub_btn=0<0,1,1{Off,On}>Overdub
@@ -40,6 +42,7 @@ slider14:xf_ms=50<1,170,1>Loop Seam Crossfade (ms)
 slider15:fade_ms=30<1,200,1>Start / Stop Fade (ms)
 slider16:pause_btn=0<0,1,1{Off,On}>Pause
 slider17:comp_mode=0<0,2,1{Auto (by pitch),Off,Full}>Seam Level Compensation
+slider18:rec_start=0<0,2,1{Next bar,Next beat,At once}>Record Start
 
 in_pin:Input L
 in_pin:Input R
@@ -82,6 +85,7 @@ err_msg = 0;
 p_rec = p_play = p_clear = p_pause = 0;   // previous button values (edge detection)
 
 function bars_from_sel(s) ( s == 0 ? 1 : s == 1 ? 2 : s == 2 ? 4 : s == 3 ? 8 : s == 4 ? 16 : 32; );
+
 
 function set_slider(idx, val) local(m)
 (
@@ -224,6 +228,37 @@ function rd_interp(p) local(i, f, l0, l1, l2, l3, r0, r1, r2, r3)
   oR = r1 + 0.5 * f * (r2 - r0 + f * (2 * r0 - 5 * r1 + 4 * r2 - r3 + f * (3 * (r1 - r2) + r3 - r0)));
 );
 
+// starts recording a new loop that begins at at_qn (a bar line, a beat, or right now)
+function start_rec(at_qn)
+(
+  rec_free = len_sel >= 6;
+  rec_free ? (
+    loop_len = MAXSAMP - TAILMAX;              // provisional: REC again closes it
+    loop_qn = loop_len * qn_per_spl;
+  ) : (
+    loop_qn = bars_from_sel(len_sel) * bar_qn;
+    loop_len = floor(loop_qn / qn_per_spl + 0.5);
+  );
+  loop_len > MAXSAMP ? (
+    // too long for the available memory at this tempo
+    err_msg = 1; set_slider(2, 0); p_rec = 0;
+  ) : (
+    state = ST_REC; recording = 1; rec_count = 0;
+    rec_start_qn = at_qn;
+    has_loop = 0;            // the previous loop is replaced
+    job = 0; pend_cl = 0; nx = 0;
+    tail_n = min(TAILMAX, MAXSAMP - loop_len);
+  );
+);
+
+// the seam of the first pass, once the whole loop has been written
+function seam1() local(n_new)
+(
+  n_new = min(min(floor(srate * xf_ms / 1000), XF_MAX), floor(loop_len / 4));
+  seam_into(XF1, loop_len, n_new);
+  xfb = XF1; nx = n_new;
+);
+
 @slider
 gain = 10 ^ (vol_db / 20);
 
@@ -231,6 +266,7 @@ gain = 10 ^ (vol_db / 20);
 // ---------- buttons (UI clicks, automation, MIDI learn): react to changes ----------
 rec_btn && !p_rec && state != ST_REC ? ( armed = 1; err_msg = 0; );
 !rec_btn && p_rec && armed ? ( armed = 0; gmem[0] = -1; );
+!rec_btn && p_rec && state == ST_REC && rec_free ? close_req = 1;
 clear_btn && !p_clear ? ( do_clear(); set_slider(5, 0); );
 // PLAY: from the beginning on the next bar (also from a pause)
 play_btn && !p_play && has_loop && (state == ST_STOP || state == ST_PAUSE) ? (
@@ -260,11 +296,11 @@ v = armed ? 1 : state;
 v != st_out ? ( st_out = v; sliderchange(2 ^ 8); );
 v = pend_play ? 1 : pend_stop ? 2 : pend_resume ? 3 : 0;
 v != pend_out ? ( pend_out = v; sliderchange(2 ^ 9); );
-v = state == ST_REC ? bars_from_sel(len_sel) : has_loop && bar_qn > 0 ? floor(loop_qn / bar_qn + 0.5) : 0;
+v = state == ST_REC ? (rec_free ? 0 : bars_from_sel(len_sel)) : has_loop && bar_qn > 0 ? floor(loop_qn / bar_qn + 0.5) : 0;
 v != bars_out ? ( bars_out = v; sliderchange(2 ^ 10); );
 v = state == ST_REC ? rec_start_qn : start_qn;
 v != start_out ? ( start_out = v; sliderchange(2 ^ 11); );
-v = state == ST_REC ? bars_from_sel(len_sel) * bar_qn : loop_qn;
+v = state == ST_REC ? (rec_free ? max(0, beat_position - rec_start_qn) : bars_from_sel(len_sel) * bar_qn) : loop_qn;
 v != qn_out ? ( qn_out = v; sliderchange(2 ^ 12); );
 
 job ? seam_job_step();
@@ -280,9 +316,9 @@ playing_now && !(prev_ps & 1) && prev_ps != 2 && prev_ps != 6 && has_loop && sta
   start_qn = floor(b / bar_qn + 0.0000001) * bar_qn;
 );
 prev_ps = play_state;
-!playing_now ? ( last_bar = -1; env = 0; );
+!playing_now ? ( last_bar = -1; last_beat = -1; env = 0; );
 // armed: tell "E4L Sync Out" on which bar line the recording will start (and when we said it)
-armed && playing_now ? ( gmem[0] = ceil((b - 0.5 * qn_per_spl) / bar_qn - 0.0000001) * bar_qn; gmem[1] = b; );
+armed && playing_now && rec_start == 0 ? ( gmem[0] = ceil((b - 0.5 * qn_per_spl) / bar_qn - 0.0000001) * bar_qn; gmem[1] = b; );
 env_step = 1 / max(1, srate * fade_ms / 1000);
 
 @sample
@@ -295,24 +331,25 @@ playing_now ? (
   at_boundary = cur_bar != last_bar && (last_bar >= 0 || (b - cur_bar * bar_qn) < 2 * qn_per_spl);
   last_bar = cur_bar;
 
+  beat_qn = 4 / max(ts_denom, 1);
+  cur_beat = floor(b / beat_qn + 0.0000001);
+  at_beat = cur_beat != last_beat && (last_beat >= 0 || (b - cur_beat * beat_qn) < 2 * qn_per_spl);
+  last_beat = cur_beat;
+  armed ? (
+    rec_start == 2 ? ( armed = 0; start_rec(b); ) :
+    rec_start == 1 && at_beat ? ( armed = 0; start_rec(cur_beat * beat_qn); ) :
+    rec_start == 0 && at_boundary ? ( armed = 0; start_rec(cur_bar * bar_qn); );
+  );
+  // a free loop: REC again closes it here (or the memory is full)
+  state == ST_REC && rec_free && (close_req || rec_count >= MAXSAMP - 2 * TAILMAX) ? (
+    close_req = 0; rec_free = 0;
+    loop_qn = max(b - rec_start_qn, qn_per_spl * 64);
+    loop_len = floor(loop_qn / qn_per_spl + 0.5);
+    tail_n = min(TAILMAX, MAXSAMP - loop_len);
+    rec_count >= loop_len ? seam1();
+    set_slider(2, 0); p_rec = 0;
+  );
   at_boundary ? (
-    armed ? (
-      armed = 0;
-      bars = bars_from_sel(len_sel);
-      loop_qn = bars * bar_qn;
-      loop_len = floor(loop_qn / qn_per_spl + 0.5);
-      loop_len > MAXSAMP ? (
-        // too long for the available memory at this tempo
-        err_msg = 1; set_slider(2, 0); p_rec = 0;
-      ) : (
-        new_start = cur_bar * bar_qn;
-        state = ST_REC; recording = 1; rec_count = 0;
-        rec_start_qn = new_start;
-        has_loop = 0;            // the previous loop is replaced
-        job = 0; pend_cl = 0; nx = 0;
-        tail_n = min(TAILMAX, MAXSAMP - loop_len);
-      );
-    );
     pend_play ? (                     // from the beginning of the loop
       state = ST_PLAY; pend_play = 0; start_qn = cur_bar * bar_qn;
     );
@@ -332,13 +369,9 @@ playing_now ? (
       rec_count < loop_len + tail_n ? (
         BUF[2*rec_count] = inL; BUF[2*rec_count+1] = inR;
         rec_count += 1;
-        rec_count == loop_len ? (           // the loop is complete: seam of the first pass
-          n_new = min(min(floor(srate * xf_ms / 1000), XF_MAX), floor(loop_len / 4));
-          seam_into(XF1, loop_len, n_new);
-          xfb = XF1; nx = n_new;
-        );
+        rec_count == loop_len && !rec_free ? seam1();   // the loop is complete: seam of the first pass
       );
-      rec_count >= loop_len + tail_n ? (    // and a little more: look for the phase match
+      rec_count >= loop_len + tail_n && !rec_free ? (    // and a little more: look for the phase match
         recording = 0;
         CM = min(2048, min(XF_MAX, floor(loop_len / 4)));
         job = 1; jd = -tail_n; best_sc = -10; best_d = 0; best_r = 0;
@@ -412,13 +445,13 @@ state == ST_REC   ? ( gfx_set(1, 0.25, 0.25, 1); lbl = "REC"; );
 state == ST_PLAY  ? ( gfx_set(0.3, 0.9, 0.4, 1); lbl = odub_btn ? "PLAY + OVERDUB" : "PLAY"; );
 state == ST_STOP  ? ( gfx_set(0.6, 0.75, 0.9, 1); lbl = "STOPPED"; );
 state == ST_PAUSE ? ( gfx_set(1, 0.8, 0.3, 1); lbl = pend_resume ? "PAUSED - continues next bar" : "PAUSED"; );
-armed ? ( gfx_set(1, 0.6, 0.2, 1); lbl = "ARMED - next bar"; );
+armed ? ( gfx_set(1, 0.6, 0.2, 1); lbl = rec_start == 0 ? "ARMED - next bar" : rec_start == 1 ? "ARMED - next beat" : "ARMED"; );
 gfx_x = 8; gfx_y = 26; gfx_drawstr(lbl);
 
 gfx_setfont(1, "Arial", 13);
 gfx_set(0.7, 0.7, 0.75, 1);
 gfx_x = 8; gfx_y = 60;
-gfx_printf("Length %d bars", bars_from_sel(len_sel));
+len_sel >= 6 ? gfx_printf("Length free (REC again closes it)") : gfx_printf("Length %d bars", bars_from_sel(len_sel));
 pend_play ? gfx_drawstr("   (starts next bar)");
 pend_stop ? gfx_drawstr("   (stops next bar)");
 !(play_state & 1) ? ( gfx_set(1, 0.7, 0.3, 1); gfx_x = 8; gfx_y = 76;
@@ -436,7 +469,7 @@ gfx_set(0.2, 0.2, 0.24, 1); gfx_rect(px, py, pw, ph_);
   state == ST_REC ? gfx_set(1, 0.25, 0.25, 0.9) : gfx_set(0.3, 0.9, 0.4, 0.9);
   gfx_rect(px, py, pw * pp, ph_);
 );
-nb = bars_from_sel(len_sel); has_loop && bar_qn > 0 ? nb = floor(loop_qn / bar_qn + 0.5);
+nb = len_sel >= 6 ? 1 : bars_from_sel(len_sel); has_loop && bar_qn > 0 ? nb = max(1, floor(loop_qn / bar_qn + 0.5));
 gfx_set(0.5, 0.5, 0.55, 1);
 k = 1; loop(nb - 1, gfx_line(px + pw * k / nb, py, px + pw * k / nb, py + ph_); k += 1; );
 

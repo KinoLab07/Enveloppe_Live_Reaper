@@ -64,6 +64,10 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
 - **Master** (panel header): STOP / space = stop and back to bar 1 (loops and audio files start
   from their beginning); PAUSE = freeze, PLAY continues where it was. Movements (LFOs) freeze on
   pause and continue; after STOP they start from 0 (panners use `ext_noinit`).
+- **REC start** (looper slider 18 "Record Start": Next bar / Next beat / At once; panel toolbar
+  "REC: BAR/BEAT/NOW" sets all loopers, stored in cfg `rec_start`). Length index 6 = **Free**:
+  REC again closes the loop (provisional loop_len = MAXSAMP - TAILMAX until closed). Sync Out's
+  reset-on-REC only works with Next bar.
 - **Loop row**: PLAY = from the loop's beginning on the next bar (or stop on the next bar);
   PAUSE = silent at once, PAUSE again = continue **at once from the exact point** (tape-like,
   moves off the bar grid; PLAY puts it back). User chose this explicitly.
