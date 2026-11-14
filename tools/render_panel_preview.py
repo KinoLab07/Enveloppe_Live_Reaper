@@ -31,6 +31,12 @@ q.fx[1].p["-Current Azimuth"] = 20; q.fx[1].p["-Current Spread"] = 90
 local lv = E.add_live(5, true)
 lv.vals.B_MUTE = 0
 lv.fx[1].p["-Current Azimuth"] = -100; lv.fx[1].p["-Current Spread"] = 30
+local rv = E.add_reverb()
+rv.fx[1].p["Size (%%)"] = 100; rv.fx[1].p["Rotation (deg, clockwise)"] = 30
+rv.fx[1].p["Late Reverb (dB)"] = -3
+MOCK_FILES = { "York Minster.wav" }
+E.set_reverb_amount(MOCK.T[3], 0.5)
+reaper.SetOnlyTrackSelected(MOCK.T[3])
 """ % os.path.join(ROOT, "Scripts", "E4L", "e4l_lib.lua"))
 lua.execute('''
 local T = MOCK.T

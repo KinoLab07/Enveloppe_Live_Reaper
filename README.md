@@ -49,6 +49,7 @@ headphone monitoring and a one-click updater.
 | **E4L Master Bus** | E4L Master Bus (decoders) | Binaural (3rd order, IRCAM HRIRs), stereo, quad, octo, 5.1, 7.1, 5.1.2, 7.1.4, ambiX pass-through, optional sub output |
 | **E4L Looper** | *(new)* | Bar-synced live looper: record / play / overdub / clear, quantised to the bar |
 | **E4L Sub Out** | *(new)* | On REAPER's master: sends the sum of everything to a subwoofer output |
+| **E4L B-Format Reverb** | E4L B-Format Convolution Reverb | Shared room reverb: a first-order (B-format) impulse response of a real room, with size, rotation, early / late and level |
 
 All of them work in **3rd order ambisonics, 16 channels, ambiX (ACN / SN3D)**, the same format
 as E4L and compatible with the IEM Plug-in Suite, SPARTA and others.
@@ -68,7 +69,7 @@ as E4L and compatible with the IEM Plug-in Suite, SPARTA and others.
 ### Not ported (yet)
 
 Spinner, HOA Transform, Multi-Delay, Spatial Slicer, Brownian Delay, Delay Boids, AuraVerb,
-B-Format convolution reverb, the LED / OSC devices. Things REAPER already does (routing between
+the LED / OSC devices. Things REAPER already does (routing between
 tracks, recording, export, metering) are done with REAPER itself.
 
 ---
@@ -206,6 +207,11 @@ opening any plug-in.
   panners) can also be learnt directly (Param › Learn).
 - **Room view**, seen from above: the four speakers and one dot per loop, moving live with its
   animations. Drag a dot to move that loop.
+- **REVERB console** (under the room view): **+ REVERB** adds one `REVERB` track (E4L B-Format
+  Reverb) shared by every track, fed by sends and going to the E4L Master. Then: **ON / OFF**,
+  the **room** menu (the impulse responses in `Data/E4L/ir`), **Size**, **Rotation**, **Early**,
+  **Late**, **Level**, and the **Send** of the selected track (click a row's name to select it;
+  "off" at the left end). The send takes the track's omni (W) signal, post-fader.
 - **Keys:** space = play/stop, 1-9 = record on loop 1-9, 0 = stop all loops, Esc = close the editor.
 
 ### Movement editor
@@ -295,6 +301,16 @@ state for the Live Panel.
 low-pass. Binaural uses the 25 IRCAM Listen HRIRs shipped with E4L, folded into 16 FIR filters
 (`tools/make_binaural_filters.py`); latency 512 samples (1024 at 88.2/96 kHz), compensated by REAPER.
 
+**E4L B-Format Reverb:** convolution with a first-order ambisonic impulse response
+(FuMa W X Y Z or AmbiX), on a 16-channel track fed with mono sends (channel 1 = W of each
+track); it outputs first-order ambiX, decoded by the Master Bus like everything else, so the
+reflections come from around the room. Room (any 4-channel B-format WAV dropped into
+`Data/E4L/ir` appears in the menu), Size 50-150 % (resamples the response: smaller / larger
+room), Rotation / Pitch / Roll of the reflections, Early Reflections and Late Reverb levels
+(split at about 170 ms), Length (shorter = less CPU), Low / High Cut, Reverb Level. Partitioned
+FFT convolution, 256 samples of latency, about 20 % of one core for a 10 s room; the response
+is rebuilt (a second or two, "building…") after a change of room, size or length.
+
 **E4L Sub Out** (on the master): sub output channel, which master channels to sum (1-4 quad, 1-2,
 1-6), level, optional 24 dB/oct low-pass, mute.
 
@@ -361,4 +377,6 @@ derivative work of E4L.
 - Envelop for Live © Envelop (envelop.us), Mark C. Slee and contributors. If E4L is useful to you,
   consider [supporting Envelop](https://envelop.us/memberships).
 - HRTFs: IRCAM Listen database (subject 1052), as shipped with E4L.
+- Reverb impulse response "York Minster": OpenAIR, University of York, CC BY 4.0, as shipped
+  with E4L (see `Data/E4L/IR_CREDITS.txt`).
 - Encoding and decoding modelled on the ICST Ambisonics tools (ZHdK).

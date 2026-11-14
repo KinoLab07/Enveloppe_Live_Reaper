@@ -183,7 +183,7 @@ lua.execute("MOCK_KEY = 50"); frame()
 check("panel: key 2 = record on loop 2", param(3, 1, "Record") == 1)
 
 import math
-room = min(H - TOP - 6, int(W * 0.28)); rx, ry = W - room - 8, TOP
+room = min(H - TOP - 206, int(W * 0.28)); rx, ry = W - room - 8, TOP
 cx, cy, R = rx + room / 2, ry + room / 2, room / 2 - 22
 setp(2, 2, "-Current Azimuth", -45)
 dx, dy = cx + math.sin(math.radians(-45)) * R * 0.78, cy - math.cos(math.radians(-45)) * R * 0.78
@@ -493,6 +493,42 @@ check("live row: MOVEMENT opens its movement editor (same controls as a loop)",
 lua.execute("MOCK_KEY = 27"); frame()
 click(BX + 176 + 10, row_y(il, len(rows))); click(BX + 176 + 10, row_y(il, len(rows)))
 check("live row: DELETE (twice) removes it", "LIVE 1" not in name_list())
+# REVERB console under the room view
+RM = min(H - TOP - 206, int(W * 0.28)); RX, RY = W - RM - 8, TOP + RM + 8
+CW = (RM - 30) // 2; C1, C2 = RX + 10, RX + 20 + CW
+lua.execute("MOCK_TEXT = {}"); frame()
+check("reverb: without a REVERB track the console offers + REVERB",
+      "+ REVERB" in lua.eval("status_text_for_test()") and "REVERB" not in name_list())
+click(RX + 20, RY + 40)
+rv = tr_index("REVERB")
+rval = lambda k: lua.eval("MOCK.T[%d].vals.%s" % (rv, k))
+check("reverb: + REVERB adds REVERB (E4L B-Format Reverb, 16 ch, no master send, to E4L Master)",
+      fxfile(rv, 1) == "E4L B-Format Reverb.jsfx" and rval("I_NCHAN") == 16 and rval("B_MAINSEND") == 0
+      and lsend(rv) == ("E4L Master", (16 // 2) << 10))
+lua.execute('MOCK_FILES = { "Great Hall.wav", "York Minster.wav" }; function gfx.showmenu() return 1 end')
+click(RX + 140, RY + 16)
+check("reverb: the room menu sets the Room slider (rooms sorted by name)", param(rv, 1, "Room (B-format IR)") == 0)
+lua.execute("function gfx.showmenu() return 0 end")
+click(C1 + CW - 1, RY + 60 + 5)
+check("reverb: Size slider (right end = 150%)", param(rv, 1, "Size (%)") >= 149)
+click(C2 + CW // 2, RY + 60 + 5)
+check("reverb: Rotation slider (middle = 0)", abs(param(rv, 1, "Rotation (deg, clockwise)")) <= 2)
+click(C2 + 1, RY + 100 + 5)
+check("reverb: Late slider (left = -30 dB)", param(rv, 1, "Late Reverb (dB)") < -29)
+rows = [x for x in name_list() if x.startswith(("LOOP ", "AUDIO ", "LIVE "))]
+click(8 + 30, row_y(1, len(rows)))
+lua.execute("MOCK_TEXT = {}"); frame()
+check("reverb: clicking a row's name shows its Send", "Send LOOP 1" in lua.eval("status_text_for_test()"))
+click(C2 + CW - 1, RY + 140 + 5)
+snd = lua.eval("""function(i) for _, s in ipairs(MOCK.T[i].sends[0]) do
+  if s.dst.name == "REVERB" then return s.vals.I_SRCCHAN, s.vals.I_DSTCHAN, s.vals.D_VOL end end end""")
+src, dst, vol = snd(tr_index("LOOP 1"))
+check("reverb: Send of LOOP 1 = mono W (channel 1) to the reverb, about +6 dB at the right end",
+      src == 1024 and dst == 1024 and 10 ** (5 / 20) < vol <= 10 ** (6 / 20))
+click(RX + 80, RY + 16)
+check("reverb: OFF bypasses the reverb", lua.eval("MOCK.T[%d].fx[1].enabled" % rv) is False)
+click(RX + 80, RY + 16)
+
 lua.execute("MOCK_INPUT = nil; function reaper.GetUserInputs(t, n, cap, def) return true, def end")
 click(xs[6], TB)
 check("toolbar: NEW TEMPLATE = new project with the live template (8 loops), panel not duplicated",

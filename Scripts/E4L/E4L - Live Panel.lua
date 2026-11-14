@@ -1088,6 +1088,72 @@ local function draw_room(x, y, size)
 end
 
 ---------------------------------------------------------------------------------------
+-- REVERB console (under the room view): the shared B-format reverb and the send of the
+-- selected track (click a row's name to select it)
+local function db_to_vol(db) return db <= -59.9 and 0 or 10 ^ (db / 20) end
+local function vol_to_db(v) return v > 0 and math.max(-60, 20 * math.log(v, 10)) or -60 end
+local function db_text(db) return db <= -59.9 and "off" or string.format("%+.1f dB", db) end
+
+local function draw_reverb(x, y, w, h)
+  rgb(0.11, 0.11, 0.14); rect(x, y, w, h)
+  gfx.setfont(1)
+  local rv = E4L.find_reverb()
+  if not rv then
+    rgb(0.45, 0.75, 1); text("REVERB", x + 8, y + 8)
+    if button("+ REVERB", x + 8, y + 32, 120, 26, false) then
+      reaper.Undo_BeginBlock(); E4L.add_reverb(); reaper.Undo_EndBlock("E4L: + reverb", -1)
+      last_scan = -1
+      status("REVERB added. Click a track's name, then set its Send.")
+    end
+    rgb(0.6, 0.6, 0.65); text("One room reverb (B-format), shared by all the tracks.", x + 8, y + 66)
+    return
+  end
+  local fx = E4L.find_fx(rv, "E4L B-Format Reverb")
+  if fx < 0 then return end
+  local pn = param_names(rv, fx)
+  local function g(n) return getp(rv, fx, pn[n]) end
+  local function s(n, v) setp(rv, fx, pn[n], v) end
+  local v
+  local on = reaper.TrackFX_GetEnabled(rv, fx)
+  rgb(0.45, 0.75, 1); text("REVERB", x + 8, y + 12)
+  if button(on and "ON" or "OFF", x + 74, y + 8, 50, 24, on, 0.35, 0.95, 0.5) then reaper.TrackFX_SetEnabled(rv, fx, not on) end
+  local rooms = E4L.reverb_rooms()
+  local ri = math.floor(g("Room (B-format IR)") + 0.5)
+  local rname = (rooms[ri + 1] or "?"):gsub("%.[Ww][Aa][Vv]$", "")
+  if getp(rv, fx, find_prefix(pn, "Status")) > 0.5 then rname = rname .. " (building...)" end
+  if button(rname .. "  ▾", x + 130, y + 8, w - 138, 24, false) and #rooms > 0 then
+    gfx.x, gfx.y = x + 130, y + 32
+    local items = {}
+    for k, f in ipairs(rooms) do items[k] = (k == ri + 1 and "!" or "") .. f:gsub("%.[Ww][Aa][Vv]$", "") end
+    local m = gfx.showmenu(table.concat(items, "|"))
+    if m > 0 then s("Room (B-format IR)", m - 1) end
+  end
+  local cw = math.floor((w - 30) / 2)
+  local c1, c2, yy = x + 10, x + 20 + cw, y + 60
+  v = hslider("rv_size", c1, yy, cw, 10, g("Size (%)"), 50, 150, "Size", math.floor(g("Size (%)") + 0.5) .. "%")
+  if v then s("Size (%)", math.floor(v + 0.5)) end
+  v = hslider("rv_rot", c2, yy, cw, 10, g("Rotation (deg, clockwise)"), -180, 180, "Rotation", math.floor(g("Rotation (deg, clockwise)") + 0.5) .. "°")
+  if v then s("Rotation (deg, clockwise)", math.floor(v + 0.5)) end
+  yy = yy + 40
+  v = hslider("rv_early", c1, yy, cw, 10, g("Early Reflections (dB)"), -30, 6, "Early", db_text(g("Early Reflections (dB)")))
+  if v then s("Early Reflections (dB)", math.floor(v * 10 + 0.5) / 10) end
+  v = hslider("rv_late", c2, yy, cw, 10, g("Late Reverb (dB)"), -30, 6, "Late", db_text(g("Late Reverb (dB)")))
+  if v then s("Late Reverb (dB)", math.floor(v * 10 + 0.5) / 10) end
+  yy = yy + 40
+  v = hslider("rv_level", c1, yy, cw, 10, g("Reverb Level (dB)"), -30, 6, "Level", db_text(g("Reverb Level (dB)")))
+  if v then s("Reverb Level (dB)", math.floor(v * 10 + 0.5) / 10) end
+  local sel
+  for _, L in ipairs(loops) do if reaper.IsTrackSelected(L.tr) then sel = L break end end
+  if sel then
+    local db = vol_to_db(E4L.reverb_amount(sel.tr))
+    v = hslider("rv_send", c2, yy, cw, 10, db, -60, 6, "Send " .. sel.name, db_text(db))
+    if v then E4L.set_reverb_amount(sel.tr, db_to_vol(v)) end
+  else
+    rgb(0.6, 0.6, 0.65); text("Send: click a track's name", c2, yy - 17)
+  end
+end
+
+---------------------------------------------------------------------------------------
 local function keyboard(c)
   if c == 32 then play_stop() end                                        -- space
   if c >= 49 and c <= 57 then                                            -- 1-9: record
@@ -1178,12 +1244,18 @@ local function main()
   check_dropped_files()
   check_restart()
   apply_pending(tp)
-  local room = math.max(0, math.min(H - TOP - 6, math.floor(W * 0.28)))
+  -- the room view on the right, the REVERB console under it (the room shrinks to leave it 200 px)
+  local room = math.max(0, math.min(H - TOP - 206, math.floor(W * 0.28)))
+  if room < 140 then room = math.max(0, math.min(H - TOP - 6, math.floor(W * 0.28))) end
   if W < 900 then room = 0 end
   local lw = W - room - 24
   if editing and not loops[editing] then editing = nil end
   if editing then draw_editor(8, TOP, lw, H - TOP - 8) else draw_rows(tp, 8, TOP, lw, H) end
-  if room > 120 then draw_room(W - room - 8, TOP, room) end
+  if room > 120 then
+    draw_room(W - room - 8, TOP, room)
+    local ry = TOP + room + 8
+    if H - ry > 150 then draw_reverb(W - room - 8, ry, room, H - ry - 8) end
+  end
   reaper.SetExtState(EXT, "alive", tostring(reaper.time_precise()), false)
 
   mouse_was_down = mouse_down

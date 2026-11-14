@@ -307,6 +307,62 @@ function E.add_live(in_ch, stereo)
   return tr
 end
 
+-- REVERB: one shared "E4L B-Format Reverb" (16 ch, no master send, to E4L Master). Each
+-- track sends its channel 1 (W, the omnidirectional part of its ambisonic mix) to it; the
+-- send's volume is how much reverb that track gets.
+function E.find_reverb() return E.find_track("REVERB") end
+
+function E.add_reverb()
+  local tr = E.find_reverb()
+  if tr then return tr end
+  tr = E.new_track("REVERB", before_master())
+  reaper.SetMediaTrackInfo_Value(tr, "I_NCHAN", E.NCH)
+  reaper.SetMediaTrackInfo_Value(tr, "B_MAINSEND", 0)
+  E.add_fx(tr, "E4L B-Format Reverb.jsfx", "E4L B-Format Reverb (shared convolution reverb, first-order ambisonics)")
+  local m = E.find_track("E4L Master")
+  if m then E.add_send(tr, m, E.NCH, 0) end
+  return tr
+end
+
+-- the send of `tr` to the reverb (created at -inf the first time if create), or -1
+function E.reverb_send(tr, create)
+  local rv = E.find_reverb()
+  if not rv then return -1 end
+  local s = E.find_send(tr, rv)
+  if s < 0 and create then
+    s = reaper.CreateTrackSend(tr, rv)
+    reaper.SetTrackSendInfo_Value(tr, 0, s, "I_SRCCHAN", 1024)      -- mono: channel 1 (W)
+    reaper.SetTrackSendInfo_Value(tr, 0, s, "I_DSTCHAN", 1024)
+    reaper.SetTrackSendInfo_Value(tr, 0, s, "I_SENDMODE", 0)        -- post-fader: follows mute / volume
+    reaper.SetTrackSendInfo_Value(tr, 0, s, "D_VOL", 0)
+  end
+  return s
+end
+
+function E.reverb_amount(tr)            -- send volume (1 = 0 dB), 0 if none
+  local s = E.reverb_send(tr, false)
+  return s >= 0 and reaper.GetTrackSendInfo_Value(tr, 0, s, "D_VOL") or 0
+end
+
+function E.set_reverb_amount(tr, vol)
+  local s = E.reverb_send(tr, true)
+  if s >= 0 then reaper.SetTrackSendInfo_Value(tr, 0, s, "D_VOL", vol) end
+end
+
+-- the rooms (B-format IR files) the reverb offers, in the order of its Room menu
+function E.reverb_rooms()
+  local d = reaper.GetResourcePath() .. "/Data/E4L/ir"
+  local t, i = {}, 0
+  while true do
+    local f = reaper.EnumerateFiles(d, i)
+    if not f then break end
+    if f:lower():match("%.wav$") then t[#t + 1] = f end
+    i = i + 1
+  end
+  table.sort(t, function(a, b) return a:lower() < b:lower() end)
+  return t
+end
+
 -- the input of a LIVE track as text ("3" or "3-4"), or nil if the track is not a LIVE track
 function E.live_input(tr)
   local _, v = reaper.GetSetMediaTrackInfo_String(tr, "P_EXT:E4L_live", "", false)

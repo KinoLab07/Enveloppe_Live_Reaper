@@ -295,6 +295,7 @@ def build(path):
         ["E4L Multi-Panner", "Up to 16 channels of one track."],
         ["<b>E4L Looper</b>", "Bar-synced live looper (record, play, overdub, clear)."],
         ["<b>E4L Sub Out</b>", "On REAPER's master: sends everything to the subwoofer output."],
+        ["<b>E4L B-Format Reverb</b>", "Shared room reverb (impulse response of a real room, in B-format)."],
         ["<b>E4L - New live project</b>", "Script: new project with the whole live set-up and the panel."],
         ["<b>E4L - Live Panel</b>", "Script: one window to play the loops and move them."],
         ["<b>E4L - Update from GitHub</b>", "Script: installs the latest version."],
@@ -675,7 +676,10 @@ def build(path):
         ["<b>PAUSE</b>", "Silences the loop at once. Press it again: it continues at once from the exact "
                          "point where it was paused, like a tape (it moves against the bars by the time it "
                          "was paused). PLAY puts it back on the bars, from its beginning."],
-        ["<b>OVERDUB</b>", "While on, what you play is added on top of the loop."],
+        ["<b>OVERDUB</b>", "While the loop is <b>playing</b>: press OVERDUB (it lights orange), play, "
+         "press it again. It starts and ends <b>at once</b> (not on the bar); what you play is added on top "
+         "of the loop, at its place, every pass while it is on. Layers add up (watch the level); there is "
+         "no undo of a layer: CLEAR erases the whole loop. The new layer shares the loop's MOVEMENT."],
         ["<b>CLEAR</b>", "Erases the loop."],
         ["<b>ALL / IN n</b>", "Which interface input the loop records: <b>ALL</b> (every input, the "
          "default) or only <b>IN 1</b>, <b>IN 2</b>… Click to change."],
@@ -744,6 +748,20 @@ def build(path):
          "<b>Whirl</b>, <b>Front</b> / <b>Right</b> / <b>Back</b> / <b>Left swing</b>, <b>Wander</b>, "
          "<b>Wander 1 bar</b>."],
     ], [45, 125]))
+    st.append(P("Room reverb (REVERB console)", "h2"))
+    st += bullets([
+        "Under the room view. <b>+ REVERB</b> adds one <b>REVERB</b> track (E4L B-Format Reverb), shared "
+        "by every track: each track sends to it, it goes to the E4L Master, so the reflections come "
+        "from all around the room.",
+        "<b>Click a row's name</b> to select that track; the console's <b>Send</b> slider is its amount "
+        "of reverb (\"off\" at the left end).",
+        "<b>ON / OFF</b>, the <b>room</b> menu (York Minster is included; any 4-channel B-format WAV "
+        "copied to Data/E4L/ir appears there), <b>Size</b> (smaller / larger room), <b>Rotation</b> "
+        "(turns the reflections), <b>Early</b> (first reflections) and <b>Late</b> (the tail), "
+        "<b>Level</b>.",
+        "Changing the room or the size rebuilds the reverb (a second or two: \"building...\"). "
+        "It uses about 20 % of one CPU core; a shorter <b>Length</b> in the plug-in uses less.",
+    ])
     st.append(P("Keyboard and MIDI control", "h2"))
     st += bullets([
         "<b>Every panel button is a REAPER action</b> you can bind to a MIDI controller: "
@@ -831,6 +849,18 @@ def build(path):
          "Direction, Depth"],
         ["Spread LFOs (Stereo/Quad)", "On/Off, Mode (Freq/Sync), Frequency, Sync, Depth"],
     ], [45, 125]))
+    st.append(P("E4L B-Format Reverb", "h2"))
+    st.append(table([
+        ["Parameter", "Values"],
+        ["Room (B-format IR)", "WAV files in Data/E4L/ir (York Minster)"],
+        ["IR Format", "FuMa (W X Y Z) / AmbiX (W Y Z X)"],
+        ["Size (%)", "50 to 150 (100 = the real room)"],
+        ["Rotation / Pitch / Roll", "Turns the reverb field (degrees)"],
+        ["Early Reflections / Late Reverb (dB)", "−60 to +6 (split at about 170 ms)"],
+        ["Length (s)", "0.5 to 12 (shorter = less CPU)"],
+        ["Low Cut / High Cut (Hz)", "20 = off / 20000 = off"],
+        ["Reverb Level (dB)", "−60 to +12"],
+    ], [60, 110]))
     st.append(P("E4L Sub Out (on REAPER's master)", "h2"))
     st.append(table([
         ["Parameter", "Values", "Recommended"],
@@ -867,7 +897,8 @@ def build(path):
     ], [60, 110]))
     st.append(Spacer(1, 8))
     st.append(P("Envelop for Live © Envelop (envelop.us), Mark C. Slee and contributors. REAPER port "
-                "under the GNU GPL v2 or later. HRTFs: IRCAM Listen. If E4L is useful to you, consider "
+                "under the GNU GPL v2 or later. HRTFs: IRCAM Listen. Reverb impulse response York Minster: "
+                "OpenAIR, University of York, CC BY 4.0. If E4L is useful to you, consider "
                 "supporting Envelop at envelop.us/memberships.", "small"))
 
     def on_page(canvas, doc):

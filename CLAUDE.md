@@ -30,6 +30,16 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
     5.1, 7.1, 5.1.2, 7.1.4, ambiX), optional sub.
   - `E4L Sub Out` – on the REAPER master, sub to output 5.
   - `E4L Looper` – bar-synced looper (see below).
+  - `E4L B-Format Reverb` – shared first-order convolution reverb (port of E4L's B-Format
+    Convolution Reverb). IRs in `Data/E4L/ir` (file slider 1, index = sorted file list; York
+    Minster from E4L, OpenAIR CC BY 4.0, credits in `Data/E4L/IR_CREDITS.txt`; Great Hall left
+    out, licence unverified). 3-layer non-uniform partitioned FFT (256 / 2048 / 16384), W+iX and
+    Y+iZ packed, 256 samples latency, early/late split at 8192 samples, rebuild 0.3 s after a
+    change (`-Status` slider 13). ~20% of a core for 10 s. Output ambiX order 1 on ch 1-4.
+    Track `REVERB` (16 ch, no master send, send to E4L Master); tracks send mono ch1 (W) → ch1,
+    post-fader (`E.add_reverb`, `E.reverb_send`, `E.set_reverb_amount` in e4l_lib).
+    Panel: REVERB console under the room view (room shrinks to leave it 200 px): + REVERB,
+    ON/OFF, room menu, Size, Rotation, Early, Late, Level, Send of the selected row (click name).
   - `E4L Sync Out` – on track `SYNC OUT` (no master send, out 1 → Mbox output 6): reset pulse
     for the user's analog sequencer on the bar where a loop starts recording (looper publishes
     the armed bar line in `gmem[0]`, stamp in `gmem[1]`, namespace `E4L_SYNC`), on start from
