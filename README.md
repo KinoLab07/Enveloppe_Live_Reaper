@@ -14,7 +14,9 @@ headphone monitoring and a one-click updater.
 
 ![E4L Live Panel](docs/live_panel_preview.png)
 
-> User guide (PDF): [`docs/E4L_REAPER_Guide.pdf`](docs/E4L_REAPER_Guide.pdf).
+> **Quick visual guide (PDF, 9 pages):** [`docs/E4L_Quick_Guide.pdf`](docs/E4L_Quick_Guide.pdf) ·
+> full user guide: [`docs/E4L_REAPER_Guide.pdf`](docs/E4L_REAPER_Guide.pdf). Both are also
+> installed in REAPER's resource folder › `Data/E4L` by the updater.
 
 ---
 
@@ -49,6 +51,7 @@ headphone monitoring and a one-click updater.
 | **E4L Master Bus** | E4L Master Bus (decoders) | Binaural (3rd order, IRCAM HRIRs), stereo, quad, octo, 5.1, 7.1, 5.1.2, 7.1.4, ambiX pass-through, optional sub output |
 | **E4L Looper** | *(new)* | Bar-synced live looper: record / play / overdub / clear, quantised to the bar |
 | **E4L Sub Out** | *(new)* | On REAPER's master: sends the sum of everything to a subwoofer output |
+| **E4L Sync Out** | *(new)* | Clock / reset pulses for an analog sequencer, from a free interface output |
 | **E4L B-Format Reverb** | E4L B-Format Convolution Reverb | Shared room reverb: a first-order (B-format) impulse response of a real room, with size, rotation, early / late and level |
 
 All of them work in **3rd order ambisonics, 16 channels, ambiX (ACN / SN3D)**, the same format
@@ -64,7 +67,8 @@ as E4L and compatible with the IEM Plug-in Suite, SPARTA and others.
 | **E4L - Update from GitHub** | Downloads the latest version from this repository and installs it |
 | E4L - Setup session | Spatialises the selected tracks (no looper): 16 channels, panner, send to the master bus |
 | E4L - Add sub to master | Adds the subwoofer output to an existing project |
-| E4L - Loop REC / PLAY-STOP (selected tracks), E4L - Loops STOP all | Actions for keyboard shortcuts or MIDI |
+| E4L - Binaural mix of the session | Turns a session recorded with ● REC into a binaural stereo file |
+| E4L ctl - … (81 actions, `Scripts/E4L/Controls`) | Every panel button as an action, for MIDI controllers or keys |
 
 ### Not ported (yet)
 
@@ -81,8 +85,9 @@ Analog synth ─► SYNTH IN ─────────────────
                    │                                                    ▲
                    ▼                                                    │
               LOOP 1..n  (E4L Looper + E4L Panner) ─┐                  │
-              AUDIO 1..n (looped file + E4L Panner) ─┴─► E4L Master ───┴── CUE (binaural)
-                                                         (Master Bus = Quad)
+              AUDIO 1..n (looped file + E4L Panner) ─┼─► E4L Master ───┴── CUE (binaural)
+              LIVE 1..n  (live input + E4L Panner) ──┤   (Master Bus = Quad)
+                 (sends) ─► REVERB (B-Format Reverb) ┘
                                                               │
                                                               ▼
                                                         REAPER master ─► outputs 1-4 (speakers)
@@ -96,6 +101,9 @@ Analog synth ─► SYNTH IN ─────────────────
 - **CUE** decodes the same mix to binaural for the headphones, so you hear the loops in 3D while
   you play. The synth input goes to the headphones only, never to the speakers, until you record it.
 - **E4L Sub Out** on REAPER's master sends everything that reaches the master to the sub.
+- **REVERB** (optional, + REVERB in the panel) is one room reverb shared by every track through
+  sends; it returns to the E4L Master in ambisonics.
+- **SYNC OUT** (optional, + SYNC in the panel) sends clock / reset pulses to an analog sequencer.
 
 Quad speaker order (as in E4L, clockwise): **1** front-left (−45°), **2** front-right (+45°),
 **3** rear-right (+135°), **4** rear-left (−135°).
@@ -114,15 +122,17 @@ Quad speaker order (as in E4L, clockwise): **1** front-left (−45°), **2** fro
    - `Data/E4L` – HRTF filters for the binaural decoder
    - `Scripts/E4L` – the scripts
 4. In REAPER's FX browser press **F5** (Mac laptops: **fn + F5**). The plug-ins show up as `JS: E4L …`.
-5. Load the scripts once: *Actions › Show action list › New action › Load ReaScript…*
-   (at least **E4L - New live project**, **E4L - Live Panel** and **E4L - Update from GitHub**).
+5. Load **E4L - Update from GitHub** once (*Actions › Show action list › New action › Load
+   ReaScript…*) and run it: it installs the latest version and puts every E4L script and the
+   `E4L ctl` MIDI actions in the action list for you.
 
 ### Updating
 
 Run **E4L - Update from GitHub**. It downloads the latest `main` (curl + unzip on macOS/Linux,
 PowerShell on Windows), replaces only `Effects/E4L`, `Data/E4L` and `Scripts/E4L`, tells you when
-you are already up to date, restarts the Live Panel and offers to reopen the project so the new
-plug-ins are loaded.
+you are already up to date, registers new scripts in the action list, removes scripts that are
+no longer used, restarts the Live Panel and offers to reopen the project so the new plug-ins
+are loaded (loops recorded in memory are lost when the project is reopened).
 
 ---
 
@@ -139,6 +149,7 @@ plug-ins are loaded.
    | Headphones output (first channel) | 7 | outputs 7-8; set the interface's headphone source to them |
    | Loop panner: 1 Mono 2 Stereo | 1 | |
    | Sub output (0 = none) | 5 | |
+   | Sync pulse output (0 = none) | 0 | output for an analog sequencer's clock (also later with + SYNC) |
 
    It creates `SYNTH IN`, `LOOP 1-8`, `E4L Master` (quad) and `CUE (headphones)`, configures the
    master (outputs 1-2, 3-4 and the sub on 5), measures the recording latency compensation and
@@ -162,7 +173,8 @@ One window, dockable in REAPER (right-click the top area), to play the whole set
 opening any plug-in.
 
 - **Header:** big bar . beat counter, beats of the bar, a 4-bar phrase indicator, **IN** level
-  meters for every interface input, tempo, play/stop, stop all loops.
+  meters for every interface input, tempo, **● REC** (records the session, see below),
+  **PLAY / STOP** (STOP goes back to bar 1), **PAUSE** (freeze; PLAY continues), **STOP ALL LOOPS**.
 - **Toolbar:**
   - **+ LOOP** – another loop track.
   - **+ AUDIO** – a pre-recorded file on a new `AUDIO n` track, looped from bar 1. If it is close
@@ -177,6 +189,7 @@ opening any plug-in.
     positions, movements, tempo) in `E4L_Templates` inside the resource folder, to move from one
     piece to the next.
   - **NEW TEMPLATE** – a new live project from scratch.
+  - **REC: BAR / BEAT / NOW** – when every loop's REC starts: next bar, next beat or at once.
   - **+ LIVE** – a live input (VCV Rack through BlackHole, another synth…) played in the room,
     spatialised with its own MOVEMENT, not looped: a `LIVE n` track (interface input, mono or
     stereo). Its row: **ON AIR / MUTE** (at once), the input level, MOVEMENT, DELETE. It starts
@@ -322,7 +335,7 @@ is rebuilt (a second or two, "building…") after a change of room, size or leng
 
 ## Scripts
 
-All scripts are Lua ReaScripts; `e4l_lib.lua` and `e4l_looper_common.lua` are shared code, not
+All scripts are Lua ReaScripts; `e4l_lib.lua` and `e4l_control.lua` are shared code, not
 actions. The live template, the panel and the updater keep their settings in the project
 (`E4L` project ext-state) and in REAPER's ext-state (`E4L_LivePanel`, `E4L_Update`).
 
@@ -357,7 +370,7 @@ actions. The live template, the panel and the updater keep their settings in the
 Effects/E4L/    JSFX plug-ins (+ e4l_ambix.jsfx-inc, e4l_gfx.jsfx-inc)
 Data/E4L/hrtf/  binaural filters (44.1, 48, 88.2, 96 kHz)
 Scripts/E4L/    ReaScripts
-docs/           user guide (PDF), its generator, panel previews
+docs/           quick guide and user guide (PDF), their generators, panel previews
 tools/          binaural filter generator, panel preview renderer
 tests/          automated tests
 ```

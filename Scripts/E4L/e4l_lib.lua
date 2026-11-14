@@ -521,4 +521,24 @@ function E.list_songs()
   return t, d
 end
 
+-- scripts that are no longer part of E4L (replaced by the "E4L ctl - …" actions): the updater
+-- only adds files, so they are removed from REAPER's resource folder and its action list here
+E.OBSOLETE = {
+  "E4L - Loop PLAY-STOP (selected tracks).lua", "E4L - Loop REC (selected tracks).lua",
+  "E4L - Loops STOP all.lua", "e4l_looper_common.lua",
+}
+function E.remove_obsolete()
+  local d = reaper.GetResourcePath() .. "/Scripts/E4L/"
+  local n = 0
+  for _, f in ipairs(E.OBSOLETE) do
+    local fh = io.open(d .. f, "r")
+    if fh then
+      fh:close()
+      if f:match("^E4L %- ") then reaper.AddRemoveReaScript(false, 0, d .. f, true) end
+      if os.remove(d .. f) then n = n + 1 end
+    end
+  end
+  return n
+end
+
 return E

@@ -1283,5 +1283,6 @@ gfx.setfont(1, "Arial", 15)
 gfx.setfont(2, "Arial", 44, string.byte("b"))
 gfx.setfont(3, "Arial", 20, string.byte("b"))
 gfx.setfont(1)
+pcall(E4L.remove_obsolete)     -- tidy up scripts left by older versions
 scan()
 main()

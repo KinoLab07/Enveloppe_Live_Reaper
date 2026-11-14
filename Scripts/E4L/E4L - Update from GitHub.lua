@@ -163,6 +163,8 @@ local function finished(sha, out, err)
   win_close()
   if out and out:find("E4L_OK", 1, true) then
     if sha then reaper.SetExtState(EXT, "sha", sha, true) end
+    local okl, E4L = pcall(dofile, res .. sep .. "Scripts" .. sep .. "E4L" .. sep .. "e4l_lib.lua")
+    if okl and type(E4L) == "table" and E4L.remove_obsolete then pcall(E4L.remove_obsolete) end
     local n_actions = register_actions()
     -- close the running Live Panel (it reopens with the new version)
     local alive = tonumber(reaper.GetExtState("E4L_LivePanel", "alive")) or 0

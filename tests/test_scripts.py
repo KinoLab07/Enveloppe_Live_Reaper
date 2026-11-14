@@ -545,5 +545,21 @@ frame()
 check("panel: closes itself when the updater asks (quit flag)",
       lua.eval("MOCK_DEFER") is None and lua.eval('reaper.GetExtState("E4L_LivePanel", "quit")') == "")
 
+# old scripts (replaced by the "E4L ctl" actions) are removed from the resource folder
+import tempfile
+tmpres = tempfile.mkdtemp()
+os.makedirs(os.path.join(tmpres, "Scripts", "E4L"))
+for f in ["E4L - Loops STOP all.lua", "e4l_looper_common.lua", "E4L - Live Panel.lua"]:
+    open(os.path.join(tmpres, "Scripts", "E4L", f), "w").write("--")
+lua.execute("""MOCK_UNREG = {}
+function reaper.AddRemoveReaScript(add, sec, f) if not add then MOCK_UNREG[#MOCK_UNREG + 1] = f end return 1 end
+local old = reaper.GetResourcePath
+reaper.GetResourcePath = function() return [[%s]] end
+MOCK_NREMOVED = dofile([[%s]]).remove_obsolete()
+reaper.GetResourcePath = old""" % (tmpres, os.path.join(SCRIPTS, "e4l_lib.lua")))
+left = sorted(os.listdir(os.path.join(tmpres, "Scripts", "E4L")))
+check("cleanup: obsolete scripts deleted and removed from the action list, others kept",
+      left == ["E4L - Live Panel.lua"] and lua.eval("MOCK_NREMOVED") == 2 and lua.eval("#MOCK_UNREG") == 1)
+
 print("\n%d failure(s)" % failures)
 sys.exit(1 if failures else 0)

@@ -299,6 +299,9 @@ def build(path):
         ["<b>E4L - New live project</b>", "Script: new project with the whole live set-up and the panel."],
         ["<b>E4L - Live Panel</b>", "Script: one window to play the loops and move them."],
         ["<b>E4L - Update from GitHub</b>", "Script: installs the latest version."],
+        ["<b>E4L Sync Out</b>", "Clock / reset pulses for an analog sequencer."],
+        ["E4L - Binaural mix of the session", "Script: binaural stereo file of a session recorded with ● REC."],
+        ["E4L ctl - … (81 actions)", "Every panel button as an action, for a MIDI controller."],
         ["E4L - Setup session", "Script: spatialises selected tracks (no looper)."],
     ], [48, 122]))
     st += bullets([
@@ -774,8 +777,8 @@ def build(path):
         "<b>One button per loop (best with a controller):</b> in a track's <b>E4L Looper</b> press "
         "<b>Param › Learn</b>, choose <b>Record</b> (or <b>Play</b>) and press the controller "
         "button. Repeat for each loop.",
-        "<b>Keyboard:</b> load <b>E4L - Loop REC (selected tracks)</b>, <b>E4L - Loop PLAY-STOP "
-        "(selected tracks)</b> and <b>E4L - Loops STOP all</b> and give them keys (Actions › Add).",
+        "<b>Keyboard:</b> the same <b>E4L ctl</b> actions take keys too (Actions › Add… › press a key). "
+        "In the panel: space = play/stop, 1-9 = REC on loop 1-9, 0 = stop all loops.",
     ])
     st.append(box([
         "• REAPER must be <b>playing</b>: the looper follows the project position. Do not use "

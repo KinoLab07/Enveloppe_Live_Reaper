@@ -63,7 +63,15 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
   `E4L - New live project.lua`, `E4L - Live Looper template.lua`, `E4L - Add sub to master.lua`,
   `E4L - Update from GitHub.lua`, helpers.
 - `docs/build_guide.py` → `docs/E4L_REAPER_Guide.pdf` (reportlab, English). Rebuild after
-  changing behaviour. `tools/render_panel_preview.py` → panel PNGs used by the guide.
+  changing behaviour. `tools/render_panel_preview.py` → panel PNGs (drawn at 2x) used by the guides.
+- `docs/build_quick_guide.py` → `docs/E4L_Quick_Guide.pdf`: 9-page landscape visual guide (panel
+  crops with numbered red marks placed in white margins, step cards). The user asked for it
+  "as simple as possible"; mark coordinates are panel pixels – re-check them when the panel
+  layout changes, and rebuild it with the long guide.
+- Removed scripts (superseded by the `E4L ctl` actions): Loop REC / Loop PLAY-STOP (selected
+  tracks), Loops STOP all, e4l_looper_common.lua. The updater only adds files, so
+  `E.OBSOLETE` / `E.remove_obsolete()` (e4l_lib) deletes them and unregisters them; called by
+  the panel at start and by the updater after installing. Add names there when removing scripts.
 - Live project tracks: `SYNTH IN`, `SYNTH IN 2`… (monitor only, to headphones), `LOOP n`
   (Looper + panner), `AUDIO n` (looped file + panner), `E4L Master` (Master Bus, Quad),
   `CUE (headphones)` (binaural → outputs 7-8), `SYNC OUT` (E4L Sync Out → output 6),

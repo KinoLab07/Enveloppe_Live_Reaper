@@ -65,9 +65,10 @@ function gfx.drawstr(s) DRAW[#DRAW+1] = {"text",gfx.x,gfx.y,s,col[1],col[2],col[
 lua.execute("gfx.h = 680")
 lua.execute("dofile([[%s]])" % os.path.join(ROOT, "Scripts", "E4L", "E4L - Live Panel.lua"))
 W, H = 1240, 680
-F1 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13)
-F2 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40)
-F3 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 17)
+K = 2              # drawn at 2x for sharp pictures in the guides
+F1 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13 * K)
+F2 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40 * K)
+F3 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 17 * K)
 
 
 def c(r, g, b, a):
@@ -77,22 +78,24 @@ def c(r, g, b, a):
 def render(out_name):
     lua.execute("DRAW = {}; local f = MOCK_DEFER; MOCK_DEFER = nil; f()")
     D = lua.eval("DRAW")
-    img = Image.new("RGB", (W, H), "black")
+    img = Image.new("RGB", (W * K, H * K), "black")
     d = ImageDraw.Draw(img, "RGBA")
     for i in range(1, len(D) + 1):
         e = list(D[i].values())
         if e[0] == "rect":
             _, x, y, w, h, r, g, b, a, f = e
-            d.rectangle([x, y, x + w, y + h], fill=c(r, g, b, a) if f else None, outline=None if f else c(r, g, b, a))
+            d.rectangle([x * K, y * K, (x + w) * K, (y + h) * K], fill=c(r, g, b, a) if f else None,
+                        outline=None if f else c(r, g, b, a), width=K)
         elif e[0] == "line":
             _, x1, y1, x2, y2, r, g, b, a = e
-            d.line([x1, y1, x2, y2], fill=c(r, g, b, a))
+            d.line([x1 * K, y1 * K, x2 * K, y2 * K], fill=c(r, g, b, a), width=K)
         elif e[0] == "circle":
             _, x, y, rr, r, g, b, a, f = e
-            d.ellipse([x - rr, y - rr, x + rr, y + rr], fill=c(r, g, b, a) if f else None, outline=c(r, g, b, a))
+            d.ellipse([(x - rr) * K, (y - rr) * K, (x + rr) * K, (y + rr) * K], fill=c(r, g, b, a) if f else None,
+                      outline=c(r, g, b, a), width=K)
         elif e[0] == "text":
             _, x, y, s_, r, g, b, a, fo = e
-            d.text((x, y), s_, fill=c(r, g, b, a), font=F2 if fo == 2 else F3 if fo == 3 else F1)
+            d.text((x * K, y * K), s_, fill=c(r, g, b, a), font=F2 if fo == 2 else F3 if fo == 3 else F1)
     out = os.path.join(ROOT, "docs", out_name)
     img.save(out)
     print("wrote", out)
