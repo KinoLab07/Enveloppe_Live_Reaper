@@ -442,6 +442,31 @@ setp(lp1, 1, "-Status (0 empty 1 armed 2 rec 3 play 4 stop 5 pause)", 3)
 click(8 + 212 + 10, row_y(i1, len(rows)))
 check("loop row: after FREE the length goes back to 1 bar", param(lp1, 1, "Length (bars)") == 0)
 
+# MIDI control actions ("E4L ctl - …"): through the open panel, like clicks
+CTLDIR = os.path.join(SCRIPTS, "Controls").replace("\\", "/")
+ctl = lambda name: lua.execute("dofile([[%s/E4L ctl - %s.lua]])" % (CTLDIR, name))
+check("MIDI: there is one control action per panel button (81)",
+      len([f for f in os.listdir(CTLDIR) if f.startswith("E4L ctl - ")]) == 81)
+rec0 = param(lp1, 1, "Record")
+ctl("LOOP 1 REC"); frame()
+check("MIDI: 'E4L ctl - LOOP 1 REC' with the panel open toggles LOOP 1's REC (through the panel)",
+      param(lp1, 1, "Record") == 1 - rec0)
+lua.execute("MOCK_CTX_VAL = 0"); ctl("LOOP 1 REC"); frame(); lua.execute("MOCK_CTX_VAL = 127")
+check("MIDI: the button's release (value 0) is ignored", param(lp1, 1, "Record") == 1 - rec0)
+ctl("LOOP 1 REC"); frame()
+lua.execute("MOCK_PLAY = 1; MOCK_CMDS = {}"); ctl("MASTER PAUSE"); frame()
+check("MIDI: MASTER PAUSE pauses REAPER", lua.eval("MOCK_PLAY") == 2)
+lua.execute("MOCK_PLAY = 1")
+# with the panel closed: loops and the transport directly
+lua.execute('reaper.SetExtState("E4L_LivePanel", "alive", "-1000")')
+play0 = param(lp1, 1, "Play")
+ctl("LOOP 1 PLAY")
+check("MIDI: with the panel closed, LOOP 1 PLAY acts directly on the looper", param(lp1, 1, "Play") == 1 - play0)
+ctl("LOOP 1 PLAY")
+lua.execute("MOCK_MSG = nil"); ctl("AUDIO 1 PLAY")
+check("MIDI: with the panel closed, AUDIO needs the panel (it says so)", "Open the Live Panel" in (lua.eval("MOCK_MSG") or ""))
+frame()
+
 # + LIVE: an input played live in the room, with its own movement (not looped)
 lua.execute("function reaper.GetUserInputs() return true, '3,2' end")
 click(xs[3], TB)

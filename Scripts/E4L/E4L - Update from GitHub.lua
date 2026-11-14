@@ -139,18 +139,22 @@ end
 
 -- puts every "E4L - ….lua" action script in REAPER's action list (new ones appear without
 -- having to load them by hand; already registered ones are left as they are)
+-- (and the "E4L ctl - …" control actions of Scripts/E4L/Controls, to bind to MIDI buttons)
 local function register_actions()
-  local dir = res .. sep .. "Scripts" .. sep .. "E4L"
-  local files, i = {}, 0
-  while true do
-    local f = reaper.EnumerateFiles(dir, i)
-    if not f then break end
-    if f:match("^E4L %- .+%.lua$") then files[#files + 1] = f end
-    i = i + 1
+  local base = res .. sep .. "Scripts" .. sep .. "E4L"
+  local files = {}
+  for _, d in ipairs({ { base, "^E4L %- .+%.lua$" }, { base .. sep .. "Controls", "^E4L ctl %- .+%.lua$" } }) do
+    local i = 0
+    while true do
+      local f = reaper.EnumerateFiles(d[1], i)
+      if not f then break end
+      if f:match(d[2]) then files[#files + 1] = d[1] .. sep .. f end
+      i = i + 1
+    end
   end
   local n = 0
   for k, f in ipairs(files) do
-    if reaper.AddRemoveReaScript(true, 0, dir .. sep .. f, k == #files) ~= 0 then n = n + 1 end
+    if reaper.AddRemoveReaScript(true, 0, f, k == #files) ~= 0 then n = n + 1 end
   end
   return n
 end
@@ -165,7 +169,8 @@ local function finished(sha, out, err)
     local panel_open = reaper.time_precise() - alive < 1.5
     if panel_open then reaper.SetExtState("E4L_LivePanel", "quit", "1", false) end
     msg("E4L updated" .. (sha and (" (version " .. sha:sub(1, 7) .. ")") or "") .. ".\n\n" ..
-        "• " .. n_actions .. " E4L scripts are in the action list (Actions > Show action list, search E4L).\n" ..
+        "• " .. n_actions .. " E4L actions are in the action list (Actions > Show action list, search E4L;\n" ..
+        "  \"E4L ctl\" = the panel's buttons, to bind to MIDI with Add...).\n" ..
         "• The PDF guide is in: " .. res .. sep .. "Data" .. sep .. "E4L" ..
         (panel_open and "\n• The Live Panel reopens with the new version." or ""))
     reopen_project_and_panel(panel_open)

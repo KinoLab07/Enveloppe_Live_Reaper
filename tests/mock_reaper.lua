@@ -65,6 +65,8 @@ function reaper.Main_OnCommand(c) MOCK_CMDS[#MOCK_CMDS + 1] = c end
 function reaper.time_precise() return os.clock() end
 function reaper.defer(f) MOCK_DEFER = f end
 function reaper.SetExtState(a, b, v) MOCK_EXT[a .. b] = v end
+MOCK_CTX_VAL = 127
+function reaper.get_action_context() return true, MOCK_CTX_FILE or "", 0, 0, 0, 127, MOCK_CTX_VAL end
 function reaper.GetExtState(a, b) return MOCK_EXT[a .. b] or "" end
 MOCK_KEY = 0
 gfx = { w = 1240, h = 560, x = 0, y = 0, mouse_x = 0, mouse_y = 0, mouse_cap = 0 }

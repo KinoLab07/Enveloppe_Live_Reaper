@@ -746,6 +746,12 @@ def build(path):
     ], [45, 125]))
     st.append(P("Keyboard and MIDI control", "h2"))
     st += bullets([
+        "<b>Every panel button is a REAPER action</b> you can bind to a MIDI controller: "
+        "<b>E4L ctl - LOOP 3 REC</b>, <b>E4L ctl - MASTER PLAY-STOP</b>, <b>E4L ctl - LIVE 1 ON-OFF</b>… "
+        "Actions › Show action list › search <b>E4L ctl</b> › select one › <b>Add…</b> › press the button "
+        "on the controller. With the panel open they act exactly like a click.",
+    ])
+    st += bullets([
         "<b>One button per loop (best with a controller):</b> in a track's <b>E4L Looper</b> press "
         "<b>Param › Learn</b>, choose <b>Record</b> (or <b>Play</b>) and press the controller "
         "button. Repeat for each loop.",

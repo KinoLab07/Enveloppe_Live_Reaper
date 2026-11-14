@@ -197,6 +197,13 @@ opening any plug-in.
   the time left ("4 bars · 0:12 left"), in orange in its last bar (or last 5 s) – the cue to come
   in with the next thing. Audio rows have **PLAY** / **PAUSE** too (resuming on the next bar from the bar where they were
   paused; the file is moved only while it is silent) and **DELETE**. The movement (LFOs) freezes while REAPER is paused and continues from there.
+- **MIDI control:** every panel button is also a REAPER action, `E4L ctl - LOOP 3 REC`,
+  `E4L ctl - MASTER PLAY-STOP`, `E4L ctl - LIVE 1 ON-OFF`… (loops 1-12: REC, PLAY, PAUSE,
+  OVERDUB, CLEAR; audio 1-6: PLAY, PAUSE; live 1-4; master: PLAY-STOP, PAUSE, REC SESSION,
+  STOP ALL LOOPS, REC START). Bind them to a controller: Actions › Show action list › select ›
+  Add… › press the button. With the panel open they act exactly like a click; with it closed,
+  loops, live inputs and the transport still respond. The plug-in parameters (looper, reverb,
+  panners) can also be learnt directly (Param › Learn).
 - **Room view**, seen from above: the four speakers and one dot per loop, moving live with its
   animations. Drag a dot to move that loop.
 - **Keys:** space = play/stop, 1-9 = record on loop 1-9, 0 = stop all loops, Esc = close the editor.

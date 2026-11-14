@@ -1100,6 +1100,37 @@ local function keyboard(c)
   if c == 48 then for _, L in ipairs(loops) do if L.kind == "loop" then setp(L.tr, L.lfx, L.p.play, 0) end end end  -- 0
 end
 
+-- commands from the "E4L ctl - …" actions (MIDI buttons), exactly like clicks
+local CTL = dofile(DIR .. "e4l_control.lua")
+local function panel_cmd(target, action)
+  if target == "MASTER" then
+    if action == "PLAY-STOP" then play_stop()
+    elseif action == "PAUSE" then reaper.OnPauseButton()
+    elseif action == "REC SESSION" then rec_session()
+    elseif action == "REC START" then act_rec_start()
+    elseif action == "STOP ALL LOOPS" then
+      for _, L in ipairs(loops) do
+        if L.kind == "loop" then setp(L.tr, L.lfx, L.p.play, 0) elseif L.kind == "audio" then pend_mute[L.tr] = 1 end
+      end
+    end
+    return
+  end
+  local L
+  for _, x in ipairs(loops) do if x.name == target then L = x end end
+  if not L then status("MIDI: there is no " .. target .. ".") return end
+  local tp = transport()
+  if L.kind == "loop" then
+    local function tog(p) setp(L.tr, L.lfx, p, getp(L.tr, L.lfx, p) > 0.5 and 0 or 1) end
+    if action == "REC" then tog(L.p.rec) elseif action == "PLAY" then tog(L.p.play)
+    elseif action == "PAUSE" then tog(L.p.pause) elseif action == "OVERDUB" then tog(L.p.odub)
+    elseif action == "CLEAR" then setp(L.tr, L.lfx, L.p.clear, 1) end
+  elseif L.kind == "audio" then
+    if action == "PLAY" then audio_play(L, tp) elseif action == "PAUSE" then audio_pause(L, tp) end
+  elseif L.kind == "live" then
+    reaper.SetMediaTrackInfo_Value(L.tr, "B_MUTE", reaper.GetMediaTrackInfo_Value(L.tr, "B_MUTE") > 0.5 and 0 or 1)
+  end
+end
+
 local function main()
   local c = gfx.getchar()
   if c < 0 then
@@ -1125,6 +1156,10 @@ local function main()
   clicked = mouse_down and not mouse_was_down
   if not mouse_down then slider_drag = nil end
   if c > 0 and c ~= 27 then keyboard(c) end
+  for _, cmd in ipairs(CTL.take_queue()) do
+    local ok, err = pcall(panel_cmd, cmd[1], cmd[2])
+    if not ok then status("Error: " .. tostring(err)) end
+  end
 
   local W, H = gfx.w, gfx.h
   rgb(0.08, 0.08, 0.1); rect(0, 0, W, H)
