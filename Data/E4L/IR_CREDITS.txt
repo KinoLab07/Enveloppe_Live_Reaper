@@ -1,0 +1,13 @@
+Impulse responses used by "E4L B-Format Reverb" (folder ir/)
+
+York Minster.wav
+  First-order B-format (FuMa: W X Y Z) room impulse response of York Minster, York (UK).
+  From the OpenAIR library (Open Acoustic Impulse Response Library), Audio Lab, University of
+  York: https://www.openair.hosted.york.ac.uk/?p=797
+  Licence: Creative Commons Attribution 4.0 International (CC BY 4.0),
+  https://creativecommons.org/licenses/by/4.0/
+  The four mono files of the OpenAIR / Envelop for Live distribution were joined into one
+  4-channel file (no other change).
+
+Adding rooms: put a first-order B-format IR (one 4-channel WAV, FuMa W X Y Z or AmbiX W Y Z X)
+in ir/ and choose it in the reverb's Room menu (set IR Format accordingly). Mind its licence.

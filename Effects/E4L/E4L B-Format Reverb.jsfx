@@ -1,0 +1,324 @@
+desc: E4L B-Format Reverb (shared convolution reverb, first-order ambisonics)
+//tags: reverb convolution b-format ambisonics impulse response envelop e4l
+//author: Envelop for REAPER
+//
+// After the "E4L B-Format Convolution Reverb" of Envelop for Live (Rama Gottfried): the sound
+// is convolved with a room recorded in B-format (first-order ambisonics: W X Y Z), so the
+// reverb comes from all around, as in that room. GPLv2 or later, see LICENSE.
+//
+// Put it on its own track ("REVERB": 16 channels, no master send, sent to E4L Master) and send
+// each track to it (the send's level = how much reverb). It takes channel 1 (W, the
+// omnidirectional part of the 16-channel mix it receives) and outputs channels 1-4 (ambiX
+// first order: W Y Z X); the other channels are silent.
+//
+// Rooms: every B-format IR file (4 channels: FuMa W X Y Z, or AmbiX W Y Z X) in
+// REAPER/Data/E4L/ir appears in the Room menu. Included: York Minster (OpenAIR, University of
+// York, CC BY 4.0). As in E4L the room's direct sound is cut and its level normalised.
+//
+// Size stretches the room (and its reverb time); Rotation / Pitch / Roll turn it around the
+// listener; Early = the first 170 ms (early reflections), Late = the rest. Changing the room,
+// Size or Length rebuilds the reverb in the background (it fades out and back in).
+//
+// Convolution: partitioned in three layers – 256-sample blocks for the first 4096 samples,
+// 2048 up to 32768, 16384 for the rest – the bigger blocks' work spread over the following
+// small blocks (no CPU spikes). Two channels share one complex FFT (W+iX, Y+iZ). The reverb
+// comes 256 samples (about 5 ms) after the sound; no latency is reported to REAPER.
+
+slider1:/E4L/ir:York Minster.wav:Room (B-format IR)
+slider2:ir_fmt=0<0,1,1{FuMa (W X Y Z),AmbiX (W Y Z X)}>IR Format
+slider3:size_pc=100<50,150,1>Size (%)
+slider4:rot_yaw=0<-180,180,1>Rotation (deg, clockwise)
+slider5:rot_pitch=0<-90,90,1>Pitch (deg)
+slider6:rot_roll=0<-90,90,1>Roll (deg)
+slider7:early_db=0<-60,6,0.1>Early Reflections (dB)
+slider8:late_db=0<-60,6,0.1>Late Reverb (dB)
+slider9:len_s=12<0.5,12,0.1>Length (s)
+slider10:lowcut=20<20,1000,1>Low Cut (Hz)
+slider11:highcut=20000<1000,20000,10>High Cut (Hz)
+slider12:level_db=0<-60,12,0.1>Reverb Level (dB)
+slider13:status_out=0<0,1,1>-Status (0 ready 1 building)
+
+options:maxmem=24000000
+
+in_pin:W (ACN 0)
+out_pin:W (ACN 0)
+out_pin:Y (ACN 1)
+out_pin:Z (ACN 2)
+out_pin:X (ACN 3)
+out_pin:ACN 4
+out_pin:ACN 5
+out_pin:ACN 6
+out_pin:ACN 7
+out_pin:ACN 8
+out_pin:ACN 9
+out_pin:ACN 10
+out_pin:ACN 11
+out_pin:ACN 12
+out_pin:ACN 13
+out_pin:ACN 14
+out_pin:ACN 15
+
+@init
+ext_noinit = 1;
+ext_tail_size = -1;
+
+LAT = 256;                                           // the reverb comes this many samples late
+EARLY = 8192;                                        // early reflections: the first 8192 samples
+MAXLEN = floor(12.5 * srate);
+MAXRAW = 1200000;                                    // frames of an IR file (25 s at 48 kHz)
+RM = 65535;                                          // output ring mask (65536 samples)
+IM = 32767;                                          // input history mask (32768 samples)
+
+// memory map. fft() / convolve buffers must not cross a 65536-item boundary: every spectrum
+// buffer starts on a multiple of its own size (a power of 2 up to 65536).
+mp = 0;
+function alloc(n, al) local(a) ( mp = ceil(mp / al) * al; a = mp; mp += n; a; );
+
+// (EEL2 names are case-insensitive: N and n are the same variable – hence nfft / nparts)
+// modulo that is right for negative numbers too (EEL2's % is not)
+function wrap(a, m) ( a - floor(a / m) * m; );
+
+// acc += x * h over n complex values
+function cmac(acc, x, h, n) local(ar, ai, br, bi)
+(
+  loop(n,
+    ar = x[0]; ai = x[1]; br = h[0]; bi = h[1];
+    acc[0] += ar * br - ai * bi; acc[1] += ar * bi + ai * br;
+    acc += 2; x += 2; h += 2;
+  );
+);
+
+
+// ---------------- filters on the input (RBJ biquads) ----------------
+function bq_set(type, f, q) instance(b0, b1, b2, a1, a2) local(w, c, s, al, a0)
+(
+  w = 2 * $pi * min(f, srate * 0.45) / srate; c = cos(w); s = sin(w); al = s / (2 * q);
+  a0 = 1 + al;
+  type == 0 ? ( b0 = (1 + c) / 2 / a0; b1 = -(1 + c) / a0; b2 = b0; )     // high-pass
+            : ( b0 = (1 - c) / 2 / a0; b1 = (1 - c) / a0; b2 = b0; );    // low-pass
+  a1 = -2 * c / a0; a2 = (1 - al) / a0;
+);
+function bq(x) instance(b0, b1, b2, a1, a2, z1, z2) local(y)
+(
+  y = b0 * x + z1; z1 = b1 * x - a1 * y + z2; z2 = b2 * x - a2 * y; y;
+);
+
+// ---------------- the IR: reading, mapping, normalising ----------------
+// one sample of channel c (0 W, 1 X, 2 Y, 3 Z) at fractional frame pos, in ambiX SN3D scale
+function irs(c, pos) local(i, f, ch, a, b)
+(
+  i = floor(pos); f = pos - i;
+  i < 0 || i >= frames - 1 ? 0 : (
+    ch = ir_nch == 1 ? 0 : (ir_fmt == 0 ? c : (c == 0 ? 0 : c == 1 ? 3 : c == 2 ? 1 : 2));
+    ch >= ir_nch ? 0 : (
+      a = IRT[i * ir_nch + ch]; b = IRT[(i + 1) * ir_nch + ch];
+      (a + (b - a) * f) * (c == 0 && ir_fmt == 0 && ir_nch > 1 ? sqrt(2) : 1);
+    );
+  );
+);
+
+// IR sample j of the processed (trimmed, stretched, faded, normalised) channel c
+function ir_at(c, j) local(g)
+(
+  j >= lr ? 0 : (
+    g = gnorm;
+    j < fade_in ? g *= j / fade_in;
+    j > lr - fade_out ? g *= (lr - j) / fade_out;
+    irs(c, cut + j * step) * g;
+  );
+);
+
+// fill a complex FFT buffer with pair p (0: W + iX, 1: Y + iZ), IR samples start..start+n
+function fill(buf, p, start, n, nfft) local(i, j)
+(
+  memset(buf, 0, 2 * nfft);
+  i = 0;
+  loop(n,
+    j = start + i;
+    buf[2*i]   = ir_at(p == 0 ? 0 : 2, j);
+    buf[2*i+1] = ir_at(p == 0 ? 1 : 3, j);
+    i += 1;
+  );
+  fft(buf, nfft);
+);
+
+// after reading: where the room starts (its direct sound is cut), its length, its level
+function analyse() local(i, pk, v, on, e, w)
+(
+  pk = 0; i = 0;
+  loop(frames, v = abs(IRT[i * ir_nch]); v > pk ? pk = v; i += 1; );
+  on = 0; i = 0;
+  while (i < frames && abs(IRT[i * ir_nch]) < 0.1 * pk) ( i += 1; );
+  on = i;
+  cut = on + floor(ir_sr * 0.0025);                 // 2.5 ms past the direct sound
+  step = (ir_sr / srate) / (size_pc / 100);
+  lr = min(min(floor((frames - 1 - cut) / step), floor(len_s * srate)), MAXLEN);
+  lr < 64 ? lr = 64;
+  fade_in = max(1, floor(srate * 0.001));
+  fade_out = len_s * srate < (frames - cut) / step ? max(1, floor(lr * 0.15)) : max(1, floor(srate * 0.01));
+  gnorm = 1;
+  e = 0; i = 0;                                     // W energy, decimated (enough for a level)
+  while (i < lr) ( w = ir_at(0, i); e += w * w; i += 4; );
+  gnorm = e > 0 ? 1 / sqrt(e * 4) : 1;
+);
+
+// ---------------- one layer of the partitioned convolution ----------------
+// partitions of psz samples (FFT of nfft = 2P complex points) covering the IR from `st`; its work
+// is spread over `spread` blocks of 256 samples; nmax partitions at most
+function layer_setup(psize, irstart, spread_blocks, maxparts)
+  instance(psz, nfft, st, spread, nmax, X, H, AE, AL, nparts, cnt, pos, job, jk, jn, jbase)
+(
+  psz = psize; nfft = 2 * psz; st = irstart; spread = spread_blocks; nmax = maxparts;
+  H  = alloc(2 * nmax * 2 * nfft, 2 * nfft);               // IR spectra, 2 pairs
+  X  = alloc(nmax * 2 * nfft, 2 * nfft);                   // input spectra (circular)
+  AE = alloc(2 * 2 * nfft, 2 * nfft);                      // accumulators: early part, 2 pairs
+  AL = alloc(2 * 2 * nfft, 2 * nfft);                      //               late part
+  nparts = 0;
+);
+
+function layer_parts(len) instance(psz, st, nmax, nparts) ( nparts = min(nmax, max(0, ceil((len - st) / psz))); );
+
+function layer_clear() instance(nfft, X, nmax, cnt, pos, job) ( memset(X, 0, nmax * 2 * nfft); cnt = pos = job = 0; );
+
+function layer_out() instance(psz, nfft, st, AE, AL, nparts, job, jbase) local(p, i, r, ge, gl, be, bl, he, hl)
+(
+  ge = 10 ^ (early_db / 20); gl = 10 ^ (late_db / 20);
+  he = st < EARLY; hl = st + nparts * psz > EARLY;          // which parts this layer has
+  p = 0;
+  loop(2,
+    be = AE + p * 2 * nfft; bl = AL + p * 2 * nfft;
+    he ? ifft(be, nfft); hl ? ifft(bl, nfft);
+    i = 0;
+    loop(nfft,
+      r = (jbase + i) & RM;
+      RING[(2 * p) * (RM + 1) + r]     += ((he ? be[2 * i] * ge : 0)     + (hl ? bl[2 * i] * gl : 0)) / nfft;
+      RING[(2 * p + 1) * (RM + 1) + r] += ((he ? be[2 * i + 1] * ge : 0) + (hl ? bl[2 * i + 1] * gl : 0)) / nfft;
+      i += 1;
+    );
+    p += 1;
+  );
+  job = 0;
+);
+
+function layer_step(last) instance(psz, nfft, st, spread, nmax, X, H, AE, AL, nparts, job, jk, jn) local(todo, p, k, s)
+(
+  todo = last ? 2 * nparts : ceil(2 * nparts / spread);
+  while (todo > 0 && jk < 2 * nparts) (
+    p = jk >= nparts ? 1 : 0; k = jk - p * nparts;
+    s = wrap(jn - k, nparts);
+    cmac((st + k * psz < EARLY ? AE : AL) + p * 2 * nfft, X + s * 2 * nfft, H + (p * nmax + k) * 2 * nfft, nfft);
+    jk += 1; todo -= 1;
+  );
+  jk >= 2 * nparts ? this.layer_out();
+);
+
+// a block of psz input samples is complete (it began at absolute sample bstart)
+function layer_block(bstart) instance(psz, nfft, st, spread, X, AE, AL, nparts, cnt, job, jk, jn, jbase) local(slot, i)
+(
+  nparts > 0 ? (
+    job ? this.layer_step(1);                        // (finished long before, normally)
+    slot = wrap(cnt, nparts);
+    memset(X + slot * 2 * nfft, 0, 2 * nfft);
+    i = 0; loop(psz, X[slot * 2 * nfft + 2 * i] = IN[(bstart + i) & IM]; i += 1; );
+    fft(X + slot * 2 * nfft, nfft);
+    memset(AE, 0, 4 * nfft); memset(AL, 0, 4 * nfft);
+    job = 1; jk = 0; jn = cnt; jbase = bstart + st + LAT; cnt += 1;
+    spread <= 1 ? this.layer_step(1);
+  );
+);
+
+// one input sample has been written at absolute time t
+function layer_tick(t) instance(psz, pos) ( pos += 1; pos >= psz ? ( pos = 0; this.layer_block(t + 1 - psz); ); );
+
+function layer_fill(k) instance(psz, nfft, st, nmax, H) ( fill(H + k * 2 * nfft, 0, st + k * psz, psz, nfft); fill(H + (nmax + k) * 2 * nfft, 1, st + k * psz, psz, nfft); );
+
+IRT  = alloc(4 * MAXRAW, 1);           // the IR file, interleaved
+IN   = alloc(IM + 1, 1);               // input history
+RING = alloc(4 * (RM + 1), 1);         // output ring: W X Y Z
+L1.layer_setup(256, 0, 1, 16);                                   // 0 .. 4096
+L2.layer_setup(2048, 4096, 7, 14);                               // 4096 .. 32768
+L3.layer_setup(16384, 32768, 60, max(1, ceil((MAXLEN - 32768) / 16384))); // 32768 ..
+
+function clear_state()
+(
+  memset(IN, 0, IM + 1); memset(RING, 0, 4 * (RM + 1));
+  L1.layer_clear(); L2.layer_clear(); L3.layer_clear();
+);
+
+ts = 0; ready = 0;
+wet = 0; wet_target = 0;
+build = 0; want = 1; want_read = 1; want_t = 0;
+p_size = size_pc; p_len = len_s; p_fmt = ir_fmt; p_room = slider1;
+
+@slider
+// changes that need the room rebuilt: wait until the control rests (0.3 s)
+(slider1 != p_room || ir_fmt != p_fmt) ? ( want = 1; want_read = slider1 != p_room || want_read; want_t = 0; );
+(size_pc != p_size || len_s != p_len) ? ( want = 1; want_t = 0; );
+p_room = slider1; p_fmt = ir_fmt; p_size = size_pc; p_len = len_s;
+hp.bq_set(0, lowcut, 0.7071); lp.bq_set(1, highcut, 0.7071);
+lvl = 10 ^ (level_db / 20);
+// rotation: yaw (clockwise, as E4L's azimuth), pitch, roll on the X Y Z vector
+cy = cos(rot_yaw * $pi / 180); sy = sin(rot_yaw * $pi / 180);
+cp = cos(rot_pitch * $pi / 180); sp = sin(rot_pitch * $pi / 180);
+cr = cos(rot_roll * $pi / 180); sr_ = sin(rot_roll * $pi / 180);
+
+@block
+want ? ( want_t += samplesblock; );
+// a rebuild: fade the reverb out, then read / rebuild in small steps, then fade it back in
+want && want_t > 0.3 * srate && build == 0 ? ( wet_target = 0; build = want_read ? 1 : 3; want = 0; );
+build > 0 && wet < 0.001 ? (
+  status_out != 1 ? ( status_out = 1; sliderchange(2 ^ 12); );
+  ready = 0;
+  build == 1 ? (                                  // open the file
+    fh = file_open(slider1);
+    fh >= 0 ? (
+      ir_nch = 0; ir_sr = 0; file_riff(fh, ir_nch, ir_sr);
+      ir_nch < 1 || ir_sr < 1 ? ( file_close(fh); build = 0; ) : (
+        frames = min(floor(file_avail(fh) / ir_nch), MAXRAW);
+        rd = 0; build = 2;
+      );
+    ) : build = 0;
+  ) : build == 2 ? (                              // read it (in one go: reading an audio file
+    file_mem(fh, IRT, frames * ir_nch);            // in several file_mem() calls misplaced parts of it)
+    file_close(fh); want_read = 0; build = 3;
+  ) : build == 3 ? (                              // analyse, then the small layers' spectra
+    analyse();
+    L1.layer_parts(lr); L2.layer_parts(lr); L3.layer_parts(lr);
+    k = 0; loop(L1.nparts, L1.layer_fill(k); k += 1; );
+    k = 0; loop(L2.nparts, L2.layer_fill(k); k += 1; );
+    bk = 0; build = 4;
+  ) : build == 4 ? (                              // the long layer's spectra, two per block
+    loop(2, bk < L3.nparts ? ( L3.layer_fill(bk); bk += 1; ); );
+    bk >= L3.nparts ? ( clear_state(); ready = 1; build = 0; wet_target = 1; );
+  );
+);
+build == 0 && ready && status_out != 0 ? ( status_out = 0; sliderchange(2 ^ 12); );
+
+@sample
+x = spl0;
+lowcut > 20 ? x = hp.bq(x);          // at the ends of their ranges the filters are off
+highcut < 20000 ? x = lp.bq(x);
+ready ? (
+  IN[ts & IM] = x;
+  r = ts & RM;
+  w  = RING[r];          RING[r] = 0;
+  xx = RING[RM + 1 + r]; RING[RM + 1 + r] = 0;
+  yy = RING[2 * (RM + 1) + r]; RING[2 * (RM + 1) + r] = 0;
+  zz = RING[3 * (RM + 1) + r]; RING[3 * (RM + 1) + r] = 0;
+  L1.layer_tick(ts);
+  L1.pos == 0 ? (                                 // every 256 samples: the bigger layers' work
+    L2.job ? L2.layer_step(0);
+    L3.job ? L3.layer_step(0);
+  );
+  L2.layer_tick(ts);
+  L3.layer_tick(ts);
+) : ( w = xx = yy = zz = 0; );
+ts += 1;
+wet += (wet_target - wet) * 0.002;
+g = wet * lvl;
+// rotate the field: yaw (Z axis, clockwise), then pitch (Y axis), then roll (X axis)
+x1 = xx * cy + yy * sy;  y1 = -xx * sy + yy * cy;  z1 = zz;
+x2 = x1 * cp - z1 * sp;  z2 = x1 * sp + z1 * cp;   y2 = y1;
+y3 = y2 * cr - z2 * sr_; z3 = y2 * sr_ + z2 * cr;   x3 = x2;
+spl0 = w * g; spl1 = y3 * g; spl2 = z3 * g; spl3 = x3 * g;
+spl4 = spl5 = spl6 = spl7 = spl8 = spl9 = spl10 = spl11 = spl12 = spl13 = spl14 = spl15 = 0;

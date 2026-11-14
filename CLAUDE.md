@@ -113,6 +113,11 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
 
 ## JSFX / REAPER pitfalls
 - EEL2: no scientific notation (`1e-9` fails), use 0.000000001.
+- EEL2 names are **case-insensitive** (`N` == `n`, `AE` == `ae`): a local can silently shadow an
+  instance / global of the "other" case. Bit us in the reverb.
+- EEL2 `%` is wrong for negative numbers: use `a - floor(a/m)*m`.
+- `fft` / `ifft` / `convolve_c` buffers must not cross a 65536-item boundary: align them.
+- Read an audio file with ONE `file_mem()` call (several calls misplaced data in ysfx).
 - ysfx (tests) supports only sliders 1-64 in practice → published sliders at 60-62.
 - `slider_automate(2^(n-1))` / `sliderchange()` to publish; hidden sliders start with `-`.
 - Without `ext_noinit = 1`, REAPER re-runs @init every time playback starts.

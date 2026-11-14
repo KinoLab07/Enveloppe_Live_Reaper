@@ -285,6 +285,40 @@ check("looper: re-record keeps the old loop until the new one starts",
 o = run(LP, ramp, *EXACT, "s1=0", "s2=1", "s5@250000=1")
 check("looper: clear", np.abs(o[250300:]).max() == 0)
 
+# --- B-format reverb (York Minster, OpenAIR) -------------------------------------
+RV = "E4L B-Format Reverb.jsfx"
+from scipy.io import wavfile as _wav
+_fsr, _ir = _wav.read(os.path.join(DATA, "E4L", "ir", "York Minster.wav")); _ir = _ir.astype(float) / 32768
+_on = np.argmax(np.abs(_ir[:, 0]) >= 0.1 * np.abs(_ir[:, 0]).max()); _cut = _on + int(_fsr * 0.0025)
+def _proc(c):
+    y = c[_cut:].copy(); fi = int(SR * 0.001); y[:fi] *= np.arange(fi) / fi; return y
+EW, EX, EY, EZ = _proc(_ir[:, 0] * np.sqrt(2)), _proc(_ir[:, 1]), _proc(_ir[:, 2]), _proc(_ir[:, 3])
+_g = 1 / np.sqrt((EW ** 2).sum()); EW, EX, EY, EZ = EW * _g, EX * _g, EY * _g, EZ * _g
+def rv_err(got, exp, a, b):
+    return np.sqrt(((got[a:b] - exp[a:b]) ** 2).sum() / (exp[a:b] ** 2).sum())
+imp = np.zeros((12 * SR, 1)); imp[SR, 0] = 1.0
+o = run(RV, imp)
+st = SR + 256                       # the reverb comes 256 samples after the sound
+errs = [rv_err(o[st:, ch], e, a, b) for ch, e in ((0, EW), (3, EX), (1, EY), (2, EZ))
+        for a, b in ((0, 8192), (8192, 48000), (48000, len(EW) - 2000))]
+check("reverb: York Minster in all 4 channels, early part and tail, matches the room (max err %.3f)" % max(errs),
+      max(errs) < 0.01)
+check("reverb: only channels 1-4 (first order) come out, 5-16 are silent", np.abs(o[:, 4:]).max() == 0)
+check("reverb: the room's direct sound is cut, the reverb starts 256 samples after the sound",
+      np.abs(o[:st]).max() < 1e-12 and np.abs(o[st:st + 300, 0]).max() > 1e-3)    # (FFT rounding: ~1e-18)
+o = run(RV, np.zeros((3 * SR, 1)))
+check("reverb: silence in, silence out", np.abs(o).max() == 0)
+o = run(RV, imp[:4 * SR], "s4=90")
+check("reverb: Rotation 90 (clockwise) turns the room: X <- Y, Y <- -X",
+      rv_err(o[st:, 3], EY, 0, 2 * SR) < 0.01 and rv_err(o[st:, 1], -EX, 0, 2 * SR) < 0.01)
+o = run(RV, imp[:4 * SR], "s7=-60")
+check("reverb: Early -60 dB removes the first 170 ms only",
+      np.abs(o[st:st + 8100, 0]).max() < 1e-3 * np.abs(EW[:8192]).max() and rv_err(o[st:, 0], EW, 8300, 2 * SR) < 0.01)
+o = run(RV, imp, "s3=150")
+e15 = (o[st + SR:, 0] ** 2).sum() / (o[st:, 0] ** 2).sum()
+check("reverb: Size 150%% stretches the room (energy after 1 s: %.0f%% vs %.0f%%)" % (100 * e15, 100 * (EW[SR:] ** 2).sum()),
+      e15 > 1.3 * (EW[SR:] ** 2).sum())
+
 # --- sync out (reset pulses for an external sequencer) ------------------------
 SY = "E4L Sync Out.jsfx"
 def run2(fx, x, fx2, *sliders):
