@@ -713,6 +713,7 @@ local function draw_rows(tp, x0, y0, W, H)
     local bh = rowh - 16
     local sel = reaper.IsTrackSelected(L.tr)
     rgb(sel and 0.17 or 0.13, sel and 0.17 or 0.13, sel and 0.21 or 0.16); rect(x0, y, W, rowh - 4)
+    if sel then rgb(0.45, 0.75, 1); rect(x0, y, 4, rowh - 4) end        -- selected: blue edge
     rgb(0.88, 0.88, 0.92)
     text(string.format("%d  %s", i, L.name), x0 + 8, y, nil, rowh - 4)
     if clicked and hit(x0, y, 110, rowh - 4) then reaper.SetOnlyTrackSelected(L.tr) end
@@ -1142,14 +1143,27 @@ local function draw_reverb(x, y, w, h)
   yy = yy + 40
   v = hslider("rv_level", c1, yy, cw, 10, g("Reverb Level (dB)"), -30, 6, "Level", db_text(g("Reverb Level (dB)")))
   if v then s("Reverb Level (dB)", math.floor(v * 10 + 0.5) / 10) end
+  -- whose send: the selected row (click its name), or chosen from the menu below
   local sel
   for _, L in ipairs(loops) do if reaper.IsTrackSelected(L.tr) then sel = L break end end
+  if not sel and loops[1] then sel = loops[1] end
   if sel then
     local db = vol_to_db(E4L.reverb_amount(sel.tr))
-    v = hslider("rv_send", c2, yy, cw, 10, db, -60, 6, "Send " .. sel.name, db_text(db))
+    v = hslider("rv_send", c2, yy, cw, 10, db, -60, 6, "Send", db_text(db))
     if v then E4L.set_reverb_amount(sel.tr, db_to_vol(v)) end
-  else
-    rgb(0.6, 0.6, 0.65); text("Send: click a track's name", c2, yy - 17)
+  end
+  yy = yy + 22
+  rgb(0.85, 0.85, 0.9); text("Reverb of:", c1, yy, nil, 22)
+  if button((sel and sel.name or "no tracks") .. "  ▾", c1 + 74, yy, w - 94, 22, sel ~= nil, 0.45, 0.75, 1)
+     and #loops > 0 then
+    gfx.x, gfx.y = c1 + 74, yy + 22
+    local items = {}
+    for k, L in ipairs(loops) do
+      local db = vol_to_db(E4L.reverb_amount(L.tr))
+      items[k] = (L == sel and "!" or "") .. L.name .. "   (" .. db_text(db) .. ")"
+    end
+    local m = gfx.showmenu(table.concat(items, "|"))
+    if m > 0 then reaper.SetOnlyTrackSelected(loops[m].tr) end
   end
 end
 

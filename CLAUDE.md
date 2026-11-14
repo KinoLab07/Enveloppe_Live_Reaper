@@ -39,7 +39,8 @@ Licence: GPLv2 (same as E4L). Repo: KinoLab07/enveloppe_live_reaper.
     Track `REVERB` (16 ch, no master send, send to E4L Master); tracks send mono ch1 (W) → ch1,
     post-fader (`E.add_reverb`, `E.reverb_send`, `E.set_reverb_amount` in e4l_lib).
     Panel: REVERB console under the room view (room shrinks to leave it 200 px): + REVERB,
-    ON/OFF, room menu, Size, Rotation, Early, Late, Level, Send of the selected row (click name).
+    ON/OFF, room menu, Size, Rotation, Early, Late, Level, Send of the selected row (click name; blue edge) chosen also with the "Reverb of: ▾" menu (user
+    could not find the click-the-name selection).
   - `E4L Sync Out` – on track `SYNC OUT` (no master send, out 1 → Mbox output 6): reset pulse
     for the user's analog sequencer on the bar where a loop starts recording (looper publishes
     the armed bar line in `gmem[0]`, stamp in `gmem[1]`, namespace `E4L_SYNC`), on start from

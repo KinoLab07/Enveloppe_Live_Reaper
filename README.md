@@ -210,8 +210,9 @@ opening any plug-in.
 - **REVERB console** (under the room view): **+ REVERB** adds one `REVERB` track (E4L B-Format
   Reverb) shared by every track, fed by sends and going to the E4L Master. Then: **ON / OFF**,
   the **room** menu (the impulse responses in `Data/E4L/ir`), **Size**, **Rotation**, **Early**,
-  **Late**, **Level**, and the **Send** of the selected track (click a row's name to select it;
-  "off" at the left end). The send takes the track's omni (W) signal, post-fader.
+  **Late**, **Level**, and the **Send** of one track: pick it in **Reverb of: ▾** (the menu
+  lists every track with its amount) or click a row's name (the selected row gets a blue edge);
+  "off" at the left end. The send takes the track's omni (W) signal, post-fader.
 - **Keys:** space = play/stop, 1-9 = record on loop 1-9, 0 = stop all loops, Esc = close the editor.
 
 ### Movement editor

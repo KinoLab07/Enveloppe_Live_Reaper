@@ -516,9 +516,14 @@ check("reverb: Rotation slider (middle = 0)", abs(param(rv, 1, "Rotation (deg, c
 click(C2 + 1, RY + 100 + 5)
 check("reverb: Late slider (left = -30 dB)", param(rv, 1, "Late Reverb (dB)") < -29)
 rows = [x for x in name_list() if x.startswith(("LOOP ", "AUDIO ", "LIVE "))]
-click(8 + 30, row_y(1, len(rows)))
+click(8 + 30, row_y(2, len(rows)))
 lua.execute("MOCK_TEXT = {}"); frame()
-check("reverb: clicking a row's name shows its Send", "Send LOOP 1" in lua.eval("status_text_for_test()"))
+check("reverb: clicking a row's name makes the Send that track's", "LOOP 2  ▾" in lua.eval("status_text_for_test()"))
+lua.execute("function gfx.showmenu() return 1 end")
+click(C1 + 100, RY + 140 + 22 + 10)
+lua.execute("function gfx.showmenu() return 0 end")
+lua.execute("MOCK_TEXT = {}"); frame()
+check("reverb: the 'Reverb of' menu picks another track (LOOP 1)", "LOOP 1  ▾" in lua.eval("status_text_for_test()"))
 click(C2 + CW - 1, RY + 140 + 5)
 snd = lua.eval("""function(i) for _, s in ipairs(MOCK.T[i].sends[0]) do
   if s.dst.name == "REVERB" then return s.vals.I_SRCCHAN, s.vals.I_DSTCHAN, s.vals.D_VOL end end end""")

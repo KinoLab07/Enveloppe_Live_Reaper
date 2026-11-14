@@ -753,8 +753,9 @@ def build(path):
         "Under the room view. <b>+ REVERB</b> adds one <b>REVERB</b> track (E4L B-Format Reverb), shared "
         "by every track: each track sends to it, it goes to the E4L Master, so the reflections come "
         "from all around the room.",
-        "<b>Click a row's name</b> to select that track; the console's <b>Send</b> slider is its amount "
-        "of reverb (\"off\" at the left end).",
+        "<b>Reverb of: ▾</b> chooses the track (the menu shows each track with its amount; clicking a "
+        "row's name does the same, the row gets a blue edge); the <b>Send</b> slider is that track's "
+        "amount of reverb (\"off\" at the left end).",
         "<b>ON / OFF</b>, the <b>room</b> menu (York Minster is included; any 4-channel B-format WAV "
         "copied to Data/E4L/ir appears there), <b>Size</b> (smaller / larger room), <b>Rotation</b> "
         "(turns the reflections), <b>Early</b> (first reflections) and <b>Late</b> (the tail), "
